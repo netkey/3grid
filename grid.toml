@@ -1,0 +1,3 @@
+[server]
+daemon = true
+port = 5353
