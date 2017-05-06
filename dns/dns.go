@@ -48,7 +48,7 @@ func (wkr *DNS_worker) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
 			if err != nil {
 				log.Fatal(err)
 			}
-			ipc = re.City.Names["en"] + "/" + re.Country.IsoCode
+			ipc = re.City.Names["en"] + "/" + re.Country.IsoCode + "/" + re.Postal.Code
 
 			wkr.Lock.Lock()
 			wkr.Ipcache[ips] = ipc

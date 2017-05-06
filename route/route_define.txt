@@ -1,0 +1,53 @@
+-----------------------------------------------------------------------------------------
+cache server list record:
+____________________________________________________________________________
+|  server_ip  |  server_group  |  node_id  |  usage  |  status  |  weight  |
+----------------------------------------------------------------------------
+server_ip: cache server ip(int)
+server_group: cache server group(str)
+node_id: network node id(int)
+usage: %capacity(int)
+status: server status(int)
+weight: server capacity(int)
+
+map: node_servers[node_id]:cache_server_list_record
+map: caches[server_ip]:cache_server_list_recode
+
+-----------------------------------------------------------------------------------------
+node list record:
+___________________________________________________________________
+|  node_id  |  node_capacity	|  usage  |  status  |  priority  |
+-------------------------------------------------------------------
+node_id: network node id(int)
+node_capacity: bandwidth capacity(int)
+usage: %capacity(int)
+status: server status(int)
+priority: node net priority(int)
+
+map: nodes[node_id]:node_list_record
+
+-----------------------------------------------------------------------------------------
+domain list record:
+_________________________________________________
+|  domain_id  |  domain_name	|  server_group |
+-------------------------------------------------
+domain_id: id of domain name(int)
+domain_name: domain name(str)
+server_group: which group to serv(str)
+
+map: domains[domain_name]:domain_list_record
+
+-----------------------------------------------------------------------------------------
+route list record:
+_________________________________________________________
+|  domain_id  |  client_region  |  node_ids	|  ext	|
+---------------------------------------------------------
+
+domain_id: domain id(int)
+client_region:client region(str), may be 2 forms: "CN-CT-GD-GZ"(for clients) "node_id"(for cache servers)
+node_ids: next nodes to serv(str), like: (123, 234, ...) - (node_id1, node_id2, ...)
+ext: more info(str)
+
+map:routes[domain_id][client_region]:route_list_record
+
+-----------------------------------------------------------------------------------------
