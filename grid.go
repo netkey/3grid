@@ -1,12 +1,12 @@
 package main
 
 import (
+	"3grid/dns"
 	"fmt"
 	"github.com/miekg/dns"
 	"github.com/oschwald/geoip2-golang"
 	"github.com/sevlyar/go-daemon"
 	"github.com/spf13/viper"
-	"grid/dns"
 	"os"
 	"os/signal"
 	"runtime"
