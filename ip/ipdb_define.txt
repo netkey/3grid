@@ -1,0 +1,24 @@
+Use mmdb format, refer to http://maxmind.github.io/MaxMind-DB
+
+The binary database is split into three parts:
+1.The binary search tree. Each level of the tree corresponds to a single bit in the 128 bit representation of an IPv6 address.
+2.The data section. These are the values returned to the client for a specific IP address, e.g. “US”, “New York”, or a more complex map type made up of multiple fields.
+3.Database metadata. Information about the database itself.
+
+
+________________________________________________________________________________________
+|  ip_block_start_addr  | carrier_code | country_code  |  province_name  |  city_name  |
+----------------------------------------------------------------------------------------
+ip_block_start_addr: ip block start address(int)
+carrier_code: T-SP-M.1400-2014-PDF-C(国际电联电信运营商代码列表)(str)
+country_code: ISO 3166-1 alpha-2(str)(https://en.wikipedia.org/wiki/ISO_3166-1_alpha-2)
+province_name: province/state name(str)
+(中国省份按照2位大写英文字母命名)(http://baike.baidu.com/item/%E8%A1%8C%E6%94%BF%E5%8C%BA%E5%88%92%E4%BB%A3%E7%A0%81?fromtitle=%E8%A1%8C%E6%94%BF%E4%BB%A3%E7%A0%81&type=syn)
+city_name: city name(str)
+(中国城市按照2位大写英文字母命名)(一般是城市名首字母)
+
+
+ipdb import format: csv/txt
+
+ipdb export format: mmdb(MaxMind DB)
+
