@@ -1,6 +1,6 @@
 package grid_route
 
-type Route_DB struct {
+type Route_db struct {
 	CacheServers map[int]Server_List_Record
 	NodeServers  map[int]Server_List_Record
 	Nodes        map[int]Node_List_Record
