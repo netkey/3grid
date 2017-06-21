@@ -1,13 +1,11 @@
-package grid
+package grid_dns
 
 import (
+	"3grid/ip"
 	"flag"
 	"fmt"
 	"github.com/miekg/dns"
-	"github.com/oschwald/geoip2-golang"
-	"log"
 	"net"
-	"sync"
 	"time"
 )
 
@@ -19,11 +17,9 @@ var (
 const dom = "www.chinamaincloud.com."
 
 type DNS_worker struct {
-	Id      int
-	Server  *dns.Server
-	Ipcache map[string]string
-	Ipdb    *geoip2.Reader
-	Lock    *sync.RWMutex
+	Id     int
+	Server *dns.Server
+	Ipdb   *grid_ip.IP_db
 }
 
 func (wkr *DNS_worker) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
@@ -38,36 +34,13 @@ func (wkr *DNS_worker) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
 	m.SetReply(r)
 	m.Compress = *compress
 	if ip, ok := w.RemoteAddr().(*net.UDPAddr); ok {
-		ips := ip.IP.String()
-		//wkr.Lock.RLock()
-		ipc = wkr.Ipcache[ips]
-		//wkr.Lock.RUnlock()
+		ipc = wkr.Ipdb.GetAreaCode(ip)
 
-		if ipc == "" {
-			re, err := wkr.Ipdb.City(ip.IP)
-			if err != nil {
-				log.Fatal(err)
-			}
-			ipc = re.City.Names["en"] + "/" + re.Country.IsoCode + "/" + re.Postal.Code
-
-			wkr.Lock.Lock()
-			wkr.Ipcache[ips] = ipc
-			wkr.Lock.Unlock()
-		}
-
-		//str = "You are from: " + r.City.Names["en"] + "/" + r.Country.Names["en"]
 		str = "You are from: " + ipc
 
 		a = ip.IP
 		v4 = a.To4() != nil
 	}
-	/*
-		if ip, ok := w.RemoteAddr().(*net.TCPAddr); ok {
-			str = "Port: " + strconv.Itoa(ip.Port) + " (tcp)"
-			a = ip.IP
-			v4 = a.To4() != nil
-		}
-	*/
 	if v4 {
 		rr = &dns.A{
 			Hdr: dns.RR_Header{Name: dom, Rrtype: dns.TypeA, Class: dns.ClassINET, Ttl: 0},
@@ -85,6 +58,7 @@ func (wkr *DNS_worker) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
 		Txt: []string{str},
 	}
 
+	//return result based on dns query type
 	switch r.Question[0].Qtype {
 	case dns.TypeTXT:
 		m.Answer = append(m.Answer, t)
@@ -116,7 +90,6 @@ func (wkr *DNS_worker) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
 		}
 	}
 	if *printf {
-		//fmt.Printf("%v\n", m.String())
 		fmt.Printf("Query from: %s\n", a.String())
 	}
 	// set TC when question is tc.miek.nl.

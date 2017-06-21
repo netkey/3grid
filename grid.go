@@ -2,24 +2,24 @@ package main
 
 import (
 	"3grid/dns"
+	"3grid/ip"
 	"fmt"
 	"github.com/miekg/dns"
-	"github.com/oschwald/geoip2-golang"
 	"github.com/sevlyar/go-daemon"
 	"github.com/spf13/viper"
 	"os"
 	"os/signal"
 	"runtime"
-	"sync"
 	"syscall"
 )
 
 func serve(net, name, secret string, num int) {
-	worker := grid.DNS_worker{}
+	ipdb := grid_ip.IP_db{}
+	ipdb.IP_db_init()
+
+	worker := grid_dns.DNS_worker{}
 	worker.Id = num
-	worker.Ipcache = make(map[string]string)
-	worker.Ipdb, _ = geoip2.Open("ip/GeoLite2-City.mmdb")
-	worker.Lock = new(sync.RWMutex)
+	worker.Ipdb = &ipdb
 
 	switch name {
 	case "":
