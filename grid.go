@@ -3,6 +3,7 @@ package main
 import (
 	"3grid/dns"
 	"3grid/ip"
+	"flag"
 	"fmt"
 	"github.com/miekg/dns"
 	"github.com/sevlyar/go-daemon"
@@ -11,7 +12,19 @@ import (
 	"os/signal"
 	"runtime"
 	"syscall"
+	"time"
 )
+
+var (
+	debug = flag.Bool("debug", true, "output debug info")
+)
+
+func sync(_interval int) {
+	//function to sync ip & route db
+	for {
+		time.Sleep(time.Duration(_interval) * time.Second)
+	}
+}
 
 func serve(net, name, secret string, num int) {
 	ipdb := grid_ip.IP_db{}
@@ -64,17 +77,25 @@ func read_conf() {
 		} else {
 			daemond = true
 		}
-		/*
+		_interval := viper.GetInt("server.interval")
+		if _interval < 300 {
+			interval = 300
+		} else {
+			interval = _interval
+		}
+		if *debug {
 			fmt.Printf("cpus:%d\n", num_cpus)
 			fmt.Printf("port:%s\n", port)
 			fmt.Printf("daemon:%t\n", daemond)
-		*/
+			fmt.Printf("interval:%d\n", interval)
+		}
 	}
 }
 
 var num_cpus int
 var port string
 var daemond bool
+var interval int
 
 func main() {
 
@@ -92,13 +113,14 @@ func main() {
 	}
 
 	//after fork as daemon, go on working
-
 	runtime.GOMAXPROCS(num_cpus)
 
 	var name, secret string
 	for i := 0; i < num_cpus; i++ {
 		go serve("udp", name, secret, i)
 	}
+
+	go sync(interval)
 
 	sig := make(chan os.Signal)
 	signal.Notify(sig, syscall.SIGINT, syscall.SIGTERM)

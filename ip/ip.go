@@ -3,6 +3,7 @@ package grid_ip
 import (
 	"github.com/oschwald/geoip2-golang"
 	"net"
+	"strconv"
 	"sync"
 )
 
@@ -30,7 +31,14 @@ func (ip_db *IP_db) GetAreaCode(ip *net.UDPAddr) string {
 	if ipc == "" {
 		re, err := ip_db.Ipdb.City(ip.IP)
 		if err == nil {
-			ipc = re.City.Names["en"] + "/" + re.Country.IsoCode + "/" + re.Postal.Code
+			cn := re.City.Names["en"]
+			if cn == "" {
+				cn = re.Country.Names["en"]
+			}
+
+			ipc = cn + "|" + re.Country.IsoCode + "|" + re.Postal.Code + "|Coordinates: " +
+				strconv.FormatFloat(re.Location.Latitude, 'f', 4, 64) + ", " +
+				strconv.FormatFloat(re.Location.Longitude, 'f', 4, 64)
 
 			ip_db.Lock.Lock()
 			ip_db.Ipcache[ips] = ipc
