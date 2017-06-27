@@ -8,6 +8,7 @@ import (
 	"github.com/miekg/dns"
 	"github.com/sevlyar/go-daemon"
 	"github.com/spf13/viper"
+	"github.com/streadway/amqp"
 	"os"
 	"os/signal"
 	"runtime"
@@ -16,7 +17,13 @@ import (
 )
 
 var (
-	debug = flag.Bool("debug", true, "output debug info")
+	debug        = flag.Bool("debug", true, "output debug info")
+	uri          = flag.String("uri", "amqp://guest:guest@localhost:5672/", "AMQP URI")
+	exchange     = flag.String("exchange", "test-exchange", "Durable, non-auto-deleted AMQP exchange name")
+	exchangeType = flag.String("exchange-type", "direct", "Exchange type - direct|fanout|topic|x-custom")
+	queue        = flag.String("queue", "test-queue", "Ephemeral AMQP queue name")
+	bindingKey   = flag.String("key", "test-key", "AMQP binding key")
+	consumerTag  = flag.String("consumer-tag", "simple-consumer", "AMQP consumer tag (should not be blank)")
 )
 
 func sync(_interval int) {
