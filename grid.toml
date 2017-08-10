@@ -1,3 +1,4 @@
 [server]
-daemon = true
+daemon = false
 port = 5353
+interval=30

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"3grid/amqp"
 	"3grid/dns"
 	"3grid/ip"
 	"flag"
@@ -8,7 +9,7 @@ import (
 	"github.com/miekg/dns"
 	"github.com/sevlyar/go-daemon"
 	"github.com/spf13/viper"
-	"github.com/streadway/amqp"
+	"log"
 	"os"
 	"os/signal"
 	"runtime"
@@ -18,19 +19,48 @@ import (
 
 var (
 	debug        = flag.Bool("debug", true, "output debug info")
-	uri          = flag.String("uri", "amqp://guest:guest@localhost:5672/", "AMQP URI")
-	exchange     = flag.String("exchange", "test-exchange", "Durable, non-auto-deleted AMQP exchange name")
+	uri          = flag.String("uri", "amqp://gslb:gslb@gslb-amqp.chinamaincloud.com:5672//gslb", "AMQP URI")
+	exchange     = flag.String("exchange", "gslb-exchange", "Durable, non-auto-deleted AMQP exchange name")
 	exchangeType = flag.String("exchange-type", "direct", "Exchange type - direct|fanout|topic|x-custom")
-	queue        = flag.String("queue", "test-queue", "Ephemeral AMQP queue name")
-	bindingKey   = flag.String("key", "test-key", "AMQP binding key")
-	consumerTag  = flag.String("consumer-tag", "simple-consumer", "AMQP consumer tag (should not be blank)")
+	queue_c      = flag.String("queue_c", "gslb-queue-c", "Ephemeral AMQP consumer queue name")
+	queue_p      = flag.String("queue_p", "gslb-queue-p", "Ephemeral AMQP producer queue name")
+	bindingKey_c = flag.String("key_c", "gslb-key-c", "AMQP binding key")
+	bindingKey_p = flag.String("key_p", "gslb-key-p", "AMQP binding key")
+	consumerTag  = flag.String("consumer-tag", "gslb-3grid", "AMQP consumer tag (should not be blank)")
+	producerTag  = flag.String("producer-tag", "gslb-3grid", "AMQP producer tag (should not be blank)")
+	lifetime     = flag.Duration("lifetime", 0*time.Second, "lifetime of process before shutdown (0s=infinite)")
 )
 
-func sync(_interval int) {
-	//function to sync ip & route db
-	for {
-		time.Sleep(time.Duration(_interval) * time.Second)
+var amqp_c *grid_amqp.AMQP_Consumer
+
+//var amqp_p *grid_amqp.AMQP_Producer
+
+func synchronize(_interval int) {
+	//function to synchronize ip & route db
+	var err error
+	amqp_c, err = grid_amqp.NewAMQPConsumer(*uri, *exchange, *exchangeType, *queue_c, *bindingKey_c, *consumerTag)
+
+	if err != nil {
+		log.Fatalf("%s", err)
+	} else {
+		//amqp_p, err = grid_amqp.NewAMQPProducer(*uri, *exchange, *exchangeType, *queue_p, *bindingKey_p, *producerTag)
+		for {
+			if err = amqp_c.Publish("Hello, GSLB", *bindingKey_p); err != nil {
+				log.Fatalf("%s", err)
+			}
+			time.Sleep(time.Duration(_interval) * time.Second)
+		}
 	}
+
+	defer func() {
+		log.Printf("shutting down")
+		if err := amqp_c.Shutdown(); err != nil {
+			log.Fatalf("error during shutdown: %s", err)
+		}
+		/*if err := amqp_p.Shutdown(); err != nil {
+			log.Fatalf("error during shutdown: %s", err)
+		}*/
+	}()
 }
 
 func serve(net, name, secret string, num int) {
@@ -85,16 +115,23 @@ func read_conf() {
 			daemond = true
 		}
 		_interval := viper.GetInt("server.interval")
-		if _interval < 300 {
-			interval = 300
+		if _interval < 30 {
+			interval = 30
 		} else {
 			interval = _interval
+		}
+		_logger := viper.GetString("server.log")
+		if _logger == "" {
+			logger = "3grid.log"
+		} else {
+			logger = _logger
 		}
 		if *debug {
 			fmt.Printf("cpus:%d\n", num_cpus)
 			fmt.Printf("port:%s\n", port)
 			fmt.Printf("daemon:%t\n", daemond)
 			fmt.Printf("interval:%d\n", interval)
+			fmt.Printf("log:%s\n", logger)
 		}
 	}
 }
@@ -103,6 +140,7 @@ var num_cpus int
 var port string
 var daemond bool
 var interval int
+var logger string
 
 func main() {
 
@@ -120,14 +158,14 @@ func main() {
 	}
 
 	//after fork as daemon, go on working
-	runtime.GOMAXPROCS(num_cpus)
+	runtime.GOMAXPROCS(num_cpus + 1)
 
 	var name, secret string
 	for i := 0; i < num_cpus; i++ {
 		go serve("udp", name, secret, i)
 	}
 
-	go sync(interval)
+	go synchronize(interval)
 
 	sig := make(chan os.Signal)
 	signal.Notify(sig, syscall.SIGINT, syscall.SIGTERM)

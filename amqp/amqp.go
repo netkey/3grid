@@ -1,59 +1,26 @@
 package grid_amqp
 
 import (
-	"flag"
 	"fmt"
 	"github.com/streadway/amqp"
 	"log"
-	"time"
 )
 
-var (
-	uri          = flag.String("uri", "amqp://guest:guest@localhost:5672/", "AMQP URI")
-	exchange     = flag.String("exchange", "test-exchange", "Durable, non-auto-deleted AMQP exchange name")
-	exchangeType = flag.String("exchange-type", "direct", "Exchange type - direct|fanout|topic|x-custom")
-	queue        = flag.String("queue", "test-queue", "Ephemeral AMQP queue name")
-	bindingKey   = flag.String("key", "test-key", "AMQP binding key")
-	consumerTag  = flag.String("consumer-tag", "simple-consumer", "AMQP consumer tag (should not be blank)")
-	lifetime     = flag.Duration("lifetime", 5*time.Second, "lifetime of process before shutdown (0s=infinite)")
-)
-
-func init() {
-	flag.Parse()
-}
-
-func main() {
-	c, err := NewConsumer(*uri, *exchange, *exchangeType, *queue, *bindingKey, *consumerTag)
-	if err != nil {
-		log.Fatalf("%s", err)
-	}
-
-	if *lifetime > 0 {
-		log.Printf("running for %s", *lifetime)
-		time.Sleep(*lifetime)
-	} else {
-		log.Printf("running forever")
-		select {}
-	}
-
-	log.Printf("shutting down")
-
-	if err := c.Shutdown(); err != nil {
-		log.Fatalf("error during shutdown: %s", err)
-	}
-}
-
-type Consumer struct {
+type AMQP_Consumer struct {
 	conn    *amqp.Connection
 	channel *amqp.Channel
+	exc     string
+	rkey    string
 	tag     string
 	done    chan error
 }
 
-func NewConsumer(amqpURI, exchange, exchangeType, queueName, key, ctag string) (*Consumer, error) {
-	c := &Consumer{
+func NewAMQPConsumer(amqpURI, exchange, exchangeType, queueName, key, ctag string) (*AMQP_Consumer, error) {
+	c := &AMQP_Consumer{
 		conn:    nil,
 		channel: nil,
+		exc:     exchange,
+		rkey:    key,
 		tag:     ctag,
 		done:    make(chan error),
 	}
@@ -76,7 +43,7 @@ func NewConsumer(amqpURI, exchange, exchangeType, queueName, key, ctag string) (
 		return nil, fmt.Errorf("Channel: %s", err)
 	}
 
-	log.Printf("got Channel, declaring Exchange (%q)", exchange)
+	log.Printf("got Channel, declaring %q Exchange (%q)", exchangeType, exchange)
 	if err = c.channel.ExchangeDeclare(
 		exchange,     // name of the exchange
 		exchangeType, // type
@@ -129,12 +96,37 @@ func NewConsumer(amqpURI, exchange, exchangeType, queueName, key, ctag string) (
 		return nil, fmt.Errorf("Queue Consume: %s", err)
 	}
 
-	go handle(deliveries, c.done)
+	go amqp_handle(deliveries, c.done)
 
 	return c, nil
 }
 
-func (c *Consumer) Shutdown() error {
+func (c *AMQP_Consumer) Publish(body, key string) error {
+	var err error
+
+	log.Printf("publishing %dB body (%q) to %s of %s", len(body), body, key, c.exc)
+	if err = c.channel.Publish(
+		c.exc, // publish to an exchange
+		key,   // routing to 0 or more queues
+		false, // mandatory
+		false, // immediate
+		amqp.Publishing{
+			Headers:         amqp.Table{},
+			ContentType:     "text/plain",
+			ContentEncoding: "",
+			Body:            []byte(body),
+			DeliveryMode:    amqp.Transient, // 1=non-persistent, 2=persistent
+			Priority:        0,              // 0-9
+		},
+	); err != nil {
+		log.Printf("Exchange Publish: %s", err)
+		return fmt.Errorf("Exchange Publish: %s", err)
+	}
+
+	return nil
+}
+
+func (c *AMQP_Consumer) Shutdown() error {
 	// will close() the deliveries channel
 	if err := c.channel.Cancel(c.tag, true); err != nil {
 		return fmt.Errorf("Consumer cancel failed: %s", err)
@@ -144,13 +136,13 @@ func (c *Consumer) Shutdown() error {
 		return fmt.Errorf("AMQP connection close error: %s", err)
 	}
 
-	defer log.Printf("AMQP shutdown OK")
+	defer log.Printf("AMQP_Consumer shutdown OK")
 
 	// wait for handle() to exit
 	return <-c.done
 }
 
-func handle(deliveries <-chan amqp.Delivery, done chan error) {
+func amqp_handle(deliveries <-chan amqp.Delivery, done chan error) {
 	for d := range deliveries {
 		log.Printf(
 			"got %dB delivery: [%v] %q",
@@ -162,4 +154,105 @@ func handle(deliveries <-chan amqp.Delivery, done chan error) {
 	}
 	log.Printf("handle: deliveries channel closed")
 	done <- nil
+}
+
+type AMQP_Producer struct {
+	conn    *amqp.Connection
+	channel *amqp.Channel
+	exc     string
+	rkey    string
+	tag     string
+	done    chan error
+}
+
+func NewAMQPProducer(amqpURI, exchange, exchangeType, queueName, key, ctag string) (*AMQP_Producer, error) {
+	c := &AMQP_Producer{
+		conn:    nil,
+		channel: nil,
+		exc:     exchange,
+		rkey:    key,
+		tag:     ctag,
+		done:    make(chan error),
+	}
+
+	var err error
+
+	// This function dials, connects, declares, publishes, and tears down,
+	// all in one go. In a real service, you probably want to maintain a
+	// long-lived connection as state, and publish against that.
+
+	log.Printf("dialing %q", amqpURI)
+	c.conn, err = amqp.Dial(amqpURI)
+	if err != nil {
+		log.Printf("Dial: %s", err)
+		return nil, fmt.Errorf("Dial: %s", err)
+	}
+
+	defer c.conn.Close()
+
+	log.Printf("got Connection, getting Channel")
+	c.channel, err = c.conn.Channel()
+	if err != nil {
+		log.Printf("Channel: %s", err)
+		return nil, fmt.Errorf("Channel: %s", err)
+	}
+
+	log.Printf("got Channel, declaring %q Exchange (%q)", exchangeType, exchange)
+	if err := c.channel.ExchangeDeclare(
+		exchange,     // name
+		exchangeType, // type
+		true,         // durable
+		false,        // auto-deleted
+		false,        // internal
+		false,        // noWait
+		nil,          // arguments
+	); err != nil {
+		log.Printf("Exchange Declare: %s", err)
+		return nil, fmt.Errorf("Exchange Declare: %s", err)
+	}
+
+	log.Printf("declared Exchange")
+
+	return c, nil
+}
+
+func (c *AMQP_Producer) Publish(body string) error {
+	var err error
+
+	log.Printf("publishing %dB body (%q) to %s of %s", len(body), body, c.rkey, c.exc)
+	if err = c.channel.Publish(
+		c.exc,  // publish to an exchange
+		c.rkey, // routing to 0 or more queues
+		false,  // mandatory
+		false,  // immediate
+		amqp.Publishing{
+			Headers:         amqp.Table{},
+			ContentType:     "text/plain",
+			ContentEncoding: "",
+			Body:            []byte(body),
+			DeliveryMode:    amqp.Transient, // 1=non-persistent, 2=persistent
+			Priority:        0,              // 0-9
+		},
+	); err != nil {
+		log.Printf("Exchange Publish: %s", err)
+		return fmt.Errorf("Exchange Publish: %s", err)
+	}
+
+	return nil
+}
+
+func (c *AMQP_Producer) Shutdown() error {
+	// will close() the deliveries channel
+	if err := c.channel.Cancel(c.tag, true); err != nil {
+		return fmt.Errorf("Producer cancel failed: %s", err)
+	}
+
+	if err := c.conn.Close(); err != nil {
+		return fmt.Errorf("AMQP connection close error: %s", err)
+	}
+
+	defer log.Printf("AMQP_Producer shutdown OK")
+
+	// wait for handle() to exit
+	return <-c.done
 }
