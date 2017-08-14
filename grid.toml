@@ -1,4 +1,5 @@
 [server]
 daemon = false
 port = 5353
-interval=30
+myname = "grid-1"
+interval = 100
