@@ -24,7 +24,8 @@ var interval int
 var myname string
 
 func read_conf() {
-	viper.SetConfigName("grid")
+	viper.SetConfigFile("grid.conf")
+	viper.SetConfigType("toml")
 	viper.AddConfigPath("/etc")
 	viper.AddConfigPath(".")
 
