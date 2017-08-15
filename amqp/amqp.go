@@ -1,10 +1,17 @@
 package grid_amqp
 
 import (
-	"encoding/json"
 	"fmt"
 	"github.com/streadway/amqp"
 	"log"
+)
+
+const (
+	AMQP_CM_KA         = "KA"      //Keepalive
+	AMQP_CM_VU         = "VU"      //Version Update
+	AMQP_CM_DU         = "DU"      //Data Update
+	AMQP_PARAM_ZIP     = "Zipped"  //Whether msg is zipped
+	AMQP_PARAM_CONFORM = "Confirm" //Whether msg is being required to confirm
 )
 
 type AMQP_Message struct {
@@ -13,6 +20,8 @@ type AMQP_Message struct {
 	Params  string
 	Object  string
 	Content string
+	Zip     bool
+	Confirm bool
 }
 
 type AMQP_Consumer struct {
@@ -105,23 +114,23 @@ func NewAMQPConsumer(amqpURI, exchange, exchangeType, queueName, key, ctag strin
 		return nil, fmt.Errorf("Queue Consume: %s", err)
 	}
 
-	go amqp_handle_c(deliveries, c.done)
+	go c.amqp_handle_c(deliveries, c.done)
 
 	return c, nil
 }
 
-func (c *AMQP_Consumer) Publish(body []byte, key string) error {
+func (c *AMQP_Consumer) Publish(body []byte) error {
 	var err error
 
-	log.Printf("publishing %dB body to %s of %s", len(body), key, c.exc)
+	log.Printf("publishing %dB body to %s of %s", len(body), c.rkey, c.exc)
 	if err = c.channel.Publish(
-		c.exc, // publish to an exchange
-		key,   // routing to 0 or more queues
-		false, // mandatory
-		false, // immediate
+		c.exc,  // publish to an exchange
+		c.rkey, // routing to 0 or more queues
+		false,  // mandatory
+		false,  // immediate
 		amqp.Publishing{
 			Headers:         amqp.Table{},
-			ContentType:     "text/plain",
+			ContentType:     "application/json",
 			ContentEncoding: "",
 			Body:            body,
 			DeliveryMode:    amqp.Transient, // 1=non-persistent, 2=persistent
@@ -150,7 +159,7 @@ func (c *AMQP_Consumer) Shutdown() error {
 	return <-c.done
 }
 
-func amqp_handle_c(deliveries <-chan amqp.Delivery, done chan error) {
+func (c *AMQP_Consumer) amqp_handle_c(deliveries <-chan amqp.Delivery, done chan error) {
 	for d := range deliveries {
 		log.Printf(
 			"got %dB delivery from %s: [%v] %q",
@@ -247,37 +256,24 @@ func NewAMQPProducer(amqpURI, exchange, exchangeType, queueName, key, ctag strin
 	}
 
 	log.Printf("Queue bound to Exchange, starting Produce (producer tag %q)", c.tag)
-	/*deliveries, err := c.channel.Consume(
-		queue.Name, // name
-		c.tag,      // consumerTag,
-		true,       // noAck
-		false,      // exclusive
-		false,      // noLocal
-		false,      // noWait
-		nil,        // arguments
-	)
-	if err != nil {
-		log.Printf("Queue Consume: %s", err)
-		return nil, fmt.Errorf("Queue Consume: %s", err)
-	}
 
-	go amqp_handle_p(deliveries, c.done)*/
+	go c.amqp_handle_p()
 
 	return c, nil
 }
 
-func (c *AMQP_Producer) Publish(body []byte, key string) error {
+func (c *AMQP_Producer) Publish(body []byte) error {
 	var err error
 
-	log.Printf("publishing %dB body to %s of %s", len(body), key, c.exc)
+	log.Printf("publishing %dB body to %s of %s", len(body), c.rkey, c.exc)
 	if err = c.channel.Publish(
-		c.exc, // publish to an exchange
-		key,   // routing to 0 or more queues
-		false, // mandatory
-		false, // immediate
+		c.exc,  // publish to an exchange
+		c.rkey, // routing to 0 or more queues
+		false,  // mandatory
+		false,  // immediate
 		amqp.Publishing{
 			Headers:         amqp.Table{},
-			ContentType:     "text/plain",
+			ContentType:     "application/json",
 			ContentEncoding: "",
 			Body:            body,
 			DeliveryMode:    amqp.Transient, // 1=non-persistent, 2=persistent
@@ -306,7 +302,7 @@ func (c *AMQP_Producer) Shutdown() error {
 	return <-c.done
 }
 
-func amqp_handle_p(deliveries <-chan amqp.Delivery, done chan error) {
+func (c *AMQP_Producer) amqp_handle_p() {
 	select {}
 }
 
@@ -316,16 +312,18 @@ type AMQP_Broadcaster struct {
 	exc     string
 	rkey    string
 	tag     string
+	myname  string
 	done    chan error
 }
 
-func NewAMQPBroadcaster(amqpURI, exchange, exchangeType, queueName, key, ctag string) (*AMQP_Broadcaster, error) {
+func NewAMQPBroadcaster(amqpURI, exchange, exchangeType, queueName, key, ctag, myname string) (*AMQP_Broadcaster, error) {
 	c := &AMQP_Broadcaster{
 		conn:    nil,
 		channel: nil,
 		exc:     exchange,
 		rkey:    key,
 		tag:     ctag,
+		myname:  myname,
 		done:    make(chan error),
 	}
 
@@ -400,15 +398,15 @@ func NewAMQPBroadcaster(amqpURI, exchange, exchangeType, queueName, key, ctag st
 		return nil, fmt.Errorf("Queue Consume: %s", err)
 	}
 
-	go amqp_handle_b(deliveries, c.done)
+	go c.amqp_handle_b(deliveries, c.done)
 
 	return c, nil
 }
 
-func (c *AMQP_Broadcaster) Publish(body []byte, key string) error {
+func (c *AMQP_Broadcaster) Publish(body []byte) error {
 	var err error
 
-	log.Printf("publishing %dB body to %s of %s", len(body), key, c.exc)
+	log.Printf("broadcasting %dB body to %s", len(body), c.exc)
 	if err = c.channel.Publish(
 		c.exc, // publish to an exchange
 		"",    // routing to 0 or more queues
@@ -445,15 +443,18 @@ func (c *AMQP_Broadcaster) Shutdown() error {
 	return <-c.done
 }
 
-func amqp_handle_b(deliveries <-chan amqp.Delivery, done chan error) {
+func (c *AMQP_Broadcaster) amqp_handle_b(deliveries <-chan amqp.Delivery, done chan error) {
 	var msg AMQP_Message
 
 	for d := range deliveries {
-		if err := json.Unmarshal([]byte(d.Body), &msg); err != nil {
+		if err := Transmsg(d.Body, &msg); err != nil {
 			log.Printf("%s", err)
 		}
+		if msg.Sender == c.myname {
+			continue
+		}
 		log.Printf(
-			"got %dB broadcast: [%v] %q",
+			"got %dB broadcast: [%v] %+v",
 			len(d.Body),
 			d.DeliveryTag,
 			msg,
