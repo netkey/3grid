@@ -105,3 +105,27 @@ func (wkr *DNS_worker) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
 
 	w.WriteMsg(m)
 }
+
+func Serve(net, port, name, secret string, num int) {
+	ipdb := grid_ip.IP_db{}
+	ipdb.IP_db_init()
+
+	worker := DNS_worker{}
+	worker.Id = num
+	worker.Ipdb = &ipdb
+
+	switch name {
+	case "":
+		worker.Server = &dns.Server{Addr: ":" + port, Net: net, TsigSecret: nil}
+		worker.Server.Handler = &worker
+		if err := worker.Server.ListenAndServe(); err != nil {
+			fmt.Printf("Failed to setup the "+net+" server: %s\n", err.Error())
+		}
+	default:
+		worker.Server = &dns.Server{Addr: ":" + port, Net: net, TsigSecret: map[string]string{name: secret}}
+		worker.Server.Handler = &worker
+		if err := worker.Server.ListenAndServe(); err != nil {
+			fmt.Printf("Failed to setup the "+net+" server: %s\n", err.Error())
+		}
+	}
+}

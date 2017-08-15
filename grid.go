@@ -3,10 +3,8 @@ package main
 import (
 	"3grid/amqp"
 	"3grid/dns"
-	"3grid/ip"
 	"flag"
 	"fmt"
-	"github.com/miekg/dns"
 	"github.com/sevlyar/go-daemon"
 	"github.com/spf13/viper"
 	"os"
@@ -19,29 +17,11 @@ var (
 	debug = flag.Bool("debug", true, "output debug info")
 )
 
-func serve(net, name, secret string, num int) {
-	ipdb := grid_ip.IP_db{}
-	ipdb.IP_db_init()
-
-	worker := grid_dns.DNS_worker{}
-	worker.Id = num
-	worker.Ipdb = &ipdb
-
-	switch name {
-	case "":
-		worker.Server = &dns.Server{Addr: ":" + port, Net: net, TsigSecret: nil}
-		worker.Server.Handler = &worker
-		if err := worker.Server.ListenAndServe(); err != nil {
-			fmt.Printf("Failed to setup the "+net+" server: %s\n", err.Error())
-		}
-	default:
-		worker.Server = &dns.Server{Addr: ":" + port, Net: net, TsigSecret: map[string]string{name: secret}}
-		worker.Server.Handler = &worker
-		if err := worker.Server.ListenAndServe(); err != nil {
-			fmt.Printf("Failed to setup the "+net+" server: %s\n", err.Error())
-		}
-	}
-}
+var num_cpus int
+var port string
+var daemond bool
+var interval int
+var myname string
 
 func read_conf() {
 	viper.SetConfigName("grid")
@@ -92,12 +72,6 @@ func read_conf() {
 	}
 }
 
-var num_cpus int
-var port string
-var daemond bool
-var interval int
-var myname string
-
 func main() {
 
 	read_conf()
@@ -118,7 +92,7 @@ func main() {
 
 	var name, secret string
 	for i := 0; i < num_cpus; i++ {
-		go serve("udp", name, secret, i)
+		go grid_dns.Serve("udp", port, name, secret, i)
 	}
 
 	go grid_amqp.Synchronize(interval, myname)
