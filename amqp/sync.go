@@ -1,8 +1,13 @@
 package grid_amqp
 
 import (
+	"bufio"
+	"bytes"
+	"compress/gzip"
+	"encoding/base64"
 	"encoding/json"
 	"flag"
+	"io"
 	"log"
 	"time"
 )
@@ -72,15 +77,18 @@ func Synchronize(_interval int, _myname string) {
 
 func keepalive(_interval int, _myname string) {
 	var err error
+	var _param = make(map[string]string)
+	var _msg1 []string
+
 	for {
-		if err = Sendmsg("", _myname, AMQP_CM_KA, "", "", ""); err != nil {
+		if err = Sendmsg("", _myname, AMQP_CM_KA, &_param, "", &_msg1, ""); err != nil {
 			log.Printf("keepalive: %s", err)
 		}
 		time.Sleep(time.Duration(_interval) * time.Second)
 	}
 }
 
-func Sendmsg(_type, _myname, _command, _param, _obj, _msg string) error {
+func Sendmsg(_type, _myname, _command string, _param *map[string]string, _obj string, _msg1 *[]string, _msg2 string) error {
 	var err error
 	var jam []byte
 
@@ -89,25 +97,23 @@ func Sendmsg(_type, _myname, _command, _param, _obj, _msg string) error {
 		Command: _command,
 		Params:  _param,
 		Object:  _obj,
-		Content: _msg,
-		Zip:     false,
-		Confirm: false,
+		Msg1:    _msg1,
+		Msg2:    _msg2,
+		Gzip:    false,
+		Ack:     false,
 	}
 
 	if jam, err = json.Marshal(am); err != nil {
-		log.Fatalf("%s", err)
 		return err
 	}
 
 	switch _type {
 	case "broadcast":
 		if err = AMQP_B.Publish(jam); err != nil {
-			log.Fatalf("%s", err)
 			return err
 		}
 	default:
 		if err = AMQP_P.Publish(jam); err != nil {
-			log.Fatalf("%s", err)
 			return err
 		}
 	}
@@ -119,8 +125,32 @@ func Transmsg(_msg []byte, _am *AMQP_Message) error {
 	var err error
 
 	if err = json.Unmarshal(_msg, _am); err != nil {
-		log.Fatalf("%s", err)
 		return err
+	}
+
+	if _am.Gzip == true {
+		var mbuf bytes.Buffer
+
+		buf := bytes.NewBufferString(_am.Msg2)
+		br := base64.NewDecoder(base64.StdEncoding, buf)
+
+		zr, err := gzip.NewReader(br)
+		if err != nil {
+			return err
+		}
+		zw := bufio.NewWriter(&mbuf)
+
+		if _, err := io.Copy(zw, zr); err != nil {
+			return err
+		}
+		if err := zr.Close(); err != nil {
+			return err
+		}
+		zw.Flush()
+
+		if err = json.Unmarshal(mbuf.Bytes(), _am.Msg1); err != nil {
+			return err
+		}
 	}
 
 	return nil

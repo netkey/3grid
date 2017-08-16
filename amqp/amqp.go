@@ -17,11 +17,12 @@ const (
 type AMQP_Message struct {
 	Sender  string
 	Command string
-	Params  string
+	Params  *map[string]string
 	Object  string
-	Content string
-	Zip     bool
-	Confirm bool
+	Msg1    *[]string
+	Msg2    string
+	Gzip    bool
+	Ack     bool
 }
 
 type AMQP_Consumer struct {
@@ -448,16 +449,17 @@ func (c *AMQP_Broadcaster) amqp_handle_b(deliveries <-chan amqp.Delivery, done c
 
 	for d := range deliveries {
 		if err := Transmsg(d.Body, &msg); err != nil {
-			log.Printf("%s", err)
+			log.Printf("transmsg: %s", err)
+			continue
 		}
 		if msg.Sender == c.myname {
 			continue
 		}
 		log.Printf(
-			"got %dB broadcast: [%v] %+v",
+			"got %dB broadcast: [%v] from %s",
 			len(d.Body),
 			d.DeliveryTag,
-			msg,
+			msg.Sender,
 		)
 		//d.Ack(false)
 	}
