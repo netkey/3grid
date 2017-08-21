@@ -13,87 +13,98 @@ import (
 )
 
 var (
-	amqp_uri       = flag.String("amqp-uri", "amqp://gslb:gslb@gslb-amqp.chinamaincloud.com:5672//gslb", "AMQP URI")
-	exchange       = flag.String("exchange", "gslb-exchange", "Durable, non-auto-deleted AMQP exchange name")
-	exchangeType   = flag.String("exchange-type", "direct", "Exchange type - direct|fanout|topic|x-custom")
-	broadcast      = flag.String("broadcast", "gslb-broadcast", "Durable, non-auto-deleted AMQP exchange name")
-	queue_b        = flag.String("queue-b", "gslb-queue-b", "Ephemeral AMQP consumer queue name")
-	queue_c        = flag.String("queue-c", "gslb-queue-c", "Ephemeral AMQP consumer queue name")
-	queue_p        = flag.String("queue-p", "gslb-queue-p", "Ephemeral AMQP producer queue name")
-	bindingKey_b   = flag.String("key-b", "gslb-key-b", "AMQP binding key")
-	bindingKey_c   = flag.String("key-c", "gslb-key-c", "AMQP binding key")
-	bindingKey_p   = flag.String("key-p", "gslb-key-p", "AMQP binding key")
-	broadcasterTag = flag.String("broadcaster-tag", "gslb-3grid", "AMQP broadcaster tag (should not be blank)")
-	consumerTag    = flag.String("consumer-tag", "gslb-3grid", "AMQP consumer tag (should not be blank)")
-	producerTag    = flag.String("producer-tag", "gslb-3grid", "AMQP producer tag (should not be blank)")
+	amqp_uri     = flag.String("amqp-uri", "amqp://gslb:gslb@gslb-amqp.chinamaincloud.com:5672//gslb", "AMQP URI")
+	exchange     = flag.String("exchange", "gslb-exchange", "Durable, non-auto-deleted AMQP exchange name")
+	exchangeType = flag.String("exchange-type", "direct", "Exchange type - direct|fanout|topic|x-custom")
+	broadcast    = flag.String("broadcast", "gslb-broadcast", "Durable, non-auto-deleted AMQP exchange name")
+	queue_b      = flag.String("queue-b", "gslb-queue-b", "Ephemeral AMQP broadcaster queue name")
+	queue_d      = flag.String("queue-d", "gslb-queue-d", "Ephemeral AMQP director queue name")
+	routingKey_b = flag.String("key-b", "gslb-key-b", "AMQP routing key of fanout exchange")
+	routingKey_d = flag.String("key-d", "gslb-key-d", "AMQP routing key of direct exchange")
+	gslb_center  = flag.String("gslb-center", "gslb-center", "AMQP routing key of gslb backends")
 )
 
 var AMQP_B *AMQP_Broadcaster
-var AMQP_C *AMQP_Consumer
-var AMQP_P *AMQP_Producer
+var AMQP_D *AMQP_Director
+
+var msgid AutoInc
+
+type AutoInc struct {
+	id uint
+}
+
+func (a *AutoInc) AutoID() uint {
+	a.id = a.id + 1
+	return a.id
+}
 
 func Synchronize(_interval int, _myname string) {
 	//function to synchronize ip & route db
 	var err error
 
 	keyb := _myname + "-b"
-	keyc := _myname + "-c"
-	keyp := _myname + "-p"
-	bindingKey_b, queue_b, broadcasterTag = &keyb, &keyb, &keyb
-	bindingKey_c, queue_c, consumerTag = &keyc, &keyc, &keyc
-	bindingKey_p, queue_p, producerTag = &keyp, &keyp, &keyp
+	keyd := _myname + "-d"
+	queue_b = &keyb
+	queue_d = &keyd
+	routingKey_b, routingKey_d = &_myname, &_myname
 
-	AMQP_C, err = NewAMQPConsumer(*amqp_uri, *exchange, *exchangeType, *queue_c, *bindingKey_c, *consumerTag)
-
+	AMQP_D, err = NewAMQPDirector(*amqp_uri, *exchange, *exchangeType, *queue_d, *routingKey_d, _myname)
 	if err != nil {
 		log.Fatalf("%s", err)
 	} else {
-		AMQP_P, err = NewAMQPProducer(*amqp_uri, *exchange, *exchangeType, *queue_p, *bindingKey_p, *producerTag)
+		AMQP_B, err = NewAMQPBroadcaster(*amqp_uri, *broadcast, "fanout", *queue_b, *routingKey_b, _myname)
 		if err != nil {
 			log.Fatalf("%s", err)
 		} else {
-			AMQP_B, err = NewAMQPBroadcaster(*amqp_uri, *broadcast, "fanout", *queue_b, *bindingKey_b, *broadcasterTag, _myname)
-			if err != nil {
-				log.Fatalf("%s", err)
-			} else {
-				go keepalive(60, _myname) //keepalive with backend
-				for {
-					time.Sleep(time.Duration(_interval) * time.Second)
-				}
+			go Keepalive(60) //keepalive with backend servers
+			for {
+				time.Sleep(time.Duration(_interval) * time.Second)
 			}
 		}
 	}
 
 	defer func() {
 		log.Printf("shutting down")
-		if err := AMQP_C.Shutdown(); err != nil {
-			log.Fatalf("error during shutdown: %s", err)
+		if err := AMQP_D.Shutdown(); err != nil {
+			log.Fatalf("error during direcror shutdown: %s", err)
 		}
-		if err := AMQP_P.Shutdown(); err != nil {
-			log.Fatalf("error during shutdown: %s", err)
+		if err := AMQP_B.Shutdown(); err != nil {
+			log.Fatalf("error during broadcaster shutdown: %s", err)
 		}
 	}()
 }
 
-func keepalive(_interval int, _myname string) {
+func Keepalive(_interval int) {
 	var err error
 	var _param = make(map[string]string)
 	var _msg1 []string
 
+	if err = Sendmsg("", AMQP_CM_ONLINE, &_param, "", &_msg1, "", *gslb_center, 0); err != nil {
+		log.Printf("online: %s", err)
+	}
 	for {
-		if err = Sendmsg("", _myname, AMQP_CM_KA, &_param, "", &_msg1, ""); err != nil {
+		if err = Sendmsg("broadcast", AMQP_CM_KA, &_param, "", &_msg1, "", *gslb_center, 0); err != nil {
 			log.Printf("keepalive: %s", err)
 		}
 		time.Sleep(time.Duration(_interval) * time.Second)
 	}
 }
 
-func Sendmsg(_type, _myname, _command string, _param *map[string]string, _obj string, _msg1 *[]string, _msg2 string) error {
+func Sendmsg(_type, _command string, _param *map[string]string, _obj string, _msg1 *[]string, _msg2 string, _replyto string, _replyid uint) error {
 	var err error
 	var jam []byte
+	var target, exchange string
+	var _mid uint
+
+	if _replyid != 0 {
+		_mid = _replyid
+	} else {
+		_mid = msgid.AutoID()
+	}
 
 	am := AMQP_Message{
-		Sender:  _myname,
+		ID:      _mid,
+		Sender:  "",
 		Command: _command,
 		Params:  _param,
 		Object:  _obj,
@@ -103,26 +114,49 @@ func Sendmsg(_type, _myname, _command string, _param *map[string]string, _obj st
 		Ack:     false,
 	}
 
-	if jam, err = json.Marshal(am); err != nil {
-		return err
-	}
-
 	switch _type {
 	case "broadcast":
+		target = AMQP_B.rkey
+		exchange = AMQP_B.exc
+		am.Sender = AMQP_B.myname
+		if jam, err = json.Marshal(am); err != nil {
+			return err
+		}
 		if err = AMQP_B.Publish(jam); err != nil {
 			return err
 		}
 	default:
-		if err = AMQP_P.Publish(jam); err != nil {
+		if _replyto == "" {
+			target = AMQP_D.rkey
+		} else {
+			target = _replyto
+		}
+		exchange = AMQP_D.exc
+		am.Sender = AMQP_D.myname
+		if jam, err = json.Marshal(am); err != nil {
+			return err
+		}
+		if err = AMQP_D.Publish(jam, target); err != nil {
 			return err
 		}
 	}
+
+	log.Printf(
+		"msg to [%s] of [%s]: size [%v], msgid [%d], value: [%+v]",
+		target,
+		exchange,
+		len(jam),
+		am.ID,
+		am,
+	)
 
 	return nil
 }
 
 func Transmsg(_msg []byte, _am *AMQP_Message) error {
 	var err error
+	var _param = make(map[string]string)
+	var _msg1 []string
 
 	if err = json.Unmarshal(_msg, _am); err != nil {
 		return err
@@ -152,6 +186,20 @@ func Transmsg(_msg []byte, _am *AMQP_Message) error {
 			return err
 		}
 	}
+
+	if _am.Ack == true {
+		if err = Sendmsg("", AMQP_CM_ACK, &_param, _am.Object, &_msg1, "", _am.Sender, _am.ID); err != nil {
+			return err
+		}
+	}
+
+	log.Printf(
+		"msg from [%s]: size [%v], msgid [%d], msg: [%+v] ",
+		_am.Sender,
+		len(_msg),
+		_am.ID,
+		_am,
+	)
 
 	return nil
 }
