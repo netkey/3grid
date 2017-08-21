@@ -178,6 +178,8 @@ func (c *AMQP_Broadcaster) amqp_handle_b(deliveries <-chan amqp.Delivery, done c
 	var msg AMQP_Message
 	var cmds = &Cmds{}
 	var params = make([]reflect.Value, 2)
+	var _param = make(map[string]string)
+	var _msg1 []string
 
 	for d := range deliveries {
 		if err = Transmsg(d.Body, &msg); err != nil {
@@ -198,9 +200,6 @@ func (c *AMQP_Broadcaster) amqp_handle_b(deliveries <-chan amqp.Delivery, done c
 		}
 		//need ack?
 		if msg.Ack == true {
-			var _param = make(map[string]string)
-			var _msg1 []string
-
 			if err = Sendmsg("", AMQP_CM_ACK, &_param, msg.Object, &_msg1, "", msg.Sender, msg.ID); err != nil {
 				log.Printf("error sending ack msg: %s", err)
 			}
@@ -359,6 +358,8 @@ func (c *AMQP_Director) amqp_handle_d(deliveries <-chan amqp.Delivery, done chan
 	var msg AMQP_Message
 	var cmds = &Cmds{}
 	var params = make([]reflect.Value, 2)
+	var _param = make(map[string]string)
+	var _msg1 []string
 
 	for d := range deliveries {
 		if err = Transmsg(d.Body, &msg); err != nil {
@@ -379,9 +380,6 @@ func (c *AMQP_Director) amqp_handle_d(deliveries <-chan amqp.Delivery, done chan
 		}
 		//need ack?
 		if msg.Ack == true {
-			var _param = make(map[string]string)
-			var _msg1 []string
-
 			if err = Sendmsg("", AMQP_CM_ACK, &_param, msg.Object, &_msg1, "", msg.Sender, msg.ID); err != nil {
 				log.Printf("error sending ack msg: %s", err)
 			}
