@@ -345,12 +345,13 @@ func (c *AMQP_Director) Shutdown() error {
 }
 
 func (c *AMQP_Director) amqp_handle_d(deliveries <-chan amqp.Delivery, done chan error) {
+	var err error
 	var msg AMQP_Message
 	var cmds = &Cmds{}
 	var params = make([]reflect.Value, 2)
 
 	for d := range deliveries {
-		if err := Transmsg(d.Body, &msg); err != nil {
+		if err = Transmsg(d.Body, &msg); err != nil {
 			log.Printf("transmsg: %s", err)
 			continue
 		}
@@ -366,6 +367,16 @@ func (c *AMQP_Director) amqp_handle_d(deliveries <-chan amqp.Delivery, done chan
 			params[1] = reflect.ValueOf(&msg)
 			fn.Func.Call(params)
 		}
+		//need ack?
+		if msg.Ack == true {
+			var _param = make(map[string]string)
+			var _msg1 []string
+
+			if err = Sendmsg("", AMQP_CM_ACK, &_param, msg.Object, &_msg1, "", msg.Sender, msg.ID); err != nil {
+				log.Printf("error sending ack msg: %s", err)
+			}
+		}
+
 	}
 	log.Printf("handle: deliveries channel closed")
 	done <- nil

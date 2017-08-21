@@ -155,8 +155,6 @@ func Sendmsg(_type, _command string, _param *map[string]string, _obj string, _ms
 
 func Transmsg(_msg []byte, _am *AMQP_Message) error {
 	var err error
-	var _param = make(map[string]string)
-	var _msg1 []string
 
 	if err = json.Unmarshal(_msg, _am); err != nil {
 		return err
@@ -183,12 +181,6 @@ func Transmsg(_msg []byte, _am *AMQP_Message) error {
 		zw.Flush()
 
 		if err = json.Unmarshal(mbuf.Bytes(), _am.Msg1); err != nil {
-			return err
-		}
-	}
-
-	if _am.Ack == true {
-		if err = Sendmsg("", AMQP_CM_ACK, &_param, _am.Object, &_msg1, "", _am.Sender, _am.ID); err != nil {
 			return err
 		}
 	}
