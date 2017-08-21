@@ -83,7 +83,7 @@ func Keepalive(_interval int) {
 		log.Printf("online: %s", err)
 	}
 	for {
-		if err = Sendmsg("broadcast", AMQP_CM_KA, &_param, "", &_msg1, "", *gslb_center, 0); err != nil {
+		if err = Sendmsg("", AMQP_CM_KA, &_param, "", &_msg1, "", *gslb_center, 0); err != nil {
 			log.Printf("keepalive: %s", err)
 		}
 		time.Sleep(time.Duration(_interval) * time.Second)

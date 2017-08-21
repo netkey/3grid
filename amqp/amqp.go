@@ -177,17 +177,18 @@ func (c *AMQP_Broadcaster) amqp_handle_b(deliveries <-chan amqp.Delivery, done c
 	var msg AMQP_Message
 	var cmds = &Cmds{}
 	var params = make([]reflect.Value, 2)
+
 	for d := range deliveries {
 		if err := Transmsg(d.Body, &msg); err != nil {
 			log.Printf("transmsg: %s", err)
 			continue
 		}
 		if msg.Sender == c.myname {
-			//continue
+			continue
 		}
 		//call msg handler functions
-		fn, _ := reflect.TypeOf(cmds).MethodByName(msg.Command)
-		if fn == nil {
+		fn, r := reflect.TypeOf(cmds).MethodByName(msg.Command)
+		if r == false {
 			log.Printf("error reflect cmds: %s", msg.Command)
 		} else {
 			params[0] = reflect.ValueOf(cmds)
@@ -347,6 +348,7 @@ func (c *AMQP_Director) amqp_handle_d(deliveries <-chan amqp.Delivery, done chan
 	var msg AMQP_Message
 	var cmds = &Cmds{}
 	var params = make([]reflect.Value, 2)
+
 	for d := range deliveries {
 		if err := Transmsg(d.Body, &msg); err != nil {
 			log.Printf("transmsg: %s", err)
@@ -355,13 +357,15 @@ func (c *AMQP_Director) amqp_handle_d(deliveries <-chan amqp.Delivery, done chan
 		if msg.Sender == c.myname {
 			continue
 		}
-
 		//call msg handler functions
-		fn, _ := reflect.TypeOf(cmds).MethodByName(msg.Command)
-		params[0] = reflect.ValueOf(cmds)
-		params[1] = reflect.ValueOf(msg)
-		v := fn.Func.Call(params)
-		log.Printf("func: %+v", v[0])
+		fn, r := reflect.TypeOf(cmds).MethodByName(msg.Command)
+		if r == false {
+			log.Printf("error reflect cmds: %s", msg.Command)
+		} else {
+			params[0] = reflect.ValueOf(cmds)
+			params[1] = reflect.ValueOf(&msg)
+			fn.Func.Call(params)
+		}
 	}
 	log.Printf("handle: deliveries channel closed")
 	done <- nil

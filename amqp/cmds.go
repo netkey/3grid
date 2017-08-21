@@ -7,12 +7,12 @@ import (
 type Cmds struct {
 }
 
-func (this *Cmds) Kaa(msg *AMQP_Message) error {
-	log.Printf("Ka cmd: ..")
+func (this *Cmds) Ka(msg *AMQP_Message) error {
+	log.Printf("Processing Ka cmd..")
 	return nil
 }
 
 func (this *Cmds) Add(msg *AMQP_Message) error {
-	log.Printf("Add cmd: ..")
+	log.Printf("Processing Add cmd..")
 	return nil
 }
