@@ -38,7 +38,7 @@ func (a *AutoInc) AutoID() uint {
 	return a.id
 }
 
-func Synchronize(_interval int, _myname string) {
+func Synchronize(_interval, _ka_interval int, _myname string) {
 	//function to synchronize ip & route db
 	var err error
 
@@ -56,7 +56,8 @@ func Synchronize(_interval int, _myname string) {
 		if err != nil {
 			log.Fatalf("%s", err)
 		} else {
-			go Keepalive(60) //keepalive with backend servers
+			go CheckVersion(_interval) //Check version of ipdb & routedb
+			go Keepalive(_ka_interval) //keepalive with backend servers
 			for {
 				time.Sleep(time.Duration(_interval) * time.Second)
 			}
@@ -74,18 +75,37 @@ func Synchronize(_interval int, _myname string) {
 	}()
 }
 
-func Keepalive(_interval int) {
+func CheckVersion(_interval int) {
 	var err error
 	var _param = make(map[string]string)
 	var _msg1 []string
 
-	if err = Sendmsg("", AMQP_CM_ONLINE, &_param, "", &_msg1, "", *gslb_center, 0); err != nil {
-		log.Printf("online: %s", err)
-	}
 	for {
-		if err = Sendmsg("", AMQP_CM_KA, &_param, "", &_msg1, "", *gslb_center, 0); err != nil {
-			log.Printf("keepalive: %s", err)
+		if err = Sendmsg("", AMQP_CM_VER, &_param, AMQP_OBJ_IP, &_msg1, "", *gslb_center, 0); err != nil {
+			log.Printf("checkversion: %s", err)
 		}
+		time.Sleep(time.Duration(_interval) * time.Second)
+	}
+}
+
+func Keepalive(_interval int) {
+	var err error
+	var _param = make(map[string]string)
+	var _msg1 []string
+	var _first bool = true
+
+	for {
+		if _first {
+			if err = Sendmsg("", AMQP_CM_ONLINE, &_param, "", &_msg1, "", *gslb_center, 0); err != nil {
+				log.Printf("online: %s", err)
+			}
+			_first = false
+		} else {
+			if err = Sendmsg("", AMQP_CM_KA, &_param, "", &_msg1, "", *gslb_center, 0); err != nil {
+				log.Printf("keepalive: %s", err)
+			}
+		}
+
 		time.Sleep(time.Duration(_interval) * time.Second)
 	}
 }
@@ -157,6 +177,7 @@ func Transmsg(_msg []byte, _am *AMQP_Message) error {
 	var err error
 
 	if err = json.Unmarshal(_msg, _am); err != nil {
+		log.Printf("trans msg: %s", _msg)
 		return err
 	}
 

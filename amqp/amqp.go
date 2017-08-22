@@ -196,7 +196,10 @@ func (c *AMQP_Broadcaster) amqp_handle_b(deliveries <-chan amqp.Delivery, done c
 		} else {
 			params[0] = reflect.ValueOf(cmds)
 			params[1] = reflect.ValueOf(&msg)
-			fn.Func.Call(params)
+			v := fn.Func.Call(params)
+			if v[0].IsNil() == false {
+				log.Printf("error handing msg: %+v", v[0].Interface())
+			}
 		}
 		//need ack?
 		if msg.Ack == true {
@@ -376,7 +379,10 @@ func (c *AMQP_Director) amqp_handle_d(deliveries <-chan amqp.Delivery, done chan
 		} else {
 			params[0] = reflect.ValueOf(cmds)
 			params[1] = reflect.ValueOf(&msg)
-			fn.Func.Call(params)
+			v := fn.Func.Call(params)
+			if v[0].IsNil() == false {
+				log.Printf("error handing msg: %s", v[0].Interface())
+			}
 		}
 		//need ack?
 		if msg.Ack == true {

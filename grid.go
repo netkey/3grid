@@ -21,6 +21,7 @@ var num_cpus int
 var port string
 var daemond bool
 var interval int
+var keepalive int
 var myname string
 
 func read_conf() {
@@ -57,6 +58,12 @@ func read_conf() {
 		} else {
 			interval = _interval
 		}
+		_keepalive := viper.GetInt("server.keepalive")
+		if _keepalive < 30 {
+			keepalive = 30
+		} else {
+			keepalive = _keepalive
+		}
 		_myname := viper.GetString("server.myname")
 		if _myname == "" {
 			myname = "3grid"
@@ -68,6 +75,7 @@ func read_conf() {
 			fmt.Printf("port:%s\n", port)
 			fmt.Printf("daemon:%t\n", daemond)
 			fmt.Printf("interval:%d\n", interval)
+			fmt.Printf("keepalive:%d\n", keepalive)
 			fmt.Printf("myname:%s\n", myname)
 		}
 	}
@@ -96,7 +104,7 @@ func main() {
 		go grid_dns.Serve("udp", port, name, secret, i)
 	}
 
-	go grid_amqp.Synchronize(interval, myname)
+	go grid_amqp.Synchronize(interval, keepalive, myname)
 
 	sig := make(chan os.Signal)
 	signal.Notify(sig, syscall.SIGINT, syscall.SIGTERM)

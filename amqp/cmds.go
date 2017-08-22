@@ -7,12 +7,18 @@ import (
 type Cmds struct {
 }
 
-func (this *Cmds) Ka(msg *AMQP_Message) error {
+func (c *Cmds) Ka(msg *AMQP_Message) error {
 	log.Printf("Processing Ka cmd..")
 	return nil
 }
 
-func (this *Cmds) Add(msg *AMQP_Message) error {
+func (c *Cmds) Add(msg *AMQP_Message) error {
 	log.Printf("Processing Add cmd..")
+	return nil
+}
+
+func (c *Cmds) Ver(msg *AMQP_Message) error {
+	log.Printf("Processing Ver cmd..")
+	log.Printf("Version: %s", (*msg.Params)["ver"])
 	return nil
 }
