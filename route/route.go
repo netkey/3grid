@@ -1,11 +1,14 @@
 package grid_route
 
+var Version string
+var Ver_Major, Ver_minor, Ver_Patch uint
+
 type Route_db struct {
 	CacheServers map[int]Server_List_Record
 	NodeServers  map[int]Server_List_Record
 	Nodes        map[int]Node_List_Record
 	Domains      map[string]Domain_List_Record
-	Routes       map[string][string]Route_List_Record
+	Routes       map[string]map[string]Route_List_Record
 }
 
 type Server_List_Record struct {

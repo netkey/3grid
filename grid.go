@@ -4,18 +4,16 @@ import (
 	"3grid/amqp"
 	"3grid/dns"
 	"flag"
-	"fmt"
 	"github.com/sevlyar/go-daemon"
 	"github.com/spf13/viper"
+	"log"
 	"os"
 	"os/signal"
 	"runtime"
 	"syscall"
 )
 
-var (
-	debug = flag.Bool("debug", true, "output debug info")
-)
+var debug = flag.Bool("debug", true, "output debug info")
 
 var num_cpus int
 var port string
@@ -27,12 +25,13 @@ var myname string
 func read_conf() {
 	viper.SetConfigFile("grid.conf")
 	viper.SetConfigType("toml")
+
 	viper.AddConfigPath("/etc")
 	viper.AddConfigPath(".")
 
 	err := viper.ReadInConfig()
 	if err != nil {
-		fmt.Printf("Error reading config file: %s\n", err)
+		log.Printf("Error reading config file: %s\n", err)
 	} else {
 		_num_cpus := viper.GetInt("server.cpus")
 		if _num_cpus == 0 {
@@ -51,6 +50,12 @@ func read_conf() {
 			daemond = false
 		} else {
 			daemond = true
+		}
+		_debug := viper.GetBool("server.debug")
+		if _debug == false {
+			*debug = false
+		} else {
+			*debug = true
 		}
 		_interval := viper.GetInt("server.interval")
 		if _interval < 30 {
@@ -71,18 +76,13 @@ func read_conf() {
 			myname = _myname
 		}
 		if *debug {
-			fmt.Printf("cpus:%d\n", num_cpus)
-			fmt.Printf("port:%s\n", port)
-			fmt.Printf("daemon:%t\n", daemond)
-			fmt.Printf("interval:%d\n", interval)
-			fmt.Printf("keepalive:%d\n", keepalive)
-			fmt.Printf("myname:%s\n", myname)
+			log.Printf("grid running - cpus:%d port:%s daemon:%t debug:%t interval:%d keepalive:%d myname:%s", num_cpus, port, daemond, *debug, interval, keepalive, myname)
 		}
 	}
 }
 
 func main() {
-
+	flag.Parse()
 	read_conf()
 
 	if daemond {
@@ -101,7 +101,7 @@ func main() {
 
 	var name, secret string
 	for i := 0; i < num_cpus; i++ {
-		go grid_dns.Serve("udp", port, name, secret, i)
+		go grid_dns.Working("udp", port, name, secret, i)
 	}
 
 	go grid_amqp.Synchronize(interval, keepalive, myname)
@@ -109,5 +109,5 @@ func main() {
 	sig := make(chan os.Signal)
 	signal.Notify(sig, syscall.SIGINT, syscall.SIGTERM)
 	s := <-sig
-	fmt.Printf("Signal (%s) received, stopping\n", s)
+	log.Printf("Signal (%s) received, stopping\n", s)
 }

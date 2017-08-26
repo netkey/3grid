@@ -7,6 +7,9 @@ import (
 	"sync"
 )
 
+var Version string
+var Ver_Major, Ver_minor, Ver_Patch uint
+
 type IP_db struct {
 	Ipcache map[string]string
 	Ipdb    *geoip2.Reader

@@ -8,20 +8,22 @@ import (
 )
 
 const (
-	AMQP_CM_KA       = "Ka"      //Keepalive
-	AMQP_CM_ONLINE   = "Online"  //Online notify
-	AMQP_CM_OFFLINE  = "Offline" //Offline notify
-	AMQP_CM_STATE    = "State"   //State notify
-	AMQP_CM_VER      = "Ver"     //Version Update
-	AMQP_CM_ADD      = "Add"     //Add data
-	AMQP_CM_DEL      = "Del"     //Delete data
-	AMQP_CM_UPDATE   = "Update"  //Update data
-	AMQP_CM_ACK      = "Ack"     //Confirm msg
+	AMQP_CMD_KA      = "Ka"      //Keepalive
+	AMQP_CMD_ONLINE  = "Online"  //Online notify
+	AMQP_CMD_OFFLINE = "Offline" //Offline notify
+	AMQP_CMD_STATE   = "State"   //State notify
+	AMQP_CMD_VER     = "Ver"     //Version Update
+	AMQP_CMD_ADD     = "Add"     //Add data
+	AMQP_CMD_DEL     = "Del"     //Delete data
+	AMQP_CMD_UPDATE  = "Update"  //Update data
+	AMQP_CMD_ACK     = "Ack"     //Confirm msg
 	AMQP_PARAM_ZIP   = "Gzip"    //Whether msg is zipped
 	AMQP_PARAM_ACK   = "Ack"     //Whether msg is being required to confirm
 	AMQP_OBJ_IP      = "Ipdb"    //Object ip db
 	AMQP_OBJ_ROUTE   = "Routedb" //Object route db
 	AMQP_OBJ_CONTROL = "Control" //Object control db
+	AMQP_OBJ_CMDB    = "Cmdb"    //Object cm db
+	AMQP_OBJ_DOMAIN  = "Domain"  //Object domain db
 )
 
 type AMQP_Message struct {
@@ -66,7 +68,7 @@ func NewAMQPBroadcaster(amqpURI, exchange, exchangeType, queueName, routingKey, 
 	}
 
 	go func() {
-		fmt.Printf("closing: %s", <-c.conn.NotifyClose(make(chan *amqp.Error)))
+		log.Printf("closing: %s", <-c.conn.NotifyClose(make(chan *amqp.Error)))
 	}()
 
 	log.Printf("got Connection, getting Channel")
@@ -203,7 +205,7 @@ func (c *AMQP_Broadcaster) amqp_handle_b(deliveries <-chan amqp.Delivery, done c
 		}
 		//need ack?
 		if msg.Ack == true {
-			if err = Sendmsg("", AMQP_CM_ACK, &_param, msg.Object, &_msg1, "", msg.Sender, msg.ID); err != nil {
+			if err = Sendmsg("", AMQP_CMD_ACK, &_param, msg.Object, &_msg1, "", msg.Sender, msg.ID); err != nil {
 				log.Printf("error sending ack msg: %s", err)
 			}
 		}
@@ -242,7 +244,7 @@ func NewAMQPDirector(amqpURI, exchange, exchangeType, queueName, routingKey, myn
 	}
 
 	go func() {
-		fmt.Printf("closing: %s", <-c.conn.NotifyClose(make(chan *amqp.Error)))
+		log.Printf("closing: %s", <-c.conn.NotifyClose(make(chan *amqp.Error)))
 	}()
 
 	log.Printf("got Connection, getting Channel")
@@ -386,7 +388,7 @@ func (c *AMQP_Director) amqp_handle_d(deliveries <-chan amqp.Delivery, done chan
 		}
 		//need ack?
 		if msg.Ack == true {
-			if err = Sendmsg("", AMQP_CM_ACK, &_param, msg.Object, &_msg1, "", msg.Sender, msg.ID); err != nil {
+			if err = Sendmsg("", AMQP_CMD_ACK, &_param, msg.Object, &_msg1, "", msg.Sender, msg.ID); err != nil {
 				log.Printf("error sending ack msg: %s", err)
 			}
 		}

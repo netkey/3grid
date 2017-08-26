@@ -14,6 +14,7 @@ func (c *Cmds) Ka(msg *AMQP_Message) error {
 
 func (c *Cmds) Add(msg *AMQP_Message) error {
 	log.Printf("Processing Add cmd..")
+	log.Printf("Adding: %+v", (*msg.Msg1))
 	return nil
 }
 

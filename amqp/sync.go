@@ -1,6 +1,9 @@
 package grid_amqp
 
 import (
+	"3grid/dns"
+	"3grid/ip"
+	"3grid/route"
 	"bufio"
 	"bytes"
 	"compress/gzip"
@@ -9,11 +12,13 @@ import (
 	"flag"
 	"io"
 	"log"
+	"strconv"
 	"time"
 )
 
 var (
-	amqp_uri     = flag.String("amqp-uri", "amqp://gslb:gslb@gslb-amqp.chinamaincloud.com:5672//gslb", "AMQP URI")
+	debug        = flag.Bool("amqp-debug", true, "output debug info")
+	amqp_uri     = flag.String("amqp-uri", "amqp://gslb:gslb@gslb-amqp.chinamaincloud.com:5672//gslb", "URI")
 	exchange     = flag.String("exchange", "gslb-exchange", "Durable, non-auto-deleted AMQP exchange name")
 	exchangeType = flag.String("exchange-type", "direct", "Exchange type - direct|fanout|topic|x-custom")
 	broadcast    = flag.String("broadcast", "gslb-broadcast", "Durable, non-auto-deleted AMQP exchange name")
@@ -81,10 +86,12 @@ func CheckVersion(_interval int) {
 	var _msg1 []string
 
 	for {
-		if err = Sendmsg("", AMQP_CM_VER, &_param, AMQP_OBJ_IP, &_msg1, "", *gslb_center, 0); err != nil {
+		time.Sleep(time.Duration(_interval) * time.Second)
+		_param[AMQP_OBJ_IP] = grid_ip.Version
+		_param[AMQP_OBJ_ROUTE] = grid_route.Version
+		if err = Sendmsg("", AMQP_CMD_VER, &_param, AMQP_OBJ_IP, &_msg1, "", *gslb_center, 0); err != nil {
 			log.Printf("checkversion: %s", err)
 		}
-		time.Sleep(time.Duration(_interval) * time.Second)
 	}
 }
 
@@ -96,12 +103,14 @@ func Keepalive(_interval int) {
 
 	for {
 		if _first {
-			if err = Sendmsg("", AMQP_CM_ONLINE, &_param, "", &_msg1, "", *gslb_center, 0); err != nil {
+			if err = Sendmsg("", AMQP_CMD_ONLINE, &_param, "", &_msg1, "", *gslb_center, 0); err != nil {
 				log.Printf("online: %s", err)
 			}
 			_first = false
 		} else {
-			if err = Sendmsg("", AMQP_CM_KA, &_param, "", &_msg1, "", *gslb_center, 0); err != nil {
+			_param["Qps"] = strconv.FormatUint(grid_dns.Qps, 10)
+			_param["Load"] = strconv.FormatUint(grid_dns.Load, 10)
+			if err = Sendmsg("", AMQP_CMD_KA, &_param, "", &_msg1, "", *gslb_center, 0); err != nil {
 				log.Printf("keepalive: %s", err)
 			}
 		}
@@ -161,14 +170,16 @@ func Sendmsg(_type, _command string, _param *map[string]string, _obj string, _ms
 		}
 	}
 
-	log.Printf(
-		"msg to [%s] of [%s]: size [%v], msgid [%d], value: [%+v]",
-		target,
-		exchange,
-		len(jam),
-		am.ID,
-		am,
-	)
+	if *debug {
+		log.Printf(
+			"msg to [%s] of [%s]: size [%v], msgid [%d], value: [%+v]",
+			target,
+			exchange,
+			len(jam),
+			am.ID,
+			am,
+		)
+	}
 
 	return nil
 }
@@ -206,13 +217,14 @@ func Transmsg(_msg []byte, _am *AMQP_Message) error {
 		}
 	}
 
-	log.Printf(
-		"msg from [%s]: size [%v], msgid [%d], msg: [%+v] ",
-		_am.Sender,
-		len(_msg),
-		_am.ID,
-		_am,
-	)
-
+	if *debug {
+		log.Printf(
+			"msg from [%s]: size [%v], msgid [%d], msg: [%+v] ",
+			_am.Sender,
+			len(_msg),
+			_am.ID,
+			_am,
+		)
+	}
 	return nil
 }

@@ -3,20 +3,21 @@ package grid_dns
 import (
 	"3grid/ip"
 	"flag"
-	"fmt"
 	"github.com/miekg/dns"
+	"log"
 	"net"
 	"time"
 )
 
 var (
-	debug      = flag.Bool("dns_debug", true, "output debug info")
-	more_debug = flag.Bool("dns_more_debug", false, "output more debug info")
-	compress   = flag.Bool("compress", false, "compress replies")
+	debug    = flag.Bool("dns-debug", true, "output debug info")
+	compress = flag.Bool("compress", false, "compress replies")
 )
 
 const dom = "www.chinamaincloud.com."
 const default_ttl = 60
+
+var Qs, Qps, Load uint64
 
 type DNS_worker struct {
 	Id     int
@@ -99,14 +100,14 @@ func (wkr *DNS_worker) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
 		}
 	}
 
-	if *more_debug {
-		fmt.Printf("Query from: %s\n", a.String())
+	if *debug {
+		log.Printf("Query from: %s\n", a.String())
 	}
 
 	w.WriteMsg(m)
 }
 
-func Serve(net, port, name, secret string, num int) {
+func Working(net, port, name, secret string, num int) {
 	ipdb := grid_ip.IP_db{}
 	ipdb.IP_db_init()
 
@@ -119,13 +120,13 @@ func Serve(net, port, name, secret string, num int) {
 		worker.Server = &dns.Server{Addr: ":" + port, Net: net, TsigSecret: nil}
 		worker.Server.Handler = &worker
 		if err := worker.Server.ListenAndServe(); err != nil {
-			fmt.Printf("Failed to setup the "+net+" server: %s\n", err.Error())
+			log.Printf("Failed to setup the "+net+" server: %s\n", err.Error())
 		}
 	default:
 		worker.Server = &dns.Server{Addr: ":" + port, Net: net, TsigSecret: map[string]string{name: secret}}
 		worker.Server.Handler = &worker
 		if err := worker.Server.ListenAndServe(); err != nil {
-			fmt.Printf("Failed to setup the "+net+" server: %s\n", err.Error())
+			log.Printf("Failed to setup the "+net+" server: %s\n", err.Error())
 		}
 	}
 }
