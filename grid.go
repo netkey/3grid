@@ -97,7 +97,7 @@ func main() {
 	}
 
 	//after fork as daemon, go on working
-	runtime.GOMAXPROCS(num_cpus + 1)
+	runtime.GOMAXPROCS(num_cpus)
 
 	var name, secret string
 	for i := 0; i < num_cpus; i++ {
