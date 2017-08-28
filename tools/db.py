@@ -1,14 +1,14 @@
 #!/usr/bin/env python
 # -*- coding: UTF-8 -*- 
 
-import os, sys
+import os, sys, copy
 import httplib, json
 import gzip, StringIO
 
 db_filename = ""
 already_have = False
 
-url = "domain.name.com:8000"
+url = "oms.chinamaincloud.com:8000"
 
 _type = "route"
 
@@ -17,66 +17,72 @@ try:
 except:
 	pass
 
-print "db type:", _type
+all_types = ["route", "ip", "cmdb", "domain"]
 
-if _type == "route":
-	ver_uri = "/route/backend/version/"
-	uri = "/media/route/download/route.csv"
-elif _type == "ip":
-	ver_uri = "/ip/backend/version/"
-	uri = "/media/ip/download/ip.csv"
-elif _type == "cmdb":
-	pass
-elif _type == "control":
-	pass
-elif _type == "domain":
-	pass
+ver_uri = {"route": "/route/backend/version/", "ip": "/ipdb/backend/version/", "cmdb": "", "domain": ""}
+uri = {"route": "/media/route/download/route.json.gz", "ip": "/media/ipdb/download/ipdb.mmdb.gz", "cmdb": "", "domain": ""}
+
+if _type == "all":
+	_types = copy.copy(all_types)
 else:
-	print "unknown db type"
-	sys.exit(1)
+	if _type not in all_types:
+		print "unknown db type"
+		sys.exit(1)
+	else:
+		_types = [_type]
 
-_conn = httplib.HTTPConnection(url)
+print "db type:", _types
+
+_conn = httplib.HTTPConnection(url, timeout=300)
 if not _conn:
 	print "error connecting to server"
 	sys.exit(1)
 
-_conn.request("GET", ver_uri)
-_r = _conn.getresponse()
-_resp = _r.read()
-
-_data = u''
-_data = json.loads(_resp)
-
-if _data:
-	version = _data["version"]
-	print "db verion:", version
-	db_filename = "route_v" + version + ".db"
-	if os.path.exists(db_filename):
-		already_have = True
-else:
-	already_have = True
-
-if already_have:
-	print "db file already exists:", db_filename
-	_conn.close()
-	sys.exit(0)
-
-if db_filename:
-	_conn.request("GET", uri)
+for _type in _types:
+	_conn.request("GET", ver_uri[_type])
 	_r = _conn.getresponse()
 	_resp = _r.read()
 
-	if _resp:
-		print "writing db file:", db_filename
-		#unzip and write the route db
-		_f = StringIO.StringIO()
-		_f.write(_resp)
-		_f.seek(0)
-		fz = gzip.GzipFile(fileobj=_f, mode='rb')
+	_data = u''
+	try:
+		_data = json.loads(_resp)
+	except:
+		print "error getting version of", _type
+		continue
 
-		with open(db_filename, "wb") as db_f:
-			db_f.write(fz.read())
+	if _data:
+		try:
+			version = _data["version"]
+			print _type, "db verion:", version
+		except:
+			print "error getting version of", _type
+			continue
+		db_filename = _type + "_v" + version + ".db"
+		if os.path.exists(db_filename):
+			already_have = True
 	else:
-		print "error getting db"
+		already_have = True
+
+	if already_have:
+		print "db file already exists:", db_filename
+		continue
+
+	if db_filename:
+		_conn.request("GET", uri[_type])
+		_r = _conn.getresponse()
+		_resp = _r.read()
+
+		if _resp:
+			print "writing db file:", db_filename
+			#unzip and write the route db
+			_f = StringIO.StringIO()
+			_f.write(_resp)
+			_f.seek(0)
+			fz = gzip.GzipFile(fileobj=_f, mode='rb')
+
+			with open(db_filename, "wb") as db_f:
+				db_f.write(fz.read())
+		else:
+			print "error getting", _type, "db"
 
 _conn.close()
