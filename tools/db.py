@@ -8,7 +8,7 @@ import gzip, StringIO
 db_filename = ""
 already_have = False
 
-url = "oms.chinamaincloud.com:8000"
+url = "domain.name.com:8000"
 
 _type = "route"
 
