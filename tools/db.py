@@ -64,6 +64,7 @@ for _type in _types:
 		already_have = True
 
 	if already_have:
+		already_have = False
 		print "db file already exists:", db_filename
 		continue
 
