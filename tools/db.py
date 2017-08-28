@@ -75,7 +75,8 @@ for _type in _types:
 
 		if _resp:
 			print "writing db file:", db_filename
-			#unzip and write the route db
+
+			#unzip and write the db
 			_f = StringIO.StringIO()
 			_f.write(_resp)
 			_f.seek(0)
