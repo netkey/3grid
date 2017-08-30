@@ -7,6 +7,8 @@ import gzip, StringIO
 
 db_filename = ""
 already_have = False
+running_path = os.path.dirname(os.path.abspath(__file__))
+writing_path = os.getcwd()
 
 url = "oms.chinamaincloud.com:8000"
 
@@ -21,6 +23,9 @@ all_types = ["route", "ip", "cmdb", "domain"]
 
 ver_uri = {"route": "/route/backend/version/", "ip": "/ipdb/backend/version/", "cmdb": "", "domain": ""}
 uri = {"route": "/media/route/download/route.json.gz", "ip": "/media/ipdb/download/ipdb.mmdb.gz", "cmdb": "", "domain": ""}
+
+print "running path:", running_path
+print "writing path:", writing_path
 
 if _type == "all":
 	_types = copy.copy(all_types)
@@ -82,7 +87,7 @@ for _type in _types:
 			_f.seek(0)
 			fz = gzip.GzipFile(fileobj=_f, mode='rb')
 
-			with open(db_filename, "wb") as db_f:
+			with open(writing_path + "/" + db_filename, "wb") as db_f:
 				db_f.write(fz.read())
 		else:
 			print "error getting", _type, "db"

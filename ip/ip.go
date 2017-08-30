@@ -8,7 +8,8 @@ import (
 )
 
 var Version string
-var Ver_Major, Ver_minor, Ver_Patch uint
+var Db_file string
+var Ver_Major, Ver_Minor, Ver_Patch uint64
 
 type IP_db struct {
 	Ipcache map[string]string
@@ -18,7 +19,7 @@ type IP_db struct {
 
 func (ip_db *IP_db) IP_db_init() {
 	ip_db.Ipcache = make(map[string]string)
-	ip_db.Ipdb, _ = geoip2.Open("ip/GeoLite2-City.mmdb")
+	ip_db.Ipdb, _ = geoip2.Open(Db_file)
 	ip_db.Lock = new(sync.RWMutex)
 }
 
