@@ -2,6 +2,7 @@ package grid_dns
 
 import (
 	IP "3grid/ip"
+	G "3grid/tools/globals"
 	"flag"
 	"github.com/miekg/dns"
 	"log"
@@ -40,8 +41,9 @@ func (wkr *DNS_worker) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
 	if ip, ok := w.RemoteAddr().(*net.UDPAddr); ok {
 		ipc = wkr.Ipdb.GetAreaCode(ip)
 
-		if *debug {
+		if G.Debug {
 			txt = ipc
+			log.Printf("TXT: %s", txt)
 		}
 
 		a = ip.IP
@@ -59,7 +61,7 @@ func (wkr *DNS_worker) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
 		}
 	}
 
-	if *debug {
+	if G.Debug {
 		t = &dns.TXT{
 			Hdr: dns.RR_Header{Name: dom, Rrtype: dns.TypeTXT, Class: dns.ClassINET, Ttl: default_ttl},
 			Txt: []string{txt},
@@ -100,7 +102,7 @@ func (wkr *DNS_worker) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
 		}
 	}
 
-	if *debug {
+	if G.Debug {
 		log.Printf("Query from: %s\n", a.String())
 	}
 
