@@ -2,14 +2,13 @@ package grid_tools
 
 import IP "3grid/ip"
 import RT "3grid/route"
+import G "3grid/tools/globals"
 import "log"
 import "os"
 import "path/filepath"
 import "regexp"
 import "strconv"
 import "strings"
-
-var Debug bool
 
 var checkprefix string
 var checkfilelist map[string]string
@@ -89,7 +88,7 @@ func Check_db_versions() error {
 	if err != nil {
 		log.Printf("Check db version error: %s", err)
 	} else {
-		if Debug {
+		if G.Debug {
 			log.Printf("IP db version:%s, major:%d, minor:%d, patch:%d, file_path:%s", IP.Version, IP.Ver_Major, IP.Ver_Minor, IP.Ver_Patch, IP.Db_file)
 		}
 	}
@@ -99,7 +98,7 @@ func Check_db_versions() error {
 	if err != nil {
 		log.Printf("Check db version error: %s", err)
 	} else {
-		if Debug {
+		if G.Debug {
 			log.Printf("Route db version:%s, major:%d, minor:%d, patch:%d, file_path:%s", RT.Version, RT.Ver_Major, RT.Ver_Minor, RT.Ver_Patch, RT.Db_file)
 		}
 	}

@@ -4,6 +4,7 @@ import (
 	A "3grid/amqp"
 	D "3grid/dns"
 	T "3grid/tools"
+	G "3grid/tools/globals"
 	"flag"
 	"github.com/sevlyar/go-daemon"
 	"github.com/spf13/viper"
@@ -87,7 +88,7 @@ func main() {
 	flag.Parse()
 	read_conf()
 
-	T.Debug = *debug
+	G.Debug = *debug
 	T.Check_db_versions()
 
 	if daemond {

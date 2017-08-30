@@ -1,7 +1,9 @@
 package grid_ip
 
 import (
+	G "3grid/tools/globals"
 	"github.com/oschwald/geoip2-golang"
+	"log"
 	"net"
 	"strconv"
 	"sync"
@@ -21,6 +23,10 @@ func (ip_db *IP_db) IP_db_init() {
 	ip_db.Ipcache = make(map[string]string)
 	ip_db.Ipdb, _ = geoip2.Open(Db_file)
 	ip_db.Lock = new(sync.RWMutex)
+
+	if G.Debug {
+		log.Printf("Openning ip db: %s", Db_file)
+	}
 }
 
 func (ip_db *IP_db) GetAreaCode(ip *net.UDPAddr) string {
