@@ -1,7 +1,8 @@
 package grid_route
 
 var Version string
-var Ver_Major, Ver_minor, Ver_Patch uint
+var Db_file string
+var Ver_Major, Ver_Minor, Ver_Patch uint64
 
 type Route_db struct {
 	CacheServers map[int]Server_List_Record

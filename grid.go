@@ -1,10 +1,9 @@
 package main
 
 import (
-	"3grid/amqp"
-	"3grid/dns"
-	"3grid/ip"
-	"3grid/tools"
+	A "3grid/amqp"
+	D "3grid/dns"
+	T "3grid/tools"
 	"flag"
 	"github.com/sevlyar/go-daemon"
 	"github.com/spf13/viper"
@@ -85,20 +84,11 @@ func read_conf() {
 
 func main() {
 
-	var err error
-
 	flag.Parse()
 	read_conf()
 
-	grid_ip.Ver_Major, grid_ip.Ver_Minor, grid_ip.Ver_Patch, grid_ip.Version, grid_ip.Db_file, err = grid_tools.Check_db_version("ip")
-
-	if err != nil {
-		log.Printf("Check db version error: %s", err)
-	} else {
-		if *debug {
-			log.Printf("IP db version:%s, major:%d, minor:%d, patch:%d, file_patch:%s", grid_ip.Version, grid_ip.Ver_Major, grid_ip.Ver_Minor, grid_ip.Ver_Patch, grid_ip.Db_file)
-		}
-	}
+	T.Debug = *debug
+	T.Check_db_versions()
 
 	if daemond {
 		context := new(daemon.Context)
@@ -116,10 +106,10 @@ func main() {
 
 	var name, secret string
 	for i := 0; i < num_cpus; i++ {
-		go grid_dns.Working("udp", port, name, secret, i)
+		go D.Working("udp", port, name, secret, i)
 	}
 
-	go grid_amqp.Synchronize(interval, keepalive, myname)
+	go A.Synchronize(interval, keepalive, myname)
 
 	sig := make(chan os.Signal)
 	signal.Notify(sig, syscall.SIGINT, syscall.SIGTERM)

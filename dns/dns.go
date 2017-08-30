@@ -1,7 +1,7 @@
 package grid_dns
 
 import (
-	"3grid/ip"
+	IP "3grid/ip"
 	"flag"
 	"github.com/miekg/dns"
 	"log"
@@ -22,7 +22,7 @@ var Qs, Qps, Load uint64
 type DNS_worker struct {
 	Id     int
 	Server *dns.Server
-	Ipdb   *grid_ip.IP_db
+	Ipdb   *IP.IP_db
 }
 
 func (wkr *DNS_worker) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
@@ -108,7 +108,7 @@ func (wkr *DNS_worker) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
 }
 
 func Working(net, port, name, secret string, num int) {
-	ipdb := grid_ip.IP_db{}
+	ipdb := IP.IP_db{}
 	ipdb.IP_db_init()
 
 	worker := DNS_worker{}
