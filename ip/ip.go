@@ -41,18 +41,27 @@ func (ip_db *IP_db) GetAreaCode(ip *net.UDPAddr) string {
 	if ipc == "" {
 		re, err := ip_db.Ipdb.City(ip.IP)
 		if err == nil {
-			cn := re.City.Names["en"]
+			cn := re.City.Names["MMY"]
 			if cn == "" {
 				cn = re.Country.Names["en"]
 			}
 
-			ipc = cn + "|" + re.Country.IsoCode + "|" + re.Postal.Code + "|Coordinates: " +
-				strconv.FormatFloat(re.Location.Latitude, 'f', 4, 64) + ", " +
-				strconv.FormatFloat(re.Location.Longitude, 'f', 4, 64)
+			if G.Debug {
+				log.Printf("Area Code of %s: %s", ips, cn)
+			}
+
+			ipc = "AC:" + cn + "|CC:" + re.Country.IsoCode + "|Coordinates:" +
+				strconv.FormatFloat(re.Location.Latitude, 'f', 4, 64) + "," +
+				strconv.FormatFloat(re.Location.Longitude, 'f', 4, 64) + "|AccuracyRadius:" +
+				strconv.FormatUint(uint64(re.Location.AccuracyRadius), 10)
 
 			ip_db.Lock.Lock()
 			ip_db.Ipcache[ips] = ipc
 			ip_db.Lock.Unlock()
+		} else {
+			if G.Debug {
+				log.Printf("IP lookup error: %s", err)
+			}
 		}
 	}
 

@@ -10,14 +10,22 @@ already_have = False
 running_path = os.path.dirname(os.path.abspath(__file__))
 writing_path = os.getcwd()
 
-url = "oms.chinamaincloud.com:8000"
+url = "gslb-center.chinamaincloud.com:8000"
 
 _type = "route"
-
 try:
 	_type = sys.argv[1]
 except:
 	pass
+print "type:", _type
+
+_force = False
+try:
+	if sys.argv[2] == "force":
+		_force = True
+except:
+	pass
+print "force:", _force
 
 all_types = ["route", "ip", "cmdb", "domain"]
 
@@ -31,7 +39,7 @@ if _type == "all":
 	_types = copy.copy(all_types)
 else:
 	if _type not in all_types:
-		print "unknown db type"
+		print "unknown db type", _type
 		sys.exit(1)
 	else:
 		_types = [_type]
@@ -68,7 +76,7 @@ for _type in _types:
 	else:
 		already_have = True
 
-	if already_have:
+	if already_have and not _force:
 		already_have = False
 		print "db file already exists:", db_filename
 		continue

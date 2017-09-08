@@ -30,9 +30,12 @@ type Node_List_Record struct {
 }
 
 type Domain_List_Record struct {
-	DomainId    int
-	DomainName  string
+	Cname       string
+	Priority    string
 	ServerGroup string
+	Records     int
+	TTL         int
+	RoutePlan   []int
 }
 
 type Route_List_Record struct {
