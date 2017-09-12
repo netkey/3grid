@@ -1,36 +1,43 @@
 package grid_route
 
+import "net"
+
 var Version string
 var Db_file string
 var Ver_Major, Ver_Minor, Ver_Patch uint64
 
 type Route_db struct {
-	CacheServers map[int]Server_List_Record
-	NodeServers  map[int]Server_List_Record
-	Nodes        map[int]Node_List_Record
-	Domains      map[string]Domain_List_Record
-	Routes       map[string]map[string]Route_List_Record
+	Servers map[net.IP]Server_List_Record
+	Nodes   map[uint]Node_List_Record
+	Domains map[string]Domain_List_Record
+	Routes  map[string]map[uint]Route_List_Record //map[string]map[uint]  string for AreaCode, uint for RoutePlan ID
 }
 
 type Server_List_Record struct {
-	ServerIp    int
-	ServerGroup string
-	NodeId      int
-	Usage       int
-	Status      int
-	Weight      int
+	ServerIp       net.IP
+	ServerGroup    string //description of server type, like 'page', 'video'
+	NodeId         uint
+	ServerCapacity uint64 //bandwidth
+	Usage          uint   //percentage
+	Status         int    //1:ok 0:fail
+	Weight         uint   //responde to ServerCapacity
 }
 
 type Node_List_Record struct {
-	NodeId       int
-	NodeCapacity int
-	Usage        int
-	Status       int
-	Priority     int
+	NodeId       uint
+	NodeCapacity uint64 //bandwidth
+	Usage        uint   //percentage
+	Status       int    //1:ok 0:fail
+	Priority     uint   //network quality
+	Weight       uint   //responde to number of servers
+	Costs        int    //cost of node(95)
+	ServerList   []net.IP
 }
 
 type Domain_List_Record struct {
-	Cname       string
+	Name        string
+	Type        string
+	Value       string
 	Priority    string
 	ServerGroup string
 	Records     int
@@ -39,8 +46,5 @@ type Domain_List_Record struct {
 }
 
 type Route_List_Record struct {
-	DomainName   string
-	ClientRegion string
-	NodeIds      string
-	Ext          string
+	Nodes []uint
 }
