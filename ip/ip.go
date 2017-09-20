@@ -17,16 +17,20 @@ type IP_db struct {
 	Ipcache map[string]string
 	Ipdb    *geoip2.Reader
 	Lock    *sync.RWMutex
+	Chan    chan map[string]string
 }
 
 func (ip_db *IP_db) IP_db_init() {
 	ip_db.Ipcache = make(map[string]string)
 	ip_db.Ipdb, _ = geoip2.Open(Db_file)
 	ip_db.Lock = new(sync.RWMutex)
+	ip_db.Chan = make(chan map[string]string, 100)
 
 	if G.Debug {
 		log.Printf("Openning ip db: %s", Db_file)
 	}
+
+	go ip_db.UpdateIPCache()
 }
 
 func (ip_db *IP_db) GetAreaCode(ip *net.UDPAddr) string {
@@ -36,7 +40,7 @@ func (ip_db *IP_db) GetAreaCode(ip *net.UDPAddr) string {
 	)
 
 	ips = ip.IP.String()
-	ipc = ip_db.Ipcache[ip.IP.String()]
+	ipc = ip_db.Ipcache[ips]
 
 	if ipc == "" {
 		re, err := ip_db.Ipdb.City(ip.IP)
@@ -55,9 +59,12 @@ func (ip_db *IP_db) GetAreaCode(ip *net.UDPAddr) string {
 				strconv.FormatFloat(re.Location.Longitude, 'f', 4, 64) + "|AccuracyRadius:" +
 				strconv.FormatUint(uint64(re.Location.AccuracyRadius), 10)
 
-			ip_db.Lock.Lock()
-			ip_db.Ipcache[ips] = ipc
-			ip_db.Lock.Unlock()
+			//every worker has its ipcache, no need to use write lock
+			//ip_db.Lock.Lock()
+			//ip_db.Ipcache[ips] = ipc
+			//ip_db.Lock.Unlock()
+			ip_db.Chan <- map[string]string{ips: ipc}
+
 		} else {
 			if G.Debug {
 				log.Printf("IP lookup error: %s", err)
@@ -66,4 +73,13 @@ func (ip_db *IP_db) GetAreaCode(ip *net.UDPAddr) string {
 	}
 
 	return ipc
+}
+
+func (ip_db *IP_db) UpdateIPCache() error {
+	for {
+		ipm := <-ip_db.Chan
+		for k, v := range ipm {
+			ip_db.Ipcache[k] = v
+		}
+	}
 }

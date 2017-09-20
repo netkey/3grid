@@ -2,6 +2,7 @@ package grid_dns
 
 import (
 	IP "3grid/ip"
+	RT "3grid/route"
 	G "3grid/tools/globals"
 	"flag"
 	"github.com/miekg/dns"
@@ -24,6 +25,7 @@ type DNS_worker struct {
 	Id     int
 	Server *dns.Server
 	Ipdb   *IP.IP_db
+	Rtdb   *RT.Route_db
 }
 
 func (wkr *DNS_worker) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
@@ -109,13 +111,12 @@ func (wkr *DNS_worker) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
 	w.WriteMsg(m)
 }
 
-func Working(net, port, name, secret string, num int) {
-	ipdb := IP.IP_db{}
-	ipdb.IP_db_init()
+func Working(net, port, name, secret string, num int, ipdb *IP.IP_db, rtdb *RT.Route_db) {
 
 	worker := DNS_worker{}
 	worker.Id = num
-	worker.Ipdb = &ipdb
+	worker.Ipdb = ipdb
+	worker.Rtdb = rtdb
 
 	switch name {
 	case "":

@@ -52,3 +52,6 @@ type Route_List_Record struct {
 type PW_List_Record struct {
 	PW []uint //PW[0] for priority, PW[1] for weight
 }
+
+func (rt_db *Route_db) RT_db_init() {
+}

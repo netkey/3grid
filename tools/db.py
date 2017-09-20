@@ -10,7 +10,7 @@ already_have = False
 running_path = os.path.dirname(os.path.abspath(__file__))
 writing_path = os.getcwd()
 
-url = "gslb-center.chinamaincloud.com:8000"
+url = "gslb-center.chinamaincloud.com"
 
 _type = "route"
 try:
@@ -29,8 +29,8 @@ print "force:", _force
 
 all_types = ["route", "ip", "cmdb", "domain"]
 
-ver_uri = {"route": "/route/backend/version/", "ip": "/ipdb/backend/version/", "cmdb": "", "domain": ""}
-uri = {"route": "/media/route/download/route.json.gz", "ip": "/media/ipdb/download/ipdb.mmdb.gz", "cmdb": "", "domain": ""}
+ver_uri = {"route": "/route/backend/version/", "ip": "/ipdb/backend/version/", "cmdb": "/node/backend/version/", "domain": "/domain/backend/version/"}
+uri = {"route": "/media/route/download/route.json.gz", "ip": "/media/ipdb/download/ipdb.mmdb.gz", "cmdb": "/media/node/download/node.json.gz", "domain": "/media/domain/download/domain.json.gz"}
 
 print "running path:", running_path
 print "writing path:", writing_path
@@ -66,7 +66,7 @@ for _type in _types:
 	if _data:
 		try:
 			version = _data["version"]
-			print _type, "db verion:", version
+			print _type, "db verion:", version, ",",
 		except:
 			print "error getting version of", _type
 			continue
@@ -87,7 +87,7 @@ for _type in _types:
 		_resp = _r.read()
 
 		if _resp:
-			print "writing db file:", db_filename
+			print "writing db file:", db_filename, "..",
 
 			#unzip and write the db
 			_f = StringIO.StringIO()
@@ -97,6 +97,8 @@ for _type in _types:
 
 			with open(writing_path + "/" + db_filename, "wb") as db_f:
 				db_f.write(fz.read())
+
+			print "done."
 		else:
 			print "error getting", _type, "db"
 

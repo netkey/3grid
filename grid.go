@@ -3,6 +3,8 @@ package main
 import (
 	A "3grid/amqp"
 	D "3grid/dns"
+	IP "3grid/ip"
+	RT "3grid/route"
 	T "3grid/tools"
 	G "3grid/tools/globals"
 	"flag"
@@ -105,9 +107,15 @@ func main() {
 	//after fork as daemon, go on working
 	runtime.GOMAXPROCS(num_cpus)
 
+	ipdb := IP.IP_db{}
+	ipdb.IP_db_init()
+
+	rtdb := RT.Route_db{}
+	rtdb.RT_db_init()
+
 	var name, secret string
 	for i := 0; i < num_cpus; i++ {
-		go D.Working("udp", port, name, secret, i)
+		go D.Working("udp", port, name, secret, i, &ipdb, &rtdb)
 	}
 
 	go A.Synchronize(interval, keepalive, myname)
