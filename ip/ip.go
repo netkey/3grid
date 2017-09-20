@@ -40,7 +40,7 @@ func (ip_db *IP_db) GetAreaCode(ip *net.UDPAddr) string {
 	)
 
 	ips = ip.IP.String()
-	ipc = ip_db.Ipcache[ips]
+	ipc = ip_db.ReadIPCache(ips)
 
 	if ipc == "" {
 		re, err := ip_db.Ipdb.City(ip.IP)
@@ -59,10 +59,6 @@ func (ip_db *IP_db) GetAreaCode(ip *net.UDPAddr) string {
 				strconv.FormatFloat(re.Location.Longitude, 'f', 4, 64) + "|AccuracyRadius:" +
 				strconv.FormatUint(uint64(re.Location.AccuracyRadius), 10)
 
-			//every worker has its ipcache, no need to use write lock
-			//ip_db.Lock.Lock()
-			//ip_db.Ipcache[ips] = ipc
-			//ip_db.Lock.Unlock()
 			ip_db.Chan <- map[string]string{ips: ipc}
 
 		} else {
@@ -75,11 +71,23 @@ func (ip_db *IP_db) GetAreaCode(ip *net.UDPAddr) string {
 	return ipc
 }
 
+func (ip_db *IP_db) ReadIPCache(ips string) string {
+	ip_db.Lock.RLock()
+	ipc := ip_db.Ipcache[ips]
+	ip_db.Lock.RUnlock()
+
+	return ipc
+}
+
 func (ip_db *IP_db) UpdateIPCache() error {
 	for {
 		ipm := <-ip_db.Chan
 		for k, v := range ipm {
+			ip_db.Lock.Lock()
 			ip_db.Ipcache[k] = v
+			ip_db.Lock.Unlock()
 		}
 	}
+
+	return nil
 }
