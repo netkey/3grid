@@ -78,50 +78,128 @@ func (rt_db *Route_db) UpdateRoutedb() error {
 	for {
 		m := <-rt_db.Chan
 		for t, a := range m {
-			rt_db.Locks[t].Lock()
 			switch t {
 			case "domains":
-				rt_db.Conver_Domain_Record(a)
+				rt_db.Convert_Domain_Record(a)
 			case "servers":
-				rt_db.Conver_Server_Record(a)
+				rt_db.Convert_Server_Record(a)
 			case "nodes":
-				rt_db.Conver_Node_Record(a)
+				rt_db.Convert_Node_Record(a)
 			case "routes":
-				rt_db.Conver_Route_Record(a)
+				rt_db.Convert_Route_Record(a)
 			default:
 			}
-			rt_db.Locks[t].Unlock()
 		}
 	}
 
 	return nil
 }
 
-func (rt_db *Route_db) Conver_Domain_Record(a []string) {
+func (rt_db *Route_db) Convert_Domain_Record(a []string) {
 	var r Domain_List_Record
 	var k string
 
-	rt_db.Domains[k] = r
+	rt_db.Update_Domain_Record(k, &r)
 }
 
-func (rt_db *Route_db) Conver_Server_Record(a []string) {
+func (rt_db *Route_db) Read_Domain_Record(k string) Domain_List_Record {
+	var r Domain_List_Record
+
+	rt_db.Locks["domains"].RLock()
+	r = rt_db.Domains[k]
+	rt_db.Locks["domains"].RUnlock()
+
+	return r
+}
+
+func (rt_db *Route_db) Update_Domain_Record(k string, r *Domain_List_Record) {
+	rt_db.Locks["domains"].Lock()
+	if r == nil {
+		delete(rt_db.Domains, k)
+	} else {
+		rt_db.Domains[k] = *r
+	}
+	rt_db.Locks["domains"].Unlock()
+}
+
+func (rt_db *Route_db) Convert_Server_Record(a []string) {
 	var r Server_List_Record
 	var k string
 
-	rt_db.Servers[k] = r
+	rt_db.Update_Server_Record(k, &r)
 }
 
-func (rt_db *Route_db) Conver_Node_Record(a []string) {
+func (rt_db *Route_db) Read_Server_Record(k string) Server_List_Record {
+	var r Server_List_Record
+
+	rt_db.Locks["servers"].RLock()
+	r = rt_db.Servers[k]
+	rt_db.Locks["servers"].RUnlock()
+
+	return r
+}
+
+func (rt_db *Route_db) Update_Server_Record(k string, r *Server_List_Record) {
+	rt_db.Locks["servers"].Lock()
+	if r == nil {
+		delete(rt_db.Servers, k)
+	} else {
+		rt_db.Servers[k] = *r
+	}
+	rt_db.Locks["servers"].Unlock()
+}
+
+func (rt_db *Route_db) Convert_Node_Record(a []string) {
 	var r Node_List_Record
 	var k uint
 
-	rt_db.Nodes[k] = r
+	rt_db.Update_Node_Record(k, &r)
 }
 
-func (rt_db *Route_db) Conver_Route_Record(a []string) {
+func (rt_db *Route_db) Read_Node_Record(k uint) Node_List_Record {
+	var r Node_List_Record
+
+	rt_db.Locks["nodes"].RLock()
+	r = rt_db.Nodes[k]
+	rt_db.Locks["nodes"].RUnlock()
+
+	return r
+}
+
+func (rt_db *Route_db) Update_Node_Record(k uint, r *Node_List_Record) {
+	rt_db.Locks["nodes"].Lock()
+	if r == nil {
+		delete(rt_db.Nodes, k)
+	} else {
+		rt_db.Nodes[k] = *r
+	}
+	rt_db.Locks["nodes"].Unlock()
+}
+
+func (rt_db *Route_db) Convert_Route_Record(a []string) {
 	var r Route_List_Record
 	var k string
 	var nid uint
 
-	rt_db.Routes[k][nid] = r
+	rt_db.Update_Route_Record(k, nid, &r)
+}
+
+func (rt_db *Route_db) Read_Route_Record(k string, nid uint) Route_List_Record {
+	var r Route_List_Record
+
+	rt_db.Locks["routes"].RLock()
+	r = rt_db.Routes[k][nid]
+	rt_db.Locks["routes"].RUnlock()
+
+	return r
+}
+
+func (rt_db *Route_db) Update_Route_Record(k string, nid uint, r *Route_List_Record) {
+	rt_db.Locks["routes"].Lock()
+	if r == nil {
+		delete(rt_db.Routes[k], nid)
+	} else {
+		rt_db.Routes[k][nid] = *r
+	}
+	rt_db.Locks["routes"].Unlock()
 }
