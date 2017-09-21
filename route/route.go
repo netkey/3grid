@@ -85,11 +85,11 @@ func (rt_db *Route_db) RT_db_init() {
 		"nodes": new(sync.RWMutex), "domains": new(sync.RWMutex), "routes": new(sync.RWMutex)}
 	rt_db.Chan = make(chan map[string]map[string][]string, 100)
 
+	go rt_db.Updatedb()
+
 	rt_db.LoadDomaindb()
 	rt_db.LoadCMdb()
 	rt_db.LoadRoutedb()
-
-	go rt_db.UpdateRoutedb()
 }
 
 func (rt_db *Route_db) LoadDomaindb() error {
@@ -115,9 +115,11 @@ func (rt_db *Route_db) LoadDomaindb() error {
 		}
 	} else {
 		rt_db.Convert_Domain_Record(&domain_records)
+		//rt_db.Chan <- map[string]map[string][]string{"domains": domain_records}
 	}
 
 	if G.Debug {
+		//time.Sleep(time.Duration(100) * time.Millisecond)
 		keys := reflect.ValueOf(rt_db.Domains).MapKeys()
 		log.Printf("domains data sample: %+v", rt_db.Domains[keys[0].String()])
 	}
@@ -232,7 +234,7 @@ func (rt_db *Route_db) LoadRoutedb() error {
 	return err
 }
 
-func (rt_db *Route_db) UpdateRoutedb() error {
+func (rt_db *Route_db) Updatedb() error {
 	for {
 		m := <-rt_db.Chan
 		for t, a := range m {
