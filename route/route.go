@@ -71,7 +71,7 @@ type Route_List_Record struct {
 }
 
 type PW_List_Record struct {
-	PW []uint //PW[0] for priority, PW[1] for weight
+	PW [2]uint //PW[0] for priority, PW[1] for weight
 }
 
 func (rt_db *Route_db) RT_db_init() {
@@ -90,6 +90,7 @@ func (rt_db *Route_db) RT_db_init() {
 
 	rt_db.LoadDomaindb()
 	rt_db.LoadCMdb()
+	rt_db.LoadRoutedb()
 
 	go rt_db.UpdateRoutedb()
 }
@@ -162,6 +163,50 @@ func (rt_db *Route_db) LoadCMdb() error {
 			rt_db.Convert_Node_Record(&node_records)
 			rt_db.Convert_Server_Record(&server_records)
 		}
+	}
+
+	return err
+}
+
+//Tag: RR
+func (rt_db *Route_db) LoadRoutedb() error {
+	var jf []byte
+	var rtdb_records map[string]map[string]map[string][]string
+	var err error
+
+	if G.Debug {
+		log.Printf("Loading route db..")
+	}
+
+	jf, err = ioutil.ReadFile(Db_file)
+	if err != nil {
+		if G.Debug {
+			log.Printf("error reading route db: %s", err)
+		}
+	}
+
+	err = json.Unmarshal(jf, &rtdb_records)
+	if err != nil {
+		if G.Debug {
+			log.Printf("error unmarshaling route db: %s", err)
+		}
+	} else {
+		//CMCC-CN-BJ-BJ : [rid, nid, p, w]
+		route_records := make(map[string][]string)
+		for rid, plan := range rtdb_records {
+			for ac, nodes := range plan {
+				for nid, pws := range nodes {
+					route_records[ac] = append(route_records[ac], rid)
+					route_records[ac] = append(route_records[ac], nid)
+					route_records[ac] = append(route_records[ac], pws[0])
+					route_records[ac] = append(route_records[ac], pws[1])
+					if G.Debug {
+						log.Printf("route record: %+v", route_records[ac])
+					}
+				}
+			}
+		}
+		rt_db.Convert_Route_Record(&route_records)
 	}
 
 	return err
