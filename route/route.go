@@ -44,15 +44,15 @@ type Server_List_Record struct {
 }
 
 type Node_List_Record struct {
-	NodeId uint
-	//NodeCapacity uint64 //bandwidth
-	Usage      uint   //percentage
-	Status     bool   //1:ok 0:fail
-	Priority   uint   //network quality
-	Weight     uint   //responde to number of servers
-	Costs      int    //cost of node(95), negative value representing that it doesn't reach minimum-guarantee
-	Type       string //node type: A CNAME
-	ServerList []uint
+	NodeId       uint
+	NodeCapacity uint64 //bandwidth
+	Usage        uint   //percentage
+	Status       bool   //1:ok 0:fail
+	Priority     uint   //network quality
+	Weight       uint   //responde to number of servers
+	Costs        int    //cost of node(95), negative value representing that it doesn't reach minimum-guarantee
+	Type         string //node type: A CNAME
+	ServerList   []uint
 }
 
 type Domain_List_Record struct {
@@ -265,7 +265,7 @@ func (rt_db *Route_db) Convert_Server_Record(m *map[string][]string) {
 
 			rt_db.Update_Server_Record(k, r)
 			if G.Debug {
-				log.Printf("update server record: %+v", r)
+				//log.Printf("update server record: %+v", r)
 			}
 		}
 	}
@@ -312,20 +312,24 @@ func (rt_db *Route_db) Convert_Node_Record(m *map[string][]string) {
 			} else {
 				r.Status = false
 			}
-			r.Type = v[5]
-			s := strings.Split(v[6], ",")
+			x, _ = strconv.Atoi(v[5])
+			r.NodeCapacity = uint64(x)
+			r.Type = v[6]
+			s := strings.Split(v[7], ",")
 			if len(s) > 0 {
-				p := make([]uint, len(s))
+				p := make([]uint, len(s)-1)
 				for i, v := range s {
 					x, _ = strconv.Atoi(v)
-					p[i] = uint(x)
+					if x != 0 {
+						p[i] = uint(x)
+					}
 				}
 				r.ServerList = p
 			}
 
 			rt_db.Update_Node_Record(r.NodeId, r)
 			if G.Debug {
-				log.Printf("update node record: %+v", r)
+				//log.Printf("update node record: %+v", r)
 			}
 		}
 	}
