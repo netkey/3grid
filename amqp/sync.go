@@ -88,7 +88,7 @@ func CheckVersion(_interval int) {
 	for {
 		time.Sleep(time.Duration(_interval) * time.Second)
 		_param[AMQP_OBJ_IP] = grid_ip.Version
-		_param[AMQP_OBJ_ROUTE] = grid_route.Version
+		_param[AMQP_OBJ_ROUTE] = grid_route.RT_Version
 		if err = Sendmsg("", AMQP_CMD_VER, &_param, AMQP_OBJ_IP, &_msg1, "", *gslb_center, 0); err != nil {
 			log.Printf("checkversion: %s", err)
 		}

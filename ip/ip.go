@@ -27,7 +27,7 @@ func (ip_db *IP_db) IP_db_init() {
 	ip_db.Chan = make(chan map[string]string, 100)
 
 	if G.Debug {
-		log.Printf("Openning ip db: %s", Db_file)
+		log.Printf("Loading ip db..")
 	}
 
 	go ip_db.UpdateIPCache()

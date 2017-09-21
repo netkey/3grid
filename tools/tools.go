@@ -93,13 +93,13 @@ func Check_db_versions() error {
 		}
 	}
 
-	RT.Ver_Major, RT.Ver_Minor, RT.Ver_Patch, RT.Version, RT.Db_file, err = check_db_version("route")
+	RT.RT_Ver_Major, RT.RT_Ver_Minor, RT.RT_Ver_Patch, RT.RT_Version, RT.RT_Db_file, err = check_db_version("route")
 
 	if err != nil {
 		log.Printf("Check db version error: %s", err)
 	} else {
 		if G.Debug {
-			log.Printf("Route db version:%s, major:%d, minor:%d, patch:%d, file_path:%s", RT.Version, RT.Ver_Major, RT.Ver_Minor, RT.Ver_Patch, RT.Db_file)
+			log.Printf("Route db version:%s, major:%d, minor:%d, patch:%d, file_path:%s", RT.RT_Version, RT.RT_Ver_Major, RT.RT_Ver_Minor, RT.RT_Ver_Patch, RT.RT_Db_file)
 		}
 	}
 

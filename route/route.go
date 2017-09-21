@@ -4,14 +4,15 @@ import G "3grid/tools/globals"
 import "encoding/json"
 import "io/ioutil"
 import "log"
+import "reflect"
 import "strconv"
 import "strings"
 import "sync"
 
 //route db version and file path
-var Version string
-var Db_file string
-var Ver_Major, Ver_Minor, Ver_Patch uint64
+var RT_Version string
+var RT_Db_file string
+var RT_Ver_Major, RT_Ver_Minor, RT_Ver_Patch uint64
 
 //domain db version and file path
 var DM_Version string
@@ -84,10 +85,6 @@ func (rt_db *Route_db) RT_db_init() {
 		"nodes": new(sync.RWMutex), "domains": new(sync.RWMutex), "routes": new(sync.RWMutex)}
 	rt_db.Chan = make(chan map[string]map[string][]string, 100)
 
-	if G.Debug {
-		log.Printf("Initializing route db..")
-	}
-
 	rt_db.LoadDomaindb()
 	rt_db.LoadCMdb()
 	rt_db.LoadRoutedb()
@@ -118,6 +115,11 @@ func (rt_db *Route_db) LoadDomaindb() error {
 		}
 	} else {
 		rt_db.Convert_Domain_Record(&domain_records)
+	}
+
+	if G.Debug {
+		keys := reflect.ValueOf(rt_db.Domains).MapKeys()
+		log.Printf("domains data sample: %+v", rt_db.Domains[keys[0].String()])
 	}
 
 	return err
@@ -165,20 +167,27 @@ func (rt_db *Route_db) LoadCMdb() error {
 		}
 	}
 
+	if G.Debug {
+		keys := reflect.ValueOf(rt_db.Nodes).MapKeys()
+		log.Printf("nodes data sample: %+v", rt_db.Nodes[uint(keys[0].Uint())])
+		keys = reflect.ValueOf(rt_db.Servers).MapKeys()
+		log.Printf("servers data sample: %+v", rt_db.Servers[keys[0].String()])
+	}
+
 	return err
 }
 
-//Tag: RR
 func (rt_db *Route_db) LoadRoutedb() error {
 	var jf []byte
 	var rtdb_records map[string]map[string]map[string][]string
+	var route_records map[string][]string
 	var err error
 
 	if G.Debug {
 		log.Printf("Loading route db..")
 	}
 
-	jf, err = ioutil.ReadFile(Db_file)
+	jf, err = ioutil.ReadFile(RT_Db_file)
 	if err != nil {
 		if G.Debug {
 			log.Printf("error reading route db: %s", err)
@@ -192,21 +201,32 @@ func (rt_db *Route_db) LoadRoutedb() error {
 		}
 	} else {
 		//CMCC-CN-BJ-BJ : [rid, nid, p, w]
-		route_records := make(map[string][]string)
 		for rid, plan := range rtdb_records {
+			if plan == nil || rid == "" {
+				continue
+			}
 			for ac, nodes := range plan {
+				if nodes == nil || ac == "" {
+					continue
+				}
 				for nid, pws := range nodes {
+					route_records = make(map[string][]string)
+					if pws == nil || nid == "" {
+						continue
+					}
 					route_records[ac] = append(route_records[ac], rid)
 					route_records[ac] = append(route_records[ac], nid)
 					route_records[ac] = append(route_records[ac], pws[0])
 					route_records[ac] = append(route_records[ac], pws[1])
-					if G.Debug {
-						log.Printf("route record: %+v", route_records[ac])
-					}
+					rt_db.Convert_Route_Record(&route_records)
 				}
 			}
 		}
-		rt_db.Convert_Route_Record(&route_records)
+	}
+
+	if G.Debug {
+		keys := reflect.ValueOf(rt_db.Routes).MapKeys()
+		log.Printf("routes data sample: %s %+v", keys[0].String(), rt_db.Routes[keys[0].String()])
 	}
 
 	return err
@@ -401,11 +421,32 @@ func (rt_db *Route_db) Update_Node_Record(k uint, r *Node_List_Record) {
 }
 
 func (rt_db *Route_db) Convert_Route_Record(m *map[string][]string) {
-	var r Route_List_Record
-	var k string
+	var rid uint
 	var nid uint
+	for k, v := range *m {
+		x := 0
+		r := new(Route_List_Record)
+		pw := new(PW_List_Record)
+		r.Nodes = make(map[uint]PW_List_Record)
 
-	rt_db.Update_Route_Record(k, nid, &r)
+		if len(v) > 3 {
+			x, _ = strconv.Atoi(v[0])
+			rid = uint(x)
+			x, _ = strconv.Atoi(v[1])
+			nid = uint(x)
+			x, _ = strconv.Atoi(v[2])
+			pw.PW[0] = uint(x)
+			x, _ = strconv.Atoi(v[3])
+			pw.PW[1] = uint(x)
+
+			r.Nodes[nid] = *pw
+
+			rt_db.Update_Route_Record(k, rid, r)
+			if G.Debug {
+				//log.Printf("update route record: %s:%d:%+v", k, nid, r)
+			}
+		}
+	}
 }
 
 func (rt_db *Route_db) Read_Route_Record(k string, nid uint) Route_List_Record {
@@ -418,12 +459,15 @@ func (rt_db *Route_db) Read_Route_Record(k string, nid uint) Route_List_Record {
 	return r
 }
 
-func (rt_db *Route_db) Update_Route_Record(k string, nid uint, r *Route_List_Record) {
+func (rt_db *Route_db) Update_Route_Record(k string, rid uint, r *Route_List_Record) {
 	rt_db.Locks["routes"].Lock()
 	if r == nil {
-		delete(rt_db.Routes[k], nid)
+		delete(rt_db.Routes[k], rid)
 	} else {
-		rt_db.Routes[k][nid] = *r
+		if rt_db.Routes[k] == nil {
+			rt_db.Routes[k] = make(map[uint]Route_List_Record)
+		}
+		rt_db.Routes[k][rid] = *r
 	}
 	rt_db.Locks["routes"].Unlock()
 }
