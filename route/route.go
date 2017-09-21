@@ -4,18 +4,24 @@ import G "3grid/tools/globals"
 import "encoding/json"
 import "io/ioutil"
 import "log"
-import "net"
 import "strconv"
 import "strings"
 import "sync"
 
+//route db version and file path
 var Version string
 var Db_file string
 var Ver_Major, Ver_Minor, Ver_Patch uint64
 
+//domain db version and file path
 var DM_Version string
 var DM_Db_file string
 var DM_Ver_Major, DM_Ver_Minor, DM_Ver_Patch uint64
+
+//cmdb version and file path
+var CM_Version string
+var CM_Db_file string
+var CM_Ver_Major, CM_Ver_Minor, CM_Ver_Patch uint64
 
 type Route_db struct {
 	Servers map[string]Server_List_Record         //string for net.IP.String()
@@ -27,24 +33,26 @@ type Route_db struct {
 }
 
 type Server_List_Record struct {
-	ServerIp       net.IP
-	ServerGroup    string //description of server type, like 'page', 'video'
+	ServerId       uint
+	ServerIp       string
+	ServerGroup    uint   //description of server type, like 'page', 'video'
 	NodeId         uint   //same as nodeid in Node_List_Record
 	ServerCapacity uint64 //bandwidth
 	Usage          uint   //percentage
-	Status         int    //1:ok 0:fail -1:unknown
+	Status         bool   //1:ok 0:fail
 	Weight         uint   //responde to ServerCapacity
 }
 
 type Node_List_Record struct {
-	NodeId       uint
-	NodeCapacity uint64 //bandwidth
-	Usage        uint   //percentage
-	Status       int    //1:ok 0:fail -1:unknown
-	Priority     uint   //network quality
-	Weight       uint   //responde to number of servers
-	Costs        int    //cost of node(95), negative value representing that it doesn't reach minimum-guarantee
-	ServerList   []net.IP
+	NodeId uint
+	//NodeCapacity uint64 //bandwidth
+	Usage      uint   //percentage
+	Status     bool   //1:ok 0:fail
+	Priority   uint   //network quality
+	Weight     uint   //responde to number of servers
+	Costs      int    //cost of node(95), negative value representing that it doesn't reach minimum-guarantee
+	Type       string //node type: A CNAME
+	ServerList []uint
 }
 
 type Domain_List_Record struct {
@@ -81,6 +89,7 @@ func (rt_db *Route_db) RT_db_init() {
 	}
 
 	rt_db.LoadDomaindb()
+	rt_db.LoadCMdb()
 
 	go rt_db.UpdateRoutedb()
 }
@@ -97,7 +106,7 @@ func (rt_db *Route_db) LoadDomaindb() error {
 	jf, err = ioutil.ReadFile(DM_Db_file)
 	if err != nil {
 		if G.Debug {
-			log.Printf("error reading  domain db: %s", err)
+			log.Printf("error reading domain db: %s", err)
 		}
 	}
 
@@ -108,6 +117,51 @@ func (rt_db *Route_db) LoadDomaindb() error {
 		}
 	} else {
 		rt_db.Convert_Domain_Record(&domain_records)
+	}
+
+	return err
+}
+
+func (rt_db *Route_db) LoadCMdb() error {
+	var jf []byte
+	var cmdb_records map[string]map[string][]string
+	var err error
+
+	if G.Debug {
+		log.Printf("Loading cmdb..")
+	}
+
+	jf, err = ioutil.ReadFile(CM_Db_file)
+	if err != nil {
+		if G.Debug {
+			log.Printf("error reading cmdb: %s", err)
+		}
+	}
+
+	err = json.Unmarshal(jf, &cmdb_records)
+	if err != nil {
+		if G.Debug {
+			log.Printf("error unmarshaling cmdb: %s", err)
+		}
+	} else {
+		for nid, servers := range cmdb_records {
+			node_records := make(map[string][]string)
+			server_records := make(map[string][]string)
+			server_list := ""
+			for sid, server := range servers {
+				if sid == "0" {
+					node_records[nid] = server
+				} else {
+					server_records[sid] = server
+					server_records[sid] = append(server_records[sid], nid)
+					server_list = server_list + sid + ","
+				}
+			}
+			node_records[nid] = append(node_records[nid], server_list)
+
+			rt_db.Convert_Node_Record(&node_records)
+			rt_db.Convert_Server_Record(&server_records)
+		}
 	}
 
 	return err
@@ -158,13 +212,10 @@ func (rt_db *Route_db) Convert_Domain_Record(m *map[string][]string) {
 				}
 				r.RoutePlan = p
 			}
-		}
-
-		rt_db.Update_Domain_Record(k, r)
-
-		if G.Debug {
-			log.Printf("json domain record: %s:%+v", k, v)
-			log.Printf("update domain record: %+v", r)
+			rt_db.Update_Domain_Record(k, r)
+			if G.Debug {
+				//log.Printf("update domain record: %+v", r)
+			}
 		}
 	}
 }
@@ -190,10 +241,34 @@ func (rt_db *Route_db) Update_Domain_Record(k string, r *Domain_List_Record) {
 }
 
 func (rt_db *Route_db) Convert_Server_Record(m *map[string][]string) {
-	var r Server_List_Record
-	var k string
+	for k, v := range *m {
+		x := 0
+		r := new(Server_List_Record)
 
-	rt_db.Update_Server_Record(k, &r)
+		if len(v) > 5 {
+			x, _ = strconv.Atoi(k)
+			r.ServerId = uint(x)
+			r.ServerIp = v[0]
+			x, _ = strconv.Atoi(v[1])
+			r.Usage = uint(x)
+			x, _ = strconv.Atoi(v[2])
+			r.ServerGroup = uint(x)
+			x, _ = strconv.Atoi(v[3])
+			r.Weight = uint(x)
+			if v[4] == "1" {
+				r.Status = true
+			} else {
+				r.Status = false
+			}
+			x, _ = strconv.Atoi(v[5])
+			r.NodeId = uint(x)
+
+			rt_db.Update_Server_Record(k, r)
+			if G.Debug {
+				log.Printf("update server record: %+v", r)
+			}
+		}
+	}
 }
 
 func (rt_db *Route_db) Read_Server_Record(k string) Server_List_Record {
@@ -217,10 +292,43 @@ func (rt_db *Route_db) Update_Server_Record(k string, r *Server_List_Record) {
 }
 
 func (rt_db *Route_db) Convert_Node_Record(m *map[string][]string) {
-	var r Node_List_Record
-	var k uint
+	for k, v := range *m {
+		x := 0
+		r := new(Node_List_Record)
 
-	rt_db.Update_Node_Record(k, &r)
+		if len(v) > 6 {
+			x, _ = strconv.Atoi(k)
+			r.NodeId = uint(x)
+			x, _ = strconv.Atoi(v[0])
+			r.Priority = uint(x)
+			x, _ = strconv.Atoi(v[1])
+			r.Weight = uint(x)
+			x, _ = strconv.Atoi(v[2])
+			r.Costs = int(x)
+			x, _ = strconv.Atoi(v[3])
+			r.Usage = uint(x)
+			if v[4] == "1" {
+				r.Status = true
+			} else {
+				r.Status = false
+			}
+			r.Type = v[5]
+			s := strings.Split(v[6], ",")
+			if len(s) > 0 {
+				p := make([]uint, len(s))
+				for i, v := range s {
+					x, _ = strconv.Atoi(v)
+					p[i] = uint(x)
+				}
+				r.ServerList = p
+			}
+
+			rt_db.Update_Node_Record(r.NodeId, r)
+			if G.Debug {
+				log.Printf("update node record: %+v", r)
+			}
+		}
+	}
 }
 
 func (rt_db *Route_db) Read_Node_Record(k uint) Node_List_Record {

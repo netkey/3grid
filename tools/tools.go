@@ -113,5 +113,15 @@ func Check_db_versions() error {
 		}
 	}
 
+	RT.CM_Ver_Major, RT.CM_Ver_Minor, RT.CM_Ver_Patch, RT.CM_Version, RT.CM_Db_file, err = check_db_version("cmdb")
+
+	if err != nil {
+		log.Printf("Check db version error: %s", err)
+	} else {
+		if G.Debug {
+			log.Printf("CM db version:%s, major:%d, minor:%d, patch:%d, file_path:%s", RT.CM_Version, RT.CM_Ver_Major, RT.CM_Ver_Minor, RT.CM_Ver_Patch, RT.CM_Db_file)
+		}
+	}
+
 	return nil
 }
