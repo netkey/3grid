@@ -24,6 +24,35 @@ var CM_Version string
 var CM_Db_file string
 var CM_Ver_Major, CM_Ver_Minor, CM_Ver_Patch uint64
 
+//use for route/cm/domain db data update
+var Chan *chan map[string]map[string][]string
+
+/*Route DB update method
+
+domain/servers/nodes update record : map[string][]string
+
+domain_name(key) : [ type value priority servergroup_id records ttl route_plan_list ]
+image16-c.poco.cn:["" "image16-c.poco.cn.mmycdn.com" "10" "1" "3" "300" "8,9.10"]
+
+node_id(key) : [priority, weight, costs, usage, status, bandwidth, type, server_id_list]
+155:["1" "10" "0" "3000" "0" "0" "A" "140,141,"]
+
+server_id(key) : [ip, usage, servergroup_id, weight, status, node_id]
+140:["211.162.56.33" "0" "1" "1" "1" "155"]
+
+area_code(key) : [node_id, route_plan_id, priority, weight]
+MMY.MUT-TJ-TJ-C1-CHU.*:["42" "788" "3" "0"]
+
+update:
+RT.Chan <- map[string]map[string][]string{"domains": domain_records}
+RT.Chan <- map[string]map[string][]string{"servers": server_records}
+RT.Chan <- map[string]map[string][]string{"nodes": node_records}
+RT.Chan <- map[string]map[string][]string{"routes": route_records}
+
+delete:
+same as update, set the records value to nil
+*/
+
 type Route_db struct {
 	Servers map[string]Server_List_Record         //string for net.IP.String()
 	Nodes   map[uint]Node_List_Record             //uint for nodeid
@@ -84,6 +113,7 @@ func (rt_db *Route_db) RT_db_init() {
 	rt_db.Locks = map[string]*sync.RWMutex{"servers": new(sync.RWMutex),
 		"nodes": new(sync.RWMutex), "domains": new(sync.RWMutex), "routes": new(sync.RWMutex)}
 	rt_db.Chan = make(chan map[string]map[string][]string, 100)
+	Chan = &rt_db.Chan
 
 	go rt_db.Updatedb()
 

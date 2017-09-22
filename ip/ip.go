@@ -9,9 +9,25 @@ import (
 	"sync"
 )
 
+//ip db version and file path
 var Version string
 var Db_file string
 var Ver_Major, Ver_Minor, Ver_Patch uint64
+
+//use for ip cache update
+var Chan *chan map[string]string
+
+/*IP Cache update method
+
+ip cache update record : map[string]string
+
+ip_address(key) : area_code(value)
+"1.1.1.1" : "*.CN.HAD.SH"
+
+update:
+IP.Chan <- map[string]string{ip: ac}
+
+*/
 
 type IP_db struct {
 	Ipcache map[string]string
@@ -23,8 +39,10 @@ type IP_db struct {
 func (ip_db *IP_db) IP_db_init() {
 	ip_db.Ipcache = make(map[string]string)
 	ip_db.Ipdb, _ = geoip2.Open(Db_file)
+
 	ip_db.Lock = new(sync.RWMutex)
 	ip_db.Chan = make(chan map[string]string, 100)
+	Chan = &ip_db.Chan
 
 	if G.Debug {
 		log.Printf("Loading ip db..")
