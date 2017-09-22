@@ -54,7 +54,7 @@ same as update, set the records value to nil
 */
 
 type Route_db struct {
-	Servers map[string]Server_List_Record         //string for net.IP.String()
+	Servers map[uint]Server_List_Record           //string for net.IP.String()
 	Nodes   map[uint]Node_List_Record             //uint for nodeid
 	Domains map[string]Domain_List_Record         //string for domain name
 	Routes  map[string]map[uint]Route_List_Record //string for AreaCode, uint for RoutePlan ID
@@ -105,7 +105,7 @@ type PW_List_Record struct {
 }
 
 func (rt_db *Route_db) RT_db_init() {
-	rt_db.Servers = make(map[string]Server_List_Record)
+	rt_db.Servers = make(map[uint]Server_List_Record)
 	rt_db.Nodes = make(map[uint]Node_List_Record)
 	rt_db.Domains = make(map[string]Domain_List_Record)
 	rt_db.Routes = make(map[string]map[uint]Route_List_Record)
@@ -203,7 +203,7 @@ func (rt_db *Route_db) LoadCMdb() error {
 		keys := reflect.ValueOf(rt_db.Nodes).MapKeys()
 		log.Printf("nodes data sample: %+v", rt_db.Nodes[uint(keys[0].Uint())])
 		keys = reflect.ValueOf(rt_db.Servers).MapKeys()
-		log.Printf("servers data sample: %+v", rt_db.Servers[keys[0].String()])
+		log.Printf("servers data sample: %+v", rt_db.Servers[uint(keys[0].Uint())])
 	}
 
 	return err
@@ -360,7 +360,7 @@ func (rt_db *Route_db) Convert_Server_Record(m *map[string][]string) {
 			x, _ = strconv.Atoi(v[5])
 			r.NodeId = uint(x)
 
-			rt_db.Update_Server_Record(k, r)
+			rt_db.Update_Server_Record(r.ServerId, r)
 			if G.Debug {
 				//log.Printf("update server record: %+v", r)
 			}
@@ -368,7 +368,7 @@ func (rt_db *Route_db) Convert_Server_Record(m *map[string][]string) {
 	}
 }
 
-func (rt_db *Route_db) Read_Server_Record(k string) Server_List_Record {
+func (rt_db *Route_db) Read_Server_Record(k uint) Server_List_Record {
 	var r Server_List_Record
 
 	rt_db.Locks["servers"].RLock()
@@ -378,7 +378,7 @@ func (rt_db *Route_db) Read_Server_Record(k string) Server_List_Record {
 	return r
 }
 
-func (rt_db *Route_db) Update_Server_Record(k string, r *Server_List_Record) {
+func (rt_db *Route_db) Update_Server_Record(k uint, r *Server_List_Record) {
 	rt_db.Locks["servers"].Lock()
 	if r == nil {
 		delete(rt_db.Servers, k)
