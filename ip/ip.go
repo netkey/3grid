@@ -5,7 +5,7 @@ import (
 	"github.com/oschwald/geoip2-golang"
 	"log"
 	"net"
-	"strconv"
+	//"strconv"
 	"sync"
 )
 
@@ -68,17 +68,17 @@ func (ip_db *IP_db) GetAreaCode(ip *net.UDPAddr) string {
 				cn = re.Country.Names["en"]
 			}
 
+			/*
+				ipc = "AC:" + cn + "|CC:" + re.Country.IsoCode + "|Coordinates:" +
+					strconv.FormatFloat(re.Location.Latitude, 'f', 4, 64) + "," +
+					strconv.FormatFloat(re.Location.Longitude, 'f', 4, 64) + "|AccuracyRadius:" +
+					strconv.FormatUint(uint64(re.Location.AccuracyRadius), 10)
+			*/
+			ip_db.Chan <- map[string]string{ips: cn}
+
 			if G.Debug {
 				log.Printf("Area Code of %s: %s", ips, cn)
 			}
-
-			ipc = "AC:" + cn + "|CC:" + re.Country.IsoCode + "|Coordinates:" +
-				strconv.FormatFloat(re.Location.Latitude, 'f', 4, 64) + "," +
-				strconv.FormatFloat(re.Location.Longitude, 'f', 4, 64) + "|AccuracyRadius:" +
-				strconv.FormatUint(uint64(re.Location.AccuracyRadius), 10)
-
-			ip_db.Chan <- map[string]string{ips: ipc}
-
 		} else {
 			if G.Debug {
 				log.Printf("IP lookup error: %s", err)

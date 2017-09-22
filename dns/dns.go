@@ -16,8 +16,8 @@ var (
 	compress = flag.Bool("compress", false, "compress replies")
 )
 
-const dom = "www.chinamaincloud.com."
-const default_ttl = 60
+const DN = "mmycdn.com"
+const Default_ttl = 60
 
 var Qs, Qps, Load uint64
 
@@ -30,22 +30,31 @@ type DNS_worker struct {
 
 func (wkr *DNS_worker) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
 	var (
-		v4  bool
-		rr  dns.RR
-		txt string
-		a   net.IP
-		ipc string
-		t   *dns.TXT
+		v4    bool
+		rr    dns.RR
+		txt   string
+		a     net.IP
+		ac    string
+		t     *dns.TXT
+		qtype string
+		dn    string
+		ttl   uint32
+		aaa   []string
 	)
 	m := new(dns.Msg)
 	m.SetReply(r)
 	m.Compress = *compress
+
+	dn = r.Question[0].Name //query domain name
+	ttl = Default_ttl
+
 	if ip, ok := w.RemoteAddr().(*net.UDPAddr); ok {
-		ipc = wkr.Ipdb.GetAreaCode(ip)
+
+		ac = wkr.Ipdb.GetAreaCode(ip)
+		aaa = wkr.Rtdb.GetAAA(dn, ac)
 
 		if G.Debug {
-			txt = ipc
-			log.Printf("TXT: %s", txt)
+			txt = ac
 		}
 
 		a = ip.IP
@@ -53,47 +62,58 @@ func (wkr *DNS_worker) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
 	}
 	if v4 {
 		rr = &dns.A{
-			Hdr: dns.RR_Header{Name: dom, Rrtype: dns.TypeA, Class: dns.ClassINET, Ttl: default_ttl},
+			Hdr: dns.RR_Header{Name: dn, Rrtype: dns.TypeA, Class: dns.ClassINET, Ttl: ttl},
 			A:   a.To4(),
 		}
 	} else {
 		rr = &dns.AAAA{
-			Hdr:  dns.RR_Header{Name: dom, Rrtype: dns.TypeAAAA, Class: dns.ClassINET, Ttl: default_ttl},
+			Hdr:  dns.RR_Header{Name: dn, Rrtype: dns.TypeAAAA, Class: dns.ClassINET, Ttl: ttl},
 			AAAA: a,
 		}
 	}
 
 	if G.Debug {
 		t = &dns.TXT{
-			Hdr: dns.RR_Header{Name: dom, Rrtype: dns.TypeTXT, Class: dns.ClassINET, Ttl: default_ttl},
+			Hdr: dns.RR_Header{Name: dn, Rrtype: dns.TypeTXT, Class: dns.ClassINET, Ttl: ttl},
 			Txt: []string{txt},
 		}
 	}
 
 	//return result based on dns query type
 	switch r.Question[0].Qtype {
-	case dns.TypeTXT:
-		m.Answer = append(m.Answer, t)
-		m.Extra = append(m.Extra, rr)
-	default:
-		fallthrough
-	case dns.TypeAAAA, dns.TypeA:
+	case dns.TypeA, dns.TypeAAAA:
+		qtype = "A/AAAA"
 		m.Answer = append(m.Answer, rr)
 		if t != nil {
 			m.Extra = append(m.Extra, t)
 		}
+	case dns.TypeCNAME:
+		qtype = "CNAME"
+		m.Answer = append(m.Answer, rr)
+		if t != nil {
+			m.Extra = append(m.Extra, t)
+		}
+	case dns.TypeTXT:
+		qtype = "TXT"
+		m.Answer = append(m.Answer, t)
+	case dns.TypeSOA:
+		qtype = "SOA"
+		soa, _ := dns.NewRR(DN + `. 0 IN SOA master.chinamaincloud.com. chinamaincloud.com. 20170310002 21600 7200 604800 3600`)
+		m.Answer = append(m.Answer, soa)
 	case dns.TypeAXFR, dns.TypeIXFR:
+		qtype = "XFR"
 		c := make(chan *dns.Envelope)
 		tr := new(dns.Transfer)
 		defer close(c)
 		if err := tr.Out(w, r, c); err != nil {
 			return
 		}
-		soa, _ := dns.NewRR(`www.chinamaincloud.com. 0 IN SOA master.chinamaincloud.com. chinamaincloud.com. 20170310002 21600 7200 604800 3600`)
+		soa, _ := dns.NewRR(DN + `. 0 IN SOA master.chinamaincloud.com. chinamaincloud.com. 20170310002 21600 7200 604800 3600`)
 		c <- &dns.Envelope{RR: []dns.RR{soa, t, rr, soa}}
-		w.Hijack()
+		// w.Hijack()
 		// w.Close() // Client closes connection
-		return
+		//return
+	default:
 	}
 
 	if r.IsTsig() != nil {
@@ -105,7 +125,7 @@ func (wkr *DNS_worker) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
 	}
 
 	if G.Debug {
-		log.Printf("Query from: %s\n", a.String())
+		log.Printf("Query from: %s, type %s, name %s, result %+v", a.String(), qtype, dn, aaa)
 	}
 
 	w.WriteMsg(m)

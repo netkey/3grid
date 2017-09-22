@@ -54,17 +54,18 @@ same as update, set the records value to nil
 */
 
 type Route_db struct {
-	Servers map[uint]Server_List_Record           //string for net.IP.String()
+	Servers map[uint]Server_List_Record           //uint for server_id
+	Ips     map[string]Server_List_Record         //string for server_ip(net.IP.String())
 	Nodes   map[uint]Node_List_Record             //uint for nodeid
 	Domains map[string]Domain_List_Record         //string for domain name
 	Routes  map[string]map[uint]Route_List_Record //string for AreaCode, uint for RoutePlan ID
-	Locks   map[string]*sync.RWMutex
-	Chan    chan map[string]map[string][]string
+	Locks   map[string]*sync.RWMutex              //locks for writing dbs
+	Chan    chan map[string]map[string][]string   //channel for updating dbs
 }
 
 type Server_List_Record struct {
-	ServerId       uint
-	ServerIp       string
+	ServerId       uint   //Id of server
+	ServerIp       string //IP address of server
 	ServerGroup    uint   //description of server type, like 'page', 'video'
 	NodeId         uint   //same as nodeid in Node_List_Record
 	ServerCapacity uint64 //bandwidth
@@ -74,7 +75,7 @@ type Server_List_Record struct {
 }
 
 type Node_List_Record struct {
-	NodeId       uint
+	NodeId       uint   //node id
 	NodeCapacity uint64 //bandwidth
 	Usage        uint   //percentage
 	Status       bool   //1:ok 0:fail
@@ -82,7 +83,7 @@ type Node_List_Record struct {
 	Weight       uint   //responde to number of servers
 	Costs        int    //cost of node(95), negative value representing that it doesn't reach minimum-guarantee
 	Type         string //node type: A CNAME
-	ServerList   []uint
+	ServerList   []uint //server list in ids
 }
 
 type Domain_List_Record struct {
@@ -106,6 +107,7 @@ type PW_List_Record struct {
 
 func (rt_db *Route_db) RT_db_init() {
 	rt_db.Servers = make(map[uint]Server_List_Record)
+	rt_db.Ips = make(map[string]Server_List_Record)
 	rt_db.Nodes = make(map[uint]Node_List_Record)
 	rt_db.Domains = make(map[string]Domain_List_Record)
 	rt_db.Routes = make(map[string]map[uint]Route_List_Record)
@@ -145,11 +147,12 @@ func (rt_db *Route_db) LoadDomaindb() error {
 		}
 	} else {
 		rt_db.Convert_Domain_Record(&domain_records)
+		//can also update in this way:
 		//rt_db.Chan <- map[string]map[string][]string{"domains": domain_records}
 	}
 
 	if G.Debug {
-		//time.Sleep(time.Duration(100) * time.Millisecond)
+		//time.Sleep(time.Duration(100) * time.Millisecond) //for use with channel updating
 		keys := reflect.ValueOf(rt_db.Domains).MapKeys()
 		log.Printf("domains data sample: %+v", rt_db.Domains[keys[0].String()])
 	}
@@ -204,6 +207,8 @@ func (rt_db *Route_db) LoadCMdb() error {
 		log.Printf("nodes data sample: %+v", rt_db.Nodes[uint(keys[0].Uint())])
 		keys = reflect.ValueOf(rt_db.Servers).MapKeys()
 		log.Printf("servers data sample: %+v", rt_db.Servers[uint(keys[0].Uint())])
+		keys = reflect.ValueOf(rt_db.Ips).MapKeys()
+		log.Printf("ips data sample: %+v", rt_db.Ips[keys[0].String()])
 	}
 
 	return err
@@ -264,6 +269,7 @@ func (rt_db *Route_db) LoadRoutedb() error {
 	return err
 }
 
+//Tag: xxx
 func (rt_db *Route_db) Updatedb() error {
 	for {
 		m := <-rt_db.Chan
@@ -382,8 +388,10 @@ func (rt_db *Route_db) Update_Server_Record(k uint, r *Server_List_Record) {
 	rt_db.Locks["servers"].Lock()
 	if r == nil {
 		delete(rt_db.Servers, k)
+		delete(rt_db.Ips, (*r).ServerIp)
 	} else {
 		rt_db.Servers[k] = *r
+		rt_db.Ips[(*r).ServerIp] = *r
 	}
 	rt_db.Locks["servers"].Unlock()
 }
@@ -502,4 +510,9 @@ func (rt_db *Route_db) Update_Route_Record(k string, rid uint, r *Route_List_Rec
 		rt_db.Routes[k][rid] = *r
 	}
 	rt_db.Locks["routes"].Unlock()
+}
+
+func (rt_db *Route_db) GetAAA(dn string, ac string) []string {
+	aaa := make([]string, 0)
+	return aaa
 }
