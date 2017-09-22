@@ -8,6 +8,7 @@ import (
 	"github.com/miekg/dns"
 	"log"
 	"net"
+	"strings"
 	"time"
 )
 
@@ -30,14 +31,16 @@ type DNS_worker struct {
 
 func (wkr *DNS_worker) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
 	var (
-		v4    bool
+		//v4    bool
 		rr    dns.RR
 		txt   string
 		a     net.IP
+		_ip   net.IP
 		ac    string
 		t     *dns.TXT
 		qtype string
 		dn    string
+		_dn   string
 		ttl   uint32
 		aaa   []string
 	)
@@ -46,31 +49,44 @@ func (wkr *DNS_worker) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
 	m.Compress = *compress
 
 	dn = r.Question[0].Name //query domain name
+	if strings.HasSuffix(dn, ".") {
+		_dn = dn[0 : len(dn)-1]
+	} else {
+		_dn = dn
+	}
+
 	ttl = Default_ttl
 
 	if ip, ok := w.RemoteAddr().(*net.UDPAddr); ok {
 
 		ac = wkr.Ipdb.GetAreaCode(ip)
-		aaa = wkr.Rtdb.GetAAA(dn, ac)
+		ac = "CTC.CN.HAN.GD" //for debug
+		aaa, ttl = wkr.Rtdb.GetAAA(_dn, ac)
 
 		if G.Debug {
 			txt = ac
 		}
 
-		a = ip.IP
-		v4 = a.To4() != nil
+		_ip = ip.IP
+		/*
+			a = ip.IP
+			v4 = a.To4() != nil
+		*/
 	}
-	if v4 {
-		rr = &dns.A{
-			Hdr: dns.RR_Header{Name: dn, Rrtype: dns.TypeA, Class: dns.ClassINET, Ttl: ttl},
-			A:   a.To4(),
+
+	/*
+		if v4 {
+			rr = &dns.A{
+				Hdr: dns.RR_Header{Name: dn, Rrtype: dns.TypeA, Class: dns.ClassINET, Ttl: ttl},
+				A:   a.To4(),
+			}
+		} else {
+			rr = &dns.AAAA{
+				Hdr:  dns.RR_Header{Name: dn, Rrtype: dns.TypeAAAA, Class: dns.ClassINET, Ttl: ttl},
+				AAAA: a,
+			}
 		}
-	} else {
-		rr = &dns.AAAA{
-			Hdr:  dns.RR_Header{Name: dn, Rrtype: dns.TypeAAAA, Class: dns.ClassINET, Ttl: ttl},
-			AAAA: a,
-		}
-	}
+	*/
 
 	if G.Debug {
 		t = &dns.TXT{
@@ -83,7 +99,18 @@ func (wkr *DNS_worker) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
 	switch r.Question[0].Qtype {
 	case dns.TypeA, dns.TypeAAAA:
 		qtype = "A/AAAA"
-		m.Answer = append(m.Answer, rr)
+		if aaa != nil {
+			for _, aa := range aaa {
+				a = net.ParseIP(aa)
+				rr = &dns.A{
+					Hdr: dns.RR_Header{Name: dn, Rrtype: dns.TypeA, Class: dns.ClassINET, Ttl: ttl},
+					A:   a.To4(),
+				}
+				m.Answer = append(m.Answer, rr)
+
+			}
+		}
+
 		if t != nil {
 			m.Extra = append(m.Extra, t)
 		}
@@ -125,7 +152,7 @@ func (wkr *DNS_worker) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
 	}
 
 	if G.Debug {
-		log.Printf("Query from: %s, type %s, name %s, result %+v", a.String(), qtype, dn, aaa)
+		log.Printf("Query from: %s, type %s, name %s, result %+v", _ip.String(), qtype, dn, aaa)
 	}
 
 	w.WriteMsg(m)

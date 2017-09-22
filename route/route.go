@@ -445,6 +445,9 @@ func (rt_db *Route_db) Read_Node_Record(k uint) Node_List_Record {
 
 	rt_db.Locks["nodes"].RLock()
 	r = rt_db.Nodes[k]
+	if G.Debug {
+		//log.Printf("Nodes: %+v", rt_db.Nodes)
+	}
 	rt_db.Locks["nodes"].RUnlock()
 
 	return r
@@ -489,11 +492,11 @@ func (rt_db *Route_db) Convert_Route_Record(m *map[string][]string) {
 	}
 }
 
-func (rt_db *Route_db) Read_Route_Record(k string, nid uint) Route_List_Record {
+func (rt_db *Route_db) Read_Route_Record(k string, rid uint) Route_List_Record {
 	var r Route_List_Record
 
 	rt_db.Locks["routes"].RLock()
-	r = rt_db.Routes[k][nid]
+	r = rt_db.Routes[k][rid]
 	rt_db.Locks["routes"].RUnlock()
 
 	return r
@@ -512,7 +515,52 @@ func (rt_db *Route_db) Update_Route_Record(k string, rid uint, r *Route_List_Rec
 	rt_db.Locks["routes"].Unlock()
 }
 
-func (rt_db *Route_db) GetAAA(dn string, ac string) []string {
-	aaa := make([]string, 0)
-	return aaa
+func (rt_db *Route_db) GetAAA(dn string, ac string) ([]string, uint32) {
+	var ttl uint32 = 0
+	var rid uint = 0
+	var aaa []string
+
+	dr := rt_db.Read_Domain_Record(dn)
+	if G.Debug {
+		log.Printf("GETAAA dr: %+v", dr)
+	}
+	ttl = uint32(dr.TTL)
+
+	if dr.RoutePlan != nil {
+		for _, v := range dr.RoutePlan {
+			if true { //for debug
+				rid = v
+				break //for debug
+			}
+		}
+	}
+
+	rr := rt_db.Read_Route_Record(ac, rid)
+	if G.Debug {
+		log.Printf("GETAAA ac: %s, rid: %d, rr: %+v", ac, rid, rr)
+	}
+
+	if true {
+		aaa = make([]string, dr.Records)
+		for nid, _ := range rr.Nodes {
+			if true {
+				nr := rt_db.Read_Node_Record(224) //for debug
+				if G.Debug {
+					log.Printf("GETAAA nid: %d, nr: %+v", nid, nr)
+				}
+				for i, sid := range nr.ServerList {
+					if true {
+						sr := rt_db.Read_Server_Record(sid)
+						if G.Debug {
+							log.Printf("GETAAA sr: %+v", sr)
+						}
+						aaa[i] = sr.ServerIp
+					}
+				}
+				break
+			}
+		}
+	}
+
+	return aaa, ttl
 }
