@@ -31,11 +31,9 @@ type DNS_worker struct {
 
 func (wkr *DNS_worker) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
 	var (
-		//v4    bool
 		rr    dns.RR
-		txt   string
 		a     net.IP
-		_ip   net.IP
+		ip    net.IP
 		ac    string
 		t     *dns.TXT
 		qtype string
@@ -48,50 +46,42 @@ func (wkr *DNS_worker) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
 	m.SetReply(r)
 	m.Compress = *compress
 
+	ttl = Default_ttl
 	dn = r.Question[0].Name //query domain name
+
 	if strings.HasSuffix(dn, ".") {
 		_dn = dn[0 : len(dn)-1]
 	} else {
 		_dn = dn
 	}
 
-	ttl = Default_ttl
-
-	if ip, ok := w.RemoteAddr().(*net.UDPAddr); ok {
-
+	if _udp_addr, ok := w.RemoteAddr().(*net.UDPAddr); ok {
+		ip = _udp_addr.IP
 		ac = wkr.Ipdb.GetAreaCode(ip)
 		ac = "CTC.CN.HAN.GD" //for debug
-		aaa, ttl = wkr.Rtdb.GetAAA(_dn, ac)
-
-		if G.Debug {
-			txt = ac
-		}
-
-		_ip = ip.IP
-		/*
-			a = ip.IP
-			v4 = a.To4() != nil
-		*/
+		aaa, ttl = wkr.Rtdb.GetAAA(_dn, ac, ip)
+	} else {
+		return
 	}
 
 	/*
-		if v4 {
-			rr = &dns.A{
-				Hdr: dns.RR_Header{Name: dn, Rrtype: dns.TypeA, Class: dns.ClassINET, Ttl: ttl},
-				A:   a.To4(),
-			}
-		} else {
-			rr = &dns.AAAA{
-				Hdr:  dns.RR_Header{Name: dn, Rrtype: dns.TypeAAAA, Class: dns.ClassINET, Ttl: ttl},
-				AAAA: a,
-			}
+		ipv4 RR:
+		rr = &dns.A{
+			Hdr: dns.RR_Header{Name: dn, Rrtype: dns.TypeA, Class: dns.ClassINET, Ttl: ttl},
+			A:   a.To4(),
+		}
+
+		ipv6 RR:
+		rr = &dns.AAAA{
+			Hdr:  dns.RR_Header{Name: dn, Rrtype: dns.TypeAAAA, Class: dns.ClassINET, Ttl: ttl},
+			AAAA: a,
 		}
 	*/
 
 	if G.Debug {
 		t = &dns.TXT{
 			Hdr: dns.RR_Header{Name: dn, Rrtype: dns.TypeTXT, Class: dns.ClassINET, Ttl: ttl},
-			Txt: []string{txt},
+			Txt: []string{ac},
 		}
 	}
 
@@ -110,7 +100,6 @@ func (wkr *DNS_worker) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
 
 			}
 		}
-
 		if t != nil {
 			m.Extra = append(m.Extra, t)
 		}
@@ -151,11 +140,11 @@ func (wkr *DNS_worker) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
 		}
 	}
 
-	if G.Debug {
-		log.Printf("Query from: %s, type %s, name %s, result %+v", _ip.String(), qtype, dn, aaa)
-	}
-
 	w.WriteMsg(m)
+
+	if G.Debug {
+		log.Printf("Query from: %s, type %s, name %s, result %+v", ip.String(), qtype, _dn, aaa)
+	}
 }
 
 func Working(net, port, name, secret string, num int, ipdb *IP.IP_db, rtdb *RT.Route_db) {

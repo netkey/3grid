@@ -4,6 +4,7 @@ import G "3grid/tools/globals"
 import "encoding/json"
 import "io/ioutil"
 import "log"
+import "net"
 import "reflect"
 import "strconv"
 import "strings"
@@ -76,6 +77,7 @@ type Server_List_Record struct {
 
 type Node_List_Record struct {
 	NodeId       uint   //node id
+	Name         string //node name
 	NodeCapacity uint64 //bandwidth
 	Usage        uint   //percentage
 	Status       bool   //1:ok 0:fail
@@ -112,7 +114,7 @@ func (rt_db *Route_db) RT_db_init() {
 	rt_db.Domains = make(map[string]Domain_List_Record)
 	rt_db.Routes = make(map[string]map[uint]Route_List_Record)
 
-	rt_db.Locks = map[string]*sync.RWMutex{"servers": new(sync.RWMutex),
+	rt_db.Locks = map[string]*sync.RWMutex{"servers": new(sync.RWMutex), "ips": new(sync.RWMutex),
 		"nodes": new(sync.RWMutex), "domains": new(sync.RWMutex), "routes": new(sync.RWMutex)}
 	rt_db.Chan = make(chan map[string]map[string][]string, 100)
 	Chan = &rt_db.Chan
@@ -384,6 +386,16 @@ func (rt_db *Route_db) Read_Server_Record(k uint) Server_List_Record {
 	return r
 }
 
+func (rt_db *Route_db) Read_IP_Record(k string) Server_List_Record {
+	var r Server_List_Record
+
+	rt_db.Locks["ips"].RLock()
+	r = rt_db.Ips[k]
+	rt_db.Locks["ips"].RUnlock()
+
+	return r
+}
+
 func (rt_db *Route_db) Update_Server_Record(k uint, r *Server_List_Record) {
 	rt_db.Locks["servers"].Lock()
 	if r == nil {
@@ -401,26 +413,27 @@ func (rt_db *Route_db) Convert_Node_Record(m *map[string][]string) {
 		x := 0
 		r := new(Node_List_Record)
 
-		if len(v) > 6 {
+		if len(v) > 8 {
 			x, _ = strconv.Atoi(k)
 			r.NodeId = uint(x)
-			x, _ = strconv.Atoi(v[0])
-			r.Priority = uint(x)
+			r.Name = v[0]
 			x, _ = strconv.Atoi(v[1])
-			r.Weight = uint(x)
+			r.Priority = uint(x)
 			x, _ = strconv.Atoi(v[2])
-			r.Costs = int(x)
+			r.Weight = uint(x)
 			x, _ = strconv.Atoi(v[3])
+			r.Costs = int(x)
+			x, _ = strconv.Atoi(v[4])
 			r.Usage = uint(x)
-			if v[4] == "1" {
+			if v[5] == "1" {
 				r.Status = true
 			} else {
 				r.Status = false
 			}
-			x, _ = strconv.Atoi(v[5])
+			x, _ = strconv.Atoi(v[6])
 			r.NodeCapacity = uint64(x)
-			r.Type = v[6]
-			s := strings.Split(v[7], ",")
+			r.Type = v[7]
+			s := strings.Split(v[8], ",")
 			if len(s) > 0 {
 				p := make([]uint, len(s)-1)
 				for i, v := range s {
@@ -515,10 +528,26 @@ func (rt_db *Route_db) Update_Route_Record(k string, rid uint, r *Route_List_Rec
 	rt_db.Locks["routes"].Unlock()
 }
 
-func (rt_db *Route_db) GetAAA(dn string, ac string) ([]string, uint32) {
+func (rt_db *Route_db) GetAAA(dn string, _ac string, ip net.IP) ([]string, uint32) {
 	var ttl uint32 = 0
 	var rid uint = 0
 	var aaa []string
+	var ac string
+
+	ir := rt_db.Read_IP_Record(ip.String())
+	if ir.NodeId != 0 {
+		irn := rt_db.Read_Node_Record(ir.NodeId)
+		if irn.Name != "" {
+			ac = "MMY." + irn.Name
+		} else {
+			ac = _ac
+		}
+	} else {
+		ac = _ac
+	}
+	if G.Debug {
+		log.Printf("GETAAA dn:%s, ac:%s, ip:%s", dn, ac, ip.String())
+	}
 
 	dr := rt_db.Read_Domain_Record(dn)
 	if G.Debug {

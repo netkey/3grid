@@ -51,17 +51,17 @@ func (ip_db *IP_db) IP_db_init() {
 	go ip_db.UpdateIPCache()
 }
 
-func (ip_db *IP_db) GetAreaCode(ip *net.UDPAddr) string {
+func (ip_db *IP_db) GetAreaCode(ip net.IP) string {
 	var (
 		ips string
 		ipc string
 	)
 
-	ips = ip.IP.String()
+	ips = ip.String()
 	ipc = ip_db.ReadIPCache(ips)
 
 	if ipc == "" {
-		re, err := ip_db.Ipdb.City(ip.IP)
+		re, err := ip_db.Ipdb.City(ip)
 		if err == nil {
 			cn := re.City.Names["MMY"]
 			if cn == "" {
