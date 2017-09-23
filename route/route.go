@@ -62,6 +62,7 @@ type Route_db struct {
 	Routes  map[string]map[uint]Route_List_Record //string for AreaCode, uint for RoutePlan ID
 	Locks   map[string]*sync.RWMutex              //locks for writing dbs
 	Chan    chan map[string]map[string][]string   //channel for updating dbs
+	Cache   map[string]map[string]RT_Cache_Record //string for AreaCode, string for domain name
 }
 
 type Server_List_Record struct {
@@ -107,15 +108,22 @@ type PW_List_Record struct {
 	PW [2]uint //PW[0] for priority, PW[1] for weight
 }
 
+type RT_Cache_Record struct {
+	TTL uint32
+	AAA []string
+}
+
 func (rt_db *Route_db) RT_db_init() {
 	rt_db.Servers = make(map[uint]Server_List_Record)
 	rt_db.Ips = make(map[string]Server_List_Record)
 	rt_db.Nodes = make(map[uint]Node_List_Record)
 	rt_db.Domains = make(map[string]Domain_List_Record)
 	rt_db.Routes = make(map[string]map[uint]Route_List_Record)
+	rt_db.Cache = make(map[string]map[string]RT_Cache_Record)
 
 	rt_db.Locks = map[string]*sync.RWMutex{"servers": new(sync.RWMutex), "ips": new(sync.RWMutex),
-		"nodes": new(sync.RWMutex), "domains": new(sync.RWMutex), "routes": new(sync.RWMutex)}
+		"nodes": new(sync.RWMutex), "domains": new(sync.RWMutex),
+		"routes": new(sync.RWMutex), "cache": new(sync.RWMutex)}
 	rt_db.Chan = make(chan map[string]map[string][]string, 100)
 	Chan = &rt_db.Chan
 
