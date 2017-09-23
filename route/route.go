@@ -528,11 +528,17 @@ func (rt_db *Route_db) Update_Route_Record(k string, rid uint, r *Route_List_Rec
 	rt_db.Locks["routes"].Unlock()
 }
 
+func (rt_db *Route_db) GetRTCache(dn string, _ac string) ([]string, uint32, bool) {
+	return nil, 0, false
+}
+
+//Tag: AAA
 func (rt_db *Route_db) GetAAA(dn string, _ac string, ip net.IP) ([]string, uint32) {
 	var ttl uint32 = 0
 	var rid uint = 0
 	var aaa []string
 	var ac string
+	var ok bool
 
 	ir := rt_db.Read_IP_Record(ip.String())
 	if ir.NodeId != 0 {
@@ -547,6 +553,11 @@ func (rt_db *Route_db) GetAAA(dn string, _ac string, ip net.IP) ([]string, uint3
 	}
 	if G.Debug {
 		log.Printf("GETAAA dn:%s, ac:%s, ip:%s", dn, ac, ip.String())
+	}
+
+	if aaa, ttl, ok = rt_db.GetRTCache(dn, ac); ok {
+		//found in route cache
+		return aaa, ttl
 	}
 
 	dr := rt_db.Read_Domain_Record(dn)
