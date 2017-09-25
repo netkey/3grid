@@ -536,8 +536,43 @@ func (rt_db *Route_db) Update_Route_Record(k string, rid uint, r *Route_List_Rec
 	rt_db.Locks["routes"].Unlock()
 }
 
-func (rt_db *Route_db) GetRTCache(dn string, _ac string) ([]string, uint32, bool) {
-	return nil, 0, false
+func (rt_db *Route_db) Read_Cache_Record(dn string, ac string) RT_Cache_Record {
+	var r RT_Cache_Record
+
+	rt_db.Locks["cache"].RLock()
+	if rt_db.Cache[ac] != nil {
+		if rt_db.Cache[ac][dn].TTL != 0 {
+			r = rt_db.Cache[ac][dn]
+		}
+	}
+	rt_db.Locks["cache"].RUnlock()
+
+	return r
+}
+
+func (rt_db *Route_db) GetRTCache(dn string, ac string) ([]string, uint32, bool) {
+	var r RT_Cache_Record
+
+	r = rt_db.Read_Cache_Record(dn, ac)
+
+	if r.TTL != 0 {
+		return r.AAA, r.TTL, true
+	} else {
+		return nil, 0, false
+	}
+}
+
+func (rt_db *Route_db) Update_Cache_Record(dn string, ac string, r *RT_Cache_Record) {
+	rt_db.Locks["cache"].Lock()
+	if r == nil {
+		delete(rt_db.Cache[ac], dn)
+	} else {
+		if rt_db.Cache[ac] == nil {
+			rt_db.Cache[ac] = make(map[string]RT_Cache_Record)
+		}
+		rt_db.Cache[ac][dn] = *r
+	}
+	rt_db.Locks["cache"].Unlock()
 }
 
 //Tag: AAA
@@ -610,5 +645,6 @@ func (rt_db *Route_db) GetAAA(dn string, _ac string, ip net.IP) ([]string, uint3
 		}
 	}
 
+	rt_db.Update_Cache_Record(dn, ac, &RT_Cache_Record{TTL: ttl, AAA: aaa})
 	return aaa, ttl
 }
