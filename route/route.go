@@ -60,9 +60,9 @@ type Route_db struct {
 	Nodes   map[uint]Node_List_Record             //uint for nodeid
 	Domains map[string]Domain_List_Record         //string for domain name
 	Routes  map[string]map[uint]Route_List_Record //string for AreaCode, uint for RoutePlan ID
-	Locks   map[string]*sync.RWMutex              //locks for writing dbs
-	Chan    chan map[string]map[string][]string   //channel for updating dbs
 	Cache   map[string]map[string]RT_Cache_Record //string for AreaCode, string for domain name
+	Chan    chan map[string]map[string][]string   //channel for updating dbs
+	Locks   map[string]*sync.RWMutex              //locks for writing dbs
 }
 
 type Server_List_Record struct {

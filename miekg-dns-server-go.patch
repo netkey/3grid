@@ -1,0 +1,50 @@
+*** server.go	2017-09-25 15:44:18.842660479 +0800
+--- server.go.new	2017-09-25 15:45:33.248069043 +0800
+***************
+*** 6,11 ****
+--- 6,12 ----
+  	"bytes"
+  	"crypto/tls"
+  	"encoding/binary"
++ 	"github.com/kavu/go_reuseport"
+  	"io"
+  	"net"
+  	"sync"
+***************
+*** 354,374 ****
+  		srv.lock.Lock() // to satisfy the defer at the top
+  		return err
+  	case "udp", "udp4", "udp6":
+! 		a, err := net.ResolveUDPAddr(srv.Net, addr)
+  		if err != nil {
+  			return err
+  		}
+- 		l, err := net.ListenUDP(srv.Net, a)
+- 		if err != nil {
+- 			return err
+- 		}
+- 		if e := setUDPSocketOptions(l); e != nil {
+- 			return e
+- 		}
+  		srv.PacketConn = l
+  		srv.started = true
+  		srv.lock.Unlock()
+! 		err = srv.serveUDP(l)
+  		srv.lock.Lock() // to satisfy the defer at the top
+  		return err
+  	}
+--- 355,368 ----
+  		srv.lock.Lock() // to satisfy the defer at the top
+  		return err
+  	case "udp", "udp4", "udp6":
+! 		l, err := reuseport.ListenPacket(srv.Net, addr)
+  		if err != nil {
+  			return err
+  		}
+  		srv.PacketConn = l
+  		srv.started = true
+  		srv.lock.Unlock()
+! 		err = srv.serveUDP(l.(*net.UDPConn))
+  		srv.lock.Lock() // to satisfy the defer at the top
+  		return err
+  	}
