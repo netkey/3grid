@@ -109,8 +109,9 @@ type PW_List_Record struct {
 }
 
 type RT_Cache_Record struct {
-	TTL uint32
-	AAA []string
+	TTL  uint32
+	AAA  []string
+	TYPE string
 }
 
 func (rt_db *Route_db) RT_db_init() {
@@ -550,15 +551,15 @@ func (rt_db *Route_db) Read_Cache_Record(dn string, ac string) RT_Cache_Record {
 	return r
 }
 
-func (rt_db *Route_db) GetRTCache(dn string, ac string) ([]string, uint32, bool) {
+func (rt_db *Route_db) GetRTCache(dn string, ac string) ([]string, uint32, string, bool) {
 	var r RT_Cache_Record
 
 	r = rt_db.Read_Cache_Record(dn, ac)
 
 	if r.TTL != 0 {
-		return r.AAA, r.TTL, true
+		return r.AAA, r.TTL, r.TYPE, true
 	} else {
-		return nil, 0, false
+		return nil, 0, "", false
 	}
 }
 
@@ -576,12 +577,13 @@ func (rt_db *Route_db) Update_Cache_Record(dn string, ac string, r *RT_Cache_Rec
 }
 
 //Tag: AAA
-func (rt_db *Route_db) GetAAA(dn string, _ac string, ip net.IP) ([]string, uint32) {
+func (rt_db *Route_db) GetAAA(dn string, _ac string, ip net.IP) ([]string, uint32, string) {
 	var ttl uint32 = 0
 	var rid uint = 0
 	var aaa []string
 	var ac string
 	var ok bool
+	var _type string
 
 	ir := rt_db.Read_IP_Record(ip.String())
 	if ir.NodeId != 0 {
@@ -598,9 +600,9 @@ func (rt_db *Route_db) GetAAA(dn string, _ac string, ip net.IP) ([]string, uint3
 		log.Printf("GETAAA dn:%s, ac:%s, ip:%s", dn, ac, ip.String())
 	}
 
-	if aaa, ttl, ok = rt_db.GetRTCache(dn, ac); ok {
+	if aaa, ttl, _type, ok = rt_db.GetRTCache(dn, ac); ok {
 		//found in route cache
-		return aaa, ttl
+		return aaa, ttl, _type
 	}
 
 	dr := rt_db.Read_Domain_Record(dn)
@@ -608,6 +610,25 @@ func (rt_db *Route_db) GetAAA(dn string, _ac string, ip net.IP) ([]string, uint3
 		log.Printf("GETAAA dr: %+v", dr)
 	}
 	ttl = uint32(dr.TTL)
+
+	_type = ""
+	if dr.Type != "CDN" || dr.Type != "" {
+		//not a CDN serving domain name, typically A CNAME NS
+		aaa = []string{}
+		s := strings.Split(dr.Value, ",")
+		for _, x := range s {
+			aaa = append(aaa, x)
+		}
+		switch dr.Type {
+		case "A", "a":
+			_type = "A"
+		case "CNAME", "cname", "Cname":
+			_type = "CNAME"
+		case "NS", "ns", "Ns":
+			_type = "NS"
+		}
+		return aaa, ttl, _type
+	}
 
 	if dr.RoutePlan != nil {
 		for _, v := range dr.RoutePlan {
@@ -645,6 +666,7 @@ func (rt_db *Route_db) GetAAA(dn string, _ac string, ip net.IP) ([]string, uint3
 		}
 	}
 
-	rt_db.Update_Cache_Record(dn, ac, &RT_Cache_Record{TTL: ttl, AAA: aaa})
-	return aaa, ttl
+	rt_db.Update_Cache_Record(dn, ac, &RT_Cache_Record{TTL: ttl, AAA: aaa, TYPE: _type})
+
+	return aaa, ttl, _type
 }

@@ -41,6 +41,7 @@ func (wkr *DNS_worker) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
 		_dn   string
 		ttl   uint32
 		aaa   []string
+		_type string
 	)
 	m := new(dns.Msg)
 	m.SetReply(r)
@@ -59,7 +60,7 @@ func (wkr *DNS_worker) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
 		ip = _udp_addr.IP
 		ac = wkr.Ipdb.GetAreaCode(ip)
 		ac = "CTC.CN.HAN.GD" //for debug
-		aaa, ttl = wkr.Rtdb.GetAAA(_dn, ac, ip)
+		aaa, ttl, _type = wkr.Rtdb.GetAAA(_dn, ac, ip)
 	} else {
 		return
 	}
@@ -88,8 +89,8 @@ func (wkr *DNS_worker) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
 	//return result based on dns query type
 	switch r.Question[0].Qtype {
 	case dns.TypeA, dns.TypeAAAA:
-		qtype = "A/AAAA"
-		if aaa != nil {
+		qtype = "A"
+		if aaa != nil && (_type == "" || _type == "A") {
 			for _, aa := range aaa {
 				a = net.ParseIP(aa)
 				rr = &dns.A{
@@ -99,15 +100,24 @@ func (wkr *DNS_worker) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
 				m.Answer = append(m.Answer, rr)
 
 			}
-		}
-		if t != nil {
-			m.Extra = append(m.Extra, t)
+			if t != nil {
+				m.Extra = append(m.Extra, t)
+			}
 		}
 	case dns.TypeCNAME:
 		qtype = "CNAME"
-		m.Answer = append(m.Answer, rr)
-		if t != nil {
-			m.Extra = append(m.Extra, t)
+		if aaa != nil && _type == "CNAME" {
+			for _, aa := range aaa {
+				rr = &dns.CNAME{
+					Hdr:    dns.RR_Header{Name: dn, Rrtype: dns.TypeCNAME, Class: dns.ClassINET, Ttl: ttl},
+					Target: aa,
+				}
+				m.Answer = append(m.Answer, rr)
+
+			}
+			if t != nil {
+				m.Extra = append(m.Extra, t)
+			}
 		}
 	case dns.TypeTXT:
 		qtype = "TXT"
