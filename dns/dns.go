@@ -60,7 +60,7 @@ func (wkr *DNS_worker) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
 		ip = _udp_addr.IP
 		ac = wkr.Ipdb.GetAreaCode(ip)
 		ac = "CTC.CN.HAN.GD" //for debug
-		aaa, ttl, _type = wkr.Rtdb.GetAAA(_dn, ac, ip)
+		aaa, ttl, _type, _ = wkr.Rtdb.GetAAA(_dn, ac, ip)
 	} else {
 		return
 	}

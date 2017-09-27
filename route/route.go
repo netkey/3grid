@@ -280,7 +280,6 @@ func (rt_db *Route_db) LoadRoutedb() error {
 	return err
 }
 
-//Tag: xxx
 func (rt_db *Route_db) Updatedb() error {
 	for {
 		m := <-rt_db.Chan
@@ -309,7 +308,7 @@ func (rt_db *Route_db) Convert_Domain_Record(m *map[string][]string) {
 
 		if len(v) > 6 {
 			r.Name = k
-			r.Type = v[0]
+			r.Type = strings.ToUpper(v[0])
 			r.Value = v[1]
 			r.Priority = v[2]
 			r.ServerGroup = v[3]
@@ -577,12 +576,12 @@ func (rt_db *Route_db) Update_Cache_Record(dn string, ac string, r *RT_Cache_Rec
 }
 
 //Tag: AAA
-func (rt_db *Route_db) GetAAA(dn string, _ac string, ip net.IP) ([]string, uint32, string) {
+func (rt_db *Route_db) GetAAA(dn string, _ac string, ip net.IP) ([]string, uint32, string, bool) {
 	var ttl uint32 = 0
 	var rid uint = 0
 	var aaa []string
 	var ac string
-	var ok bool
+	var ok bool = true
 	var _type string
 
 	ir := rt_db.Read_IP_Record(ip.String())
@@ -602,71 +601,76 @@ func (rt_db *Route_db) GetAAA(dn string, _ac string, ip net.IP) ([]string, uint3
 
 	if aaa, ttl, _type, ok = rt_db.GetRTCache(dn, ac); ok {
 		//found in route cache
-		return aaa, ttl, _type
+		return aaa, ttl, _type, ok
 	}
 
 	dr := rt_db.Read_Domain_Record(dn)
 	if G.Debug {
 		log.Printf("GETAAA dr: %+v", dr)
 	}
-	ttl = uint32(dr.TTL)
 
-	_type = ""
-	if dr.Type != "CDN" || dr.Type != "" {
+	if dr.TTL == 0 {
+		ok = false
+		return aaa, ttl, _type, ok
+	} else {
+		ttl = uint32(dr.TTL)
+		_type = dr.Type
+	}
+
+	if dr.Type != "" {
 		//not a CDN serving domain name, typically A CNAME NS
 		aaa = []string{}
 		s := strings.Split(dr.Value, ",")
 		for _, x := range s {
 			aaa = append(aaa, x)
 		}
-		switch dr.Type {
-		case "A", "a":
-			_type = "A"
-		case "CNAME", "cname", "Cname":
-			_type = "CNAME"
-		case "NS", "ns", "Ns":
-			_type = "NS"
-		}
-		return aaa, ttl, _type
+		return aaa, ttl, _type, ok
 	}
+
+	rr := Route_List_Record{}
 
 	if dr.RoutePlan != nil {
+		//try get route_record of current plan, get next plan if no rr
 		for _, v := range dr.RoutePlan {
-			if true { //for debug
-				rid = v
-				break //for debug
+			rid = v
+			rr = rt_db.Read_Route_Record(ac, rid)
+			if G.Debug {
+				log.Printf("GETAAA ac: %s, rid: %d, rr: %+v", ac, rid, rr)
 			}
-		}
-	}
-
-	rr := rt_db.Read_Route_Record(ac, rid)
-	if G.Debug {
-		log.Printf("GETAAA ac: %s, rid: %d, rr: %+v", ac, rid, rr)
-	}
-
-	if true {
-		aaa = make([]string, dr.Records)
-		for nid, _ := range rr.Nodes {
-			if true {
-				nr := rt_db.Read_Node_Record(224) //for debug
-				if G.Debug {
-					log.Printf("GETAAA nid: %d, nr: %+v", nid, nr)
-				}
-				for i, sid := range nr.ServerList {
-					if true {
-						sr := rt_db.Read_Server_Record(sid)
-						if G.Debug {
-							log.Printf("GETAAA sr: %+v", sr)
-						}
-						aaa[i] = sr.ServerIp
-					}
-				}
+			if rr.Nodes != nil {
 				break
 			}
 		}
+	} else {
+		rid = 0 //default route plan
+		rr = rt_db.Read_Route_Record(ac, rid)
+		if rr.Nodes == nil {
+			return aaa, ttl, _type, false
+		}
+	}
+
+	//chose a node, base on scheduler algorithm, priority & weight & costs & usage(%)
+	nr := ChoseNode(rr.Nodes)
+	//nr := rt_db.Read_Node_Record(224) //for debug
+	nid := nr.NodeId
+
+	if G.Debug {
+		log.Printf("GETAAA nid: %d, nr: %+v", nid, nr)
+	}
+
+	//chose servers, base on server (load, status)
+	sl := ChoseServer(nr.ServerList)
+
+	aaa = make([]string, dr.Records)
+	for i, sid := range sl {
+		sr := rt_db.Read_Server_Record(sid)
+		if G.Debug {
+			log.Printf("GETAAA sr: %+v", sr)
+		}
+		aaa[i] = sr.ServerIp
 	}
 
 	rt_db.Update_Cache_Record(dn, ac, &RT_Cache_Record{TTL: ttl, AAA: aaa, TYPE: _type})
 
-	return aaa, ttl, _type
+	return aaa, ttl, _type, ok
 }
