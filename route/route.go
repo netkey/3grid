@@ -650,7 +650,7 @@ func (rt_db *Route_db) GetAAA(dn string, _ac string, ip net.IP) ([]string, uint3
 	}
 
 	//chose a node, base on scheduler algorithm, priority & weight & costs & usage(%)
-	nr := ChoseNode(rr.Nodes)
+	nr := rt_db.ChoseNode(rr.Nodes)
 	//nr := rt_db.Read_Node_Record(224) //for debug
 	nid := nr.NodeId
 
@@ -659,7 +659,7 @@ func (rt_db *Route_db) GetAAA(dn string, _ac string, ip net.IP) ([]string, uint3
 	}
 
 	//chose servers, base on server (load, status)
-	sl := ChoseServer(nr.ServerList)
+	sl := rt_db.ChoseServer(nr.ServerList)
 
 	aaa = make([]string, dr.Records)
 	for i, sid := range sl {
