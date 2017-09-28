@@ -17,12 +17,42 @@ func (rt_db *Route_db) IN_Serverlist(ip net.IP) (uint, bool) {
 	}
 }
 
+//longest match the ac code with rid in exiting db
+func (rt_db *Route_db) Match_AC_RR(ac string, rid uint) Route_List_Record {
+	var _ac string
+	var find bool = false
+
+	for _ac = ac; _ac != ""; {
+		if rt_db.Routes[_ac] != nil {
+			if rt_db.Routes[_ac][rid].Nodes != nil {
+				//find a match
+				find = true
+				break
+			}
+		}
+
+		//shorter the ac, go next match
+		if li := strings.LastIndex(_ac, "."); li != -1 {
+			_ac = _ac[0 : strings.LastIndex(_ac, ".")-1]
+		} else {
+			break
+		}
+	}
+
+	if find {
+		return rt_db.Read_Route_Record(_ac, rid)
+	} else {
+		return Route_List_Record{}
+	}
+}
+
 //return A IPs based on AreaCode and DomainName
 func (rt_db *Route_db) GetAAA(dn string, acode string, ip net.IP) ([]string, uint32, string, bool) {
 	var ttl uint32 = 0
 	var rid uint = 0
 	var aaa []string
 	var ac string
+	var _ac string
 	var ok bool = true
 	var _type string
 
@@ -35,8 +65,11 @@ func (rt_db *Route_db) GetAAA(dn string, acode string, ip net.IP) ([]string, uin
 			ac = acode
 		}
 	} else {
+		//change the area code to what existing in db
 		ac = acode
 	}
+
+	_ac = ac
 
 	if G.Debug {
 		log.Printf("GETAAA dn:%s, ac:%s, ip:%s", dn, ac, ip.String())
@@ -76,20 +109,28 @@ func (rt_db *Route_db) GetAAA(dn string, acode string, ip net.IP) ([]string, uin
 		//try get route_record of current plan, get next plan if no rr
 		for _, v := range dr.RoutePlan {
 			rid = v
-			rr = rt_db.Read_Route_Record(ac, rid)
-			if G.Debug {
-				log.Printf("GETAAA ac: %s, rid: %d, rr: %+v", ac, rid, rr)
-			}
+
+			//find a longest matched AC of this route plan
+			rr = rt_db.Match_AC_RR(ac, rid)
 			if rr.Nodes != nil {
 				break
 			}
 		}
-	} else {
+	}
+
+	if rr.Nodes == nil {
 		rid = 0 //default route plan
-		rr = rt_db.Read_Route_Record(ac, rid)
+		rr = rt_db.Match_AC_RR(ac, rid)
 		if rr.Nodes == nil {
+			if G.Debug {
+				log.Printf("GETAAA failed, ac: %s, rid: %d", ac, rid)
+			}
 			return aaa, ttl, _type, false
 		}
+	}
+
+	if G.Debug {
+		log.Printf("GETAAA ac: %s, matched ac: %s, rid: %d, rr: %+v", ac, _ac, rid, rr)
 	}
 
 	nr := rt_db.ChoseNode(rr.Nodes)
