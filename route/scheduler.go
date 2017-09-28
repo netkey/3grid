@@ -25,7 +25,7 @@ func (rt_db *Route_db) GetAAA(dn string, acode string, ip net.IP) ([]string, uin
 	var _type string
 
 	if _nid, ok := rt_db.IN_Serverlist(ip); ok {
-		//it's my server
+		//it's my server, change the area code to its node
 		irn := rt_db.Read_Node_Record(_nid)
 		if irn.Name != "" {
 			ac = "MMY." + irn.Name
