@@ -1,12 +1,22 @@
 package grid_route
 
 import G "3grid/tools/globals"
-import "net"
 import "log"
+import "net"
 import "strings"
 
+//check if the ip is in my server list
+func (rt_db *Route_db) IN_Serverlist(ip net.IP) (uint, bool) {
+	ir := rt_db.Read_IP_Record(ip.String())
+	if ir.NodeId != 0 {
+		return ir.NodeId, true
+	} else {
+		return 0, false
+	}
+}
+
 //return A IPs based on AreaCode and DomainName
-func (rt_db *Route_db) GetAAA(dn string, _ac string, ip net.IP) ([]string, uint32, string, bool) {
+func (rt_db *Route_db) GetAAA(dn string, acode string, ip net.IP) ([]string, uint32, string, bool) {
 	var ttl uint32 = 0
 	var rid uint = 0
 	var aaa []string
@@ -14,17 +24,18 @@ func (rt_db *Route_db) GetAAA(dn string, _ac string, ip net.IP) ([]string, uint3
 	var ok bool = true
 	var _type string
 
-	ir := rt_db.Read_IP_Record(ip.String())
-	if ir.NodeId != 0 {
-		irn := rt_db.Read_Node_Record(ir.NodeId)
+	if _nid, ok := rt_db.IN_Serverlist(ip); ok {
+		//it's my server
+		irn := rt_db.Read_Node_Record(_nid)
 		if irn.Name != "" {
 			ac = "MMY." + irn.Name
 		} else {
-			ac = _ac
+			ac = acode
 		}
 	} else {
-		ac = _ac
+		ac = acode
 	}
+
 	if G.Debug {
 		log.Printf("GETAAA dn:%s, ac:%s, ip:%s", dn, ac, ip.String())
 	}
