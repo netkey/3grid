@@ -5,6 +5,7 @@ import "net"
 import "log"
 import "strings"
 
+//return A IPs based on AreaCode and DomainName
 func (rt_db *Route_db) GetAAA(dn string, _ac string, ip net.IP) ([]string, uint32, string, bool) {
 	var ttl uint32 = 0
 	var rid uint = 0
@@ -78,7 +79,6 @@ func (rt_db *Route_db) GetAAA(dn string, _ac string, ip net.IP) ([]string, uint3
 		}
 	}
 
-	//chose a node, base on scheduler algorithm, priority & weight & costs & usage(%)
 	nr := rt_db.ChoseNode(rr.Nodes)
 	//nr := rt_db.Read_Node_Record(224) //for debug
 	nid := nr.NodeId
@@ -87,7 +87,6 @@ func (rt_db *Route_db) GetAAA(dn string, _ac string, ip net.IP) ([]string, uint3
 		log.Printf("GETAAA nid: %d, nr: %+v", nid, nr)
 	}
 
-	//chose servers, base on server (load, status)
 	sl := rt_db.ChoseServer(nr.ServerList)
 
 	aaa = make([]string, dr.Records)
@@ -104,10 +103,12 @@ func (rt_db *Route_db) GetAAA(dn string, _ac string, ip net.IP) ([]string, uint3
 	return aaa, ttl, _type, ok
 }
 
+//scheduler algorithm of chosing available nodes, based on priority & weight & costs & usage(%)
 func (rt_db *Route_db) ChoseNode(nodes map[uint]PW_List_Record) Node_List_Record {
 	return Node_List_Record{}
 }
 
+//scheduler algorithm of chosing available servers, based on server (load, status)
 func (rt_db *Route_db) ChoseServer(servers []uint) []uint {
 	server_list := []uint{}
 
