@@ -25,6 +25,7 @@ var daemond bool
 var interval int
 var keepalive int
 var myname string
+var acprefix string
 
 func read_conf() {
 	viper.SetConfigFile("grid.conf")
@@ -61,23 +62,29 @@ func read_conf() {
 		} else {
 			*debug = true
 		}
-		_interval := viper.GetInt("server.interval")
+		_interval := viper.GetInt("gslb.interval")
 		if _interval < 30 {
 			interval = 30
 		} else {
 			interval = _interval
 		}
-		_keepalive := viper.GetInt("server.keepalive")
+		_keepalive := viper.GetInt("gslb.keepalive")
 		if _keepalive < 30 {
 			keepalive = 30
 		} else {
 			keepalive = _keepalive
 		}
-		_myname := viper.GetString("server.myname")
+		_myname := viper.GetString("gslb.myname")
 		if _myname == "" {
 			myname = "3grid"
 		} else {
 			myname = _myname
+		}
+		_acprefix := viper.GetString("gslb.acprefix")
+		if _acprefix == "" {
+			acprefix = "MMY"
+		} else {
+			acprefix = _acprefix
 		}
 		if *debug {
 			log.Printf("grid running - cpus:%d port:%s daemon:%t debug:%t interval:%d keepalive:%d myname:%s", num_cpus, port, daemond, *debug, interval, keepalive, myname)
@@ -112,6 +119,8 @@ func main() {
 
 	rtdb := RT.Route_db{}
 	rtdb.RT_db_init()
+
+	RT.MyACPrefix = acprefix
 
 	var name, secret string
 	for i := 0; i < num_cpus; i++ {

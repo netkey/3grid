@@ -5,6 +5,8 @@ import "log"
 import "net"
 import "strings"
 
+var MyACPrefix string
+
 //check if the ip is in my server list
 func (rt_db *Route_db) IN_Serverlist(ip net.IP) (uint, bool) {
 	ir := rt_db.Read_IP_Record(ip.String())
@@ -28,7 +30,7 @@ func (rt_db *Route_db) GetAAA(dn string, acode string, ip net.IP) ([]string, uin
 		//it's my server, change the area code to its node
 		irn := rt_db.Read_Node_Record(_nid)
 		if irn.Name != "" {
-			ac = "MMY." + irn.Name
+			ac = MyACPrefix + "." + irn.Name
 		} else {
 			ac = acode
 		}
