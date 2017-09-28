@@ -4,7 +4,6 @@ import G "3grid/tools/globals"
 import "encoding/json"
 import "io/ioutil"
 import "log"
-import "net"
 import "reflect"
 import "strconv"
 import "strings"
@@ -573,104 +572,4 @@ func (rt_db *Route_db) Update_Cache_Record(dn string, ac string, r *RT_Cache_Rec
 		rt_db.Cache[ac][dn] = *r
 	}
 	rt_db.Locks["cache"].Unlock()
-}
-
-//Tag: AAA
-func (rt_db *Route_db) GetAAA(dn string, _ac string, ip net.IP) ([]string, uint32, string, bool) {
-	var ttl uint32 = 0
-	var rid uint = 0
-	var aaa []string
-	var ac string
-	var ok bool = true
-	var _type string
-
-	ir := rt_db.Read_IP_Record(ip.String())
-	if ir.NodeId != 0 {
-		irn := rt_db.Read_Node_Record(ir.NodeId)
-		if irn.Name != "" {
-			ac = "MMY." + irn.Name
-		} else {
-			ac = _ac
-		}
-	} else {
-		ac = _ac
-	}
-	if G.Debug {
-		log.Printf("GETAAA dn:%s, ac:%s, ip:%s", dn, ac, ip.String())
-	}
-
-	if aaa, ttl, _type, ok = rt_db.GetRTCache(dn, ac); ok {
-		//found in route cache
-		return aaa, ttl, _type, ok
-	}
-
-	dr := rt_db.Read_Domain_Record(dn)
-	if G.Debug {
-		log.Printf("GETAAA dr: %+v", dr)
-	}
-
-	if dr.TTL == 0 {
-		ok = false
-		return aaa, ttl, _type, ok
-	} else {
-		ttl = uint32(dr.TTL)
-		_type = dr.Type
-	}
-
-	if dr.Type != "" {
-		//not a CDN serving domain name, typically A CNAME NS
-		aaa = []string{}
-		s := strings.Split(dr.Value, ",")
-		for _, x := range s {
-			aaa = append(aaa, x)
-		}
-		return aaa, ttl, _type, ok
-	}
-
-	rr := Route_List_Record{}
-
-	if dr.RoutePlan != nil {
-		//try get route_record of current plan, get next plan if no rr
-		for _, v := range dr.RoutePlan {
-			rid = v
-			rr = rt_db.Read_Route_Record(ac, rid)
-			if G.Debug {
-				log.Printf("GETAAA ac: %s, rid: %d, rr: %+v", ac, rid, rr)
-			}
-			if rr.Nodes != nil {
-				break
-			}
-		}
-	} else {
-		rid = 0 //default route plan
-		rr = rt_db.Read_Route_Record(ac, rid)
-		if rr.Nodes == nil {
-			return aaa, ttl, _type, false
-		}
-	}
-
-	//chose a node, base on scheduler algorithm, priority & weight & costs & usage(%)
-	nr := rt_db.ChoseNode(rr.Nodes)
-	//nr := rt_db.Read_Node_Record(224) //for debug
-	nid := nr.NodeId
-
-	if G.Debug {
-		log.Printf("GETAAA nid: %d, nr: %+v", nid, nr)
-	}
-
-	//chose servers, base on server (load, status)
-	sl := rt_db.ChoseServer(nr.ServerList)
-
-	aaa = make([]string, dr.Records)
-	for i, sid := range sl {
-		sr := rt_db.Read_Server_Record(sid)
-		if G.Debug {
-			log.Printf("GETAAA sr: %+v", sr)
-		}
-		aaa[i] = sr.ServerIp
-	}
-
-	rt_db.Update_Cache_Record(dn, ac, &RT_Cache_Record{TTL: ttl, AAA: aaa, TYPE: _type})
-
-	return aaa, ttl, _type, ok
 }
