@@ -137,7 +137,7 @@ func Sendmsg(_type, _command string, _param *map[string]string, _obj string, _ms
 		Command: _command,
 		Params:  _param,
 		Object:  _obj,
-		Msg1:    _msg1,
+		Msg1:    &map[string][]string{"": *_msg1},
 		Msg2:    _msg2,
 		Gzip:    false,
 		Ack:     false,

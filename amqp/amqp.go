@@ -32,7 +32,7 @@ type AMQP_Message struct {
 	Command string
 	Params  *map[string]string
 	Object  string
-	Msg1    *[]string
+	Msg1    *map[string][]string
 	Msg2    string
 	Gzip    bool
 	Ack     bool
