@@ -235,6 +235,7 @@ func (rt_db *Route_db) ChoseNode(nodes map[uint]PW_List_Record) Node_List_Record
 //scheduler algorithm of chosing available servers, based on server (load, status), sort by weight
 func (rt_db *Route_db) ChoseServer(servers []uint, servergroup uint) []uint {
 	var first bool = true
+	var sorted bool = false
 	server_list := []uint{}
 	_server_list := []uint{}
 
@@ -245,9 +246,10 @@ func (rt_db *Route_db) ChoseServer(servers []uint, servergroup uint) []uint {
 		}
 
 		if first {
-			first = false
 			server_list = append(server_list, sid)
+			first = false
 		} else {
+			sorted = false
 			for i, _sid := range server_list {
 				//sort by weight
 				if rt_db.Servers[_sid].Weight < rt_db.Servers[sid].Weight {
@@ -257,10 +259,15 @@ func (rt_db *Route_db) ChoseServer(servers []uint, servergroup uint) []uint {
 					} else {
 						_server_list = append([]uint{sid}, server_list[i:]...)
 					}
+					sorted = true
 					break
 				}
 			}
-			server_list = _server_list
+			if sorted {
+				server_list = _server_list
+			} else {
+				server_list = append(server_list, sid)
+			}
 		}
 	}
 
