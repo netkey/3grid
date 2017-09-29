@@ -246,6 +246,7 @@ func (rt_db *Route_db) ChoseServer(servers []uint, servergroup uint) []uint {
 		}
 
 		if first {
+			//just one item
 			server_list = append(server_list, sid)
 			first = false
 		} else {
@@ -254,9 +255,11 @@ func (rt_db *Route_db) ChoseServer(servers []uint, servergroup uint) []uint {
 				//sort by weight
 				if rt_db.Servers[_sid].Weight < rt_db.Servers[sid].Weight {
 					if i < len(server_list)-1 {
+						//insert into middle of slice
 						_server_list = append(server_list[0:i], sid)
 						_server_list = append(_server_list, server_list[i+1:]...)
 					} else {
+						//insert into head of slice
 						_server_list = append([]uint{sid}, server_list[i:]...)
 					}
 					sorted = true
@@ -264,8 +267,10 @@ func (rt_db *Route_db) ChoseServer(servers []uint, servergroup uint) []uint {
 				}
 			}
 			if sorted {
+				//inserted
 				server_list = _server_list
 			} else {
+				//append it
 				server_list = append(server_list, sid)
 			}
 		}
