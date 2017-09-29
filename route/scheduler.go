@@ -145,7 +145,12 @@ func (rt_db *Route_db) GetAAA(dn string, acode string, ip net.IP) ([]string, uin
 	x, _ = strconv.Atoi(dr.ServerGroup)
 	sl := rt_db.ChoseServer(nr.ServerList, uint(x))
 
-	aaa = make([]string, dr.Records)
+	if dr.Records <= uint(len(sl)) {
+		aaa = make([]string, dr.Records)
+	} else {
+		aaa = make([]string, len(sl))
+	}
+
 	for i, sid := range sl {
 		if uint(i) >= dr.Records {
 			//got enough IPs
