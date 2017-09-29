@@ -4,6 +4,7 @@ import G "3grid/tools/globals"
 import "log"
 import "net"
 import "strings"
+import "strconv"
 
 var MyACPrefix string
 
@@ -38,7 +39,6 @@ func (rt_db *Route_db) Match_AC_RR(ac string, rid uint) Route_List_Record {
 			break
 		}
 	}
-
 	if find {
 		return rt_db.Read_Route_Record(_ac, rid)
 	} else {
@@ -55,6 +55,7 @@ func (rt_db *Route_db) GetAAA(dn string, acode string, ip net.IP) ([]string, uin
 	var _ac string
 	var ok bool = true
 	var _type string
+	var x int
 
 	if _nid, ok := rt_db.IN_Serverlist(ip); ok {
 		//it's my server, change the area code to its node
@@ -141,10 +142,15 @@ func (rt_db *Route_db) GetAAA(dn string, acode string, ip net.IP) ([]string, uin
 		log.Printf("GETAAA nid: %d, nr: %+v", nid, nr)
 	}
 
-	sl := rt_db.ChoseServer(nr.ServerList)
+	x, _ = strconv.Atoi(dr.ServerGroup)
+	sl := rt_db.ChoseServer(nr.ServerList, uint(x))
 
 	aaa = make([]string, dr.Records)
 	for i, sid := range sl {
+		if uint(i) >= dr.Records {
+			//got enough IPs
+			break
+		}
 		sr := rt_db.Read_Server_Record(sid)
 		if G.Debug {
 			log.Printf("GETAAA sr: %+v", sr)
@@ -159,16 +165,80 @@ func (rt_db *Route_db) GetAAA(dn string, acode string, ip net.IP) ([]string, uin
 
 //scheduler algorithm of chosing available nodes, based on priority & weight & costs & usage(%)
 func (rt_db *Route_db) ChoseNode(nodes map[uint]PW_List_Record) Node_List_Record {
-	return Node_List_Record{}
+	var cnr Node_List_Record //chosed node record
+	var nr Node_List_Record
+	var nid uint = 0
+	var priority uint = 0
+	var weight uint = 0
+	var first bool = true
+
+	for k, v := range nodes {
+		if first {
+			cnr = rt_db.Read_Node_Record(k)
+			nid = k
+			priority = v.PW[0]
+			weight = v.PW[1]
+			first = false
+			continue
+		}
+
+		if priority > v.PW[0] {
+			nr = rt_db.Read_Node_Record(k)
+			if nr.Status {
+				//higher priority node which is ok
+				if nr.Usage <= 90 {
+					//and still available (<90% usage)
+					cnr = nr
+					nid = k
+					priority = v.PW[0]
+					weight = v.PW[1]
+				}
+			}
+		} else {
+			if priority == v.PW[0] {
+				//equipotent nodes
+				if weight <= v.PW[1] {
+					//higher or same Weight
+					nr = rt_db.Read_Node_Record(k)
+					if nr.Usage <= cnr.Usage {
+						//which has less Usage
+						if nr.Costs < cnr.Costs {
+							//which has less Costs
+							if nr.Usage <= 90 {
+								cnr = nr
+								nid = k
+								priority = v.PW[0]
+								weight = v.PW[1]
+							}
+						} else {
+							//less usage, but higher Costs
+							if cnr.Usage > 85 {
+								//chosen node is busy
+								cnr = nr
+								nid = k
+								priority = v.PW[0]
+								weight = v.PW[1]
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+	if nid != 0 {
+		return cnr
+	} else {
+		return Node_List_Record{}
+	}
 }
 
 //scheduler algorithm of chosing available servers, based on server (load, status)
-func (rt_db *Route_db) ChoseServer(servers []uint) []uint {
+func (rt_db *Route_db) ChoseServer(servers []uint, servergroup uint) []uint {
 	server_list := []uint{}
 
 	for _, sid := range servers {
-		if rt_db.Servers[sid].Status == false {
-			//server down or overload
+		if rt_db.Servers[sid].Status == false || rt_db.Servers[sid].ServerGroup != servergroup {
+			//server down/overload or not belong to the servergroup
 			continue
 		}
 		server_list = append(server_list, sid)
