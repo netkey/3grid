@@ -27,6 +27,8 @@ var CM_Ver_Major, CM_Ver_Minor, CM_Ver_Patch uint64
 //use for route/cm/domain db data update
 var Chan *chan map[string]map[string][]string
 
+var Rtdb *Route_db
+
 /*Route DB update method
 
 domain/servers/nodes update record : map[string][]string

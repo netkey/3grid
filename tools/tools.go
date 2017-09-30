@@ -93,6 +93,10 @@ func Check_db_versions() error {
 		}
 	}
 
+	if IP.Db_file != IP.Db_file0 {
+
+	}
+
 	RT.RT_Ver_Major, RT.RT_Ver_Minor, RT.RT_Ver_Patch, RT.RT_Version, RT.RT_Db_file, err = check_db_version("route")
 
 	if err != nil {

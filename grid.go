@@ -114,11 +114,11 @@ func main() {
 	//after fork as daemon, go on working
 	runtime.GOMAXPROCS(num_cpus)
 
-	ipdb := IP.IP_db{}
-	ipdb.IP_db_init()
+	IP.Ipdb = &IP.IP_db{}
+	IP.Ipdb.IP_db_init()
 
-	rtdb := RT.Route_db{}
-	rtdb.RT_db_init()
+	RT.Rtdb = &RT.Route_db{}
+	RT.Rtdb.RT_db_init()
 	RT.MyACPrefix = acprefix
 
 	G.GP = G.GSLB_Params{}
@@ -126,7 +126,7 @@ func main() {
 
 	var name, secret string
 	for i := 0; i < num_cpus; i++ {
-		go D.Working("udp", port, name, secret, i, &ipdb, &rtdb)
+		go D.Working("udp", port, name, secret, i, IP.Ipdb, RT.Rtdb)
 	}
 
 	go A.Synchronize(interval, keepalive, myname)

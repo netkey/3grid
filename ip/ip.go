@@ -11,7 +11,7 @@ import (
 
 //ip db version and file path
 var Version string
-var Db_file string
+var Db_file0, Db_file string
 var Ver_Major, Ver_Minor, Ver_Patch uint64
 
 //use for ip cache update
@@ -29,6 +29,8 @@ IP.Chan <- map[string]string{ip: ac}
 
 */
 
+var Ipdb *IP_db
+
 type IP_db struct {
 	Ipcache map[string]string
 	Ipdb    *geoip2.Reader
@@ -45,7 +47,7 @@ func (ip_db *IP_db) IP_db_init() {
 	Chan = &ip_db.Chan
 
 	if G.Debug {
-		log.Printf("Loading ip db..")
+		log.Printf("Loading ip db..%s", Db_file)
 	}
 
 	go ip_db.UpdateIPCache()

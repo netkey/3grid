@@ -3,6 +3,7 @@ package grid_amqp
 import (
 	"3grid/ip"
 	"3grid/route"
+	T "3grid/tools"
 	G "3grid/tools/globals"
 	"bufio"
 	"bytes"
@@ -65,6 +66,7 @@ func Synchronize(_interval, _ka_interval int, _myname string) {
 			go Keepalive(_ka_interval) //keepalive with backend servers
 			for {
 				time.Sleep(time.Duration(_interval) * time.Second)
+				T.Check_db_versions()
 			}
 		}
 	}
@@ -89,7 +91,9 @@ func CheckVersion(_interval int) {
 		time.Sleep(time.Duration(_interval) * time.Second)
 		_param[AMQP_OBJ_IP] = grid_ip.Version
 		_param[AMQP_OBJ_ROUTE] = grid_route.RT_Version
-		if err = Sendmsg("", AMQP_CMD_VER, &_param, AMQP_OBJ_IP, &_msg1, "", *gslb_center, 0); err != nil {
+		_param[AMQP_OBJ_CMDB] = grid_route.CM_Version
+		_param[AMQP_OBJ_DOMAIN] = grid_route.DM_Version
+		if err = Sendmsg("", AMQP_CMD_VER, &_param, "", &_msg1, "", *gslb_center, 0); err != nil {
 			log.Printf("checkversion: %s", err)
 		}
 	}
