@@ -14,7 +14,7 @@ var checkprefix string
 var checkfilelist map[string]string
 
 func update_version(path string, finfo os.FileInfo, err error) error {
-	_regex := checkprefix + "([0-9\\.]*)\\.db"
+	_regex := checkprefix + "([0-9\\._]*)\\.db"
 	_regex2 := "([0-9\\.]+[0-9])"
 
 	re := regexp.MustCompile(_regex)
