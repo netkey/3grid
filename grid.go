@@ -122,6 +122,9 @@ func main() {
 
 	RT.MyACPrefix = acprefix
 
+	G.GP = G.GSLB_Params{}
+	G.GP.Init()
+
 	var name, secret string
 	for i := 0; i < num_cpus; i++ {
 		go D.Working("udp", port, name, secret, i, &ipdb, &rtdb)

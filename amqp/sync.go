@@ -1,9 +1,9 @@
 package grid_amqp
 
 import (
-	"3grid/dns"
 	"3grid/ip"
 	"3grid/route"
+	G "3grid/tools/globals"
 	"bufio"
 	"bytes"
 	"compress/gzip"
@@ -108,8 +108,8 @@ func Keepalive(_interval int) {
 			}
 			_first = false
 		} else {
-			_param["Qps"] = strconv.FormatUint(grid_dns.Qps, 10)
-			_param["Load"] = strconv.FormatUint(grid_dns.Load, 10)
+			_param["Qps"] = strconv.FormatUint(G.GP.Read_Qps(), 10)
+			_param["Load"] = strconv.FormatUint(G.GP.Read_Load(), 10)
 			if err = Sendmsg("", AMQP_CMD_KA, &_param, "", &_msg1, "", *gslb_center, 0); err != nil {
 				log.Printf("keepalive: %s", err)
 			}

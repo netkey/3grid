@@ -20,8 +20,6 @@ var (
 const DN = "mmycdn.com"
 const Default_ttl = 60
 
-var Qs, Qps, Load uint64
-
 type DNS_worker struct {
 	Id     int
 	Server *dns.Server
