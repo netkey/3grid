@@ -119,11 +119,10 @@ func main() {
 
 	rtdb := RT.Route_db{}
 	rtdb.RT_db_init()
-
 	RT.MyACPrefix = acprefix
 
 	G.GP = G.GSLB_Params{}
-	G.GP.Init()
+	G.GP.Init(keepalive)
 
 	var name, secret string
 	for i := 0; i < num_cpus; i++ {
