@@ -113,6 +113,9 @@ func (ip_db *IP_db) UpdateIPCache() error {
 	for {
 		ipm := <-ip_db.Chan
 		if ipm == nil {
+			if G.Debug {
+				log.Printf("Exiting ip cache update loop..")
+			}
 			break
 		}
 		for k, v := range ipm {
