@@ -39,10 +39,20 @@ type IP_db struct {
 }
 
 func (ip_db *IP_db) IP_db_init() {
-	ip_db.Ipcache = make(map[string]string)
+
+	if ip_db.Lock != nil {
+		//reinit, loading new db file
+		ip_db.Lock.Lock()
+		ip_db.Ipcache = make(map[string]string)
+		ip_db.Lock.Unlock()
+		ip_db.Chan <- nil
+	} else {
+		ip_db.Ipcache = make(map[string]string)
+		ip_db.Lock = new(sync.RWMutex)
+	}
+
 	ip_db.Ipdb, _ = geoip2.Open(Db_file)
 
-	ip_db.Lock = new(sync.RWMutex)
 	ip_db.Chan = make(chan map[string]string, 100)
 	Chan = &ip_db.Chan
 
@@ -102,6 +112,9 @@ func (ip_db *IP_db) ReadIPCache(ips string) string {
 func (ip_db *IP_db) UpdateIPCache() error {
 	for {
 		ipm := <-ip_db.Chan
+		if ipm == nil {
+			break
+		}
 		for k, v := range ipm {
 			ip_db.Lock.Lock()
 			ip_db.Ipcache[k] = v
