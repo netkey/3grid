@@ -7,6 +7,8 @@ import "strings"
 import "strconv"
 
 var MyACPrefix string
+var Service_Cutoff_Percent uint
+var Service_Deny_Percent uint
 
 //check if the ip is in my server list
 func (rt_db *Route_db) IN_Serverlist(ip net.IP) (uint, bool) {
@@ -190,9 +192,9 @@ func (rt_db *Route_db) ChoseNode(nodes map[uint]PW_List_Record) Node_List_Record
 		if priority > v.PW[0] {
 			nr = rt_db.Read_Node_Record(k)
 			if nr.Status {
-				//higher priority node which is ok
-				if nr.Usage <= 90 {
-					//and still available (<90% usage)
+				//higher priority node which is ok (priority&weight algorithm)
+				if nr.Usage <= Service_Deny_Percent {
+					//and still available (<90% usage) (cutoff algorithm)
 					cnr = nr
 					nid = k
 					priority = v.PW[0]
@@ -203,13 +205,14 @@ func (rt_db *Route_db) ChoseNode(nodes map[uint]PW_List_Record) Node_List_Record
 			if priority == v.PW[0] {
 				//equipotent nodes
 				if weight <= v.PW[1] {
-					//higher or same Weight
+					//higher or same Weight (priority&weight algorithm)
 					nr = rt_db.Read_Node_Record(k)
 					if nr.Usage <= cnr.Usage {
-						//which has less Usage
+						//which has less Usage (usage algorithm)
 						if nr.Costs < cnr.Costs {
-							//which has less Costs
-							if nr.Usage <= 90 {
+							//which has less Costs (cost algorithm)
+							if nr.Usage <= Service_Deny_Percent {
+								//and still available (<90% usage) (cutoff algorithm)
 								cnr = nr
 								nid = k
 								priority = v.PW[0]
@@ -217,8 +220,8 @@ func (rt_db *Route_db) ChoseNode(nodes map[uint]PW_List_Record) Node_List_Record
 							}
 						} else {
 							//less usage, but higher Costs
-							if cnr.Usage > 85 {
-								//chosen node is busy
+							if cnr.Usage > Service_Cutoff_Percent {
+								//chosen node is busy (cutoff algorithm)
 								cnr = nr
 								nid = k
 								priority = v.PW[0]

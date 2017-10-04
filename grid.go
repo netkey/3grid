@@ -26,6 +26,8 @@ var interval int
 var keepalive int
 var myname string
 var acprefix string
+var cutoff_percent int
+var deny_percent int
 
 func read_conf() {
 	viper.SetConfigFile("grid.conf")
@@ -86,6 +88,18 @@ func read_conf() {
 		} else {
 			acprefix = _acprefix
 		}
+		_cutoff_percent := viper.GetInt("gslb.cutoff_percent")
+		if _cutoff_percent < 80 {
+			cutoff_percent = 80
+		} else {
+			cutoff_percent = _cutoff_percent
+		}
+		_deny_percent := viper.GetInt("gslb.deny_percent")
+		if _deny_percent < 90 {
+			deny_percent = 90
+		} else {
+			deny_percent = _deny_percent
+		}
 		if *debug {
 			log.Printf("grid running - cpus:%d port:%s daemon:%t debug:%t interval:%d keepalive:%d myname:%s", num_cpus, port, daemond, *debug, interval, keepalive, myname)
 		}
@@ -120,6 +134,8 @@ func main() {
 	RT.Rtdb = &RT.Route_db{}
 	RT.Rtdb.RT_db_init()
 	RT.MyACPrefix = acprefix
+	RT.Service_Cutoff_Percent = uint(cutoff_percent)
+	RT.Service_Deny_Percent = uint(deny_percent)
 
 	G.GP = G.GSLB_Params{}
 	G.GP.Init(keepalive)
