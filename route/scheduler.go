@@ -196,13 +196,13 @@ func (rt_db *Route_db) ChoseNode(nodes map[uint]PW_List_Record) Node_List_Record
 					if nr.Costs < cnr.Costs {
 						//which has less Costs (cost algorithm)
 						if nr.Usage <= Service_Deny_Percent {
-							//and still available (<90% usage) (cutoff algorithm)
+							//and still available(cutoff algorithm)
 							cnr, nid, priority, weight = nr, k, v.PW[0], v.PW[1]
 						}
 					} else {
 						//less usage, but higher Costs
 						if cnr.Usage > Service_Cutoff_Percent {
-							//chosen node is busy (cutoff algorithm)
+							//chosen node is busy(cutoff algorithm)
 							cnr, nid, priority, weight = nr, k, v.PW[0], v.PW[1]
 						}
 					}
@@ -235,8 +235,8 @@ func (rt_db *Route_db) ChoseNode(nodes map[uint]PW_List_Record) Node_List_Record
 
 //scheduler algorithm of chosing available servers, based on server (load, status), sort by weight
 func (rt_db *Route_db) ChoseServer(servers []uint, servergroup uint) []uint {
-	var first bool = true
 	var sorted bool = false
+
 	server_list := []uint{}
 	_server_list := []uint{}
 
@@ -245,35 +245,28 @@ func (rt_db *Route_db) ChoseServer(servers []uint, servergroup uint) []uint {
 			//server down/overload or not belong to the servergroup
 			continue
 		}
-
-		if first {
-			//just one item
-			server_list = append(server_list, sid)
-			first = false
-		} else {
-			sorted = false
-			for i, _sid := range server_list {
-				//sort by weight
-				if rt_db.Servers[_sid].Weight < rt_db.Servers[sid].Weight {
-					if i < len(server_list)-1 {
-						//insert into middle of slice
-						_server_list = append(server_list[0:i], sid)
-						_server_list = append(_server_list, server_list[i+1:]...)
-					} else {
-						//insert into head of slice
-						_server_list = append([]uint{sid}, server_list[i:]...)
-					}
-					sorted = true
-					break
+		sorted = false
+		for i, _sid := range server_list {
+			//sort by weight
+			if rt_db.Servers[_sid].Weight < rt_db.Servers[sid].Weight {
+				if i < len(server_list)-1 {
+					//insert into middle of slice
+					_server_list = append(server_list[0:i], sid)
+					_server_list = append(_server_list, server_list[i+1:]...)
+				} else {
+					//insert into head of slice
+					_server_list = append([]uint{sid}, server_list[i:]...)
 				}
+				sorted = true
+				break
 			}
-			if sorted {
-				//inserted
-				server_list = _server_list
-			} else {
-				//append it
-				server_list = append(server_list, sid)
-			}
+		}
+		if sorted {
+			//inserted
+			server_list = _server_list
+		} else {
+			//append it
+			server_list = append(server_list, sid)
 		}
 	}
 
