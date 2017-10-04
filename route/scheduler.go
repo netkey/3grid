@@ -172,63 +172,65 @@ func (rt_db *Route_db) GetAAA(dn string, acode string, ip net.IP) ([]string, uin
 
 //scheduler algorithm of chosing available nodes, based on priority & weight & costs & usage(%)
 func (rt_db *Route_db) ChoseNode(nodes map[uint]PW_List_Record) Node_List_Record {
-	var cnr Node_List_Record //chosed node record
-	var nr Node_List_Record
-	var nid uint = 0
-	var priority uint = 0
-	var weight uint = 0
-	var first bool = true
+	var nr, cnr Node_List_Record //cnr: chosen node record, nr: node record to compare
+	var nid uint = 0             //nid: chosen node id, default to 0
+	var priority uint = 100      //priority: chosen node priority, default to lowest
+	var weight uint = 0          //weight: chosen node weight, default to lowest
 
 	for k, v := range nodes {
-		if first {
-			cnr = rt_db.Read_Node_Record(k)
-			nid = k
-			priority = v.PW[0]
-			weight = v.PW[1]
-			first = false
+		nr = rt_db.Read_Node_Record(k)
+		if v.PW[0] < priority {
+			//higher priority node(priority&weight algorithm)
+			if nr.Status && (nr.Usage <= Service_Deny_Percent) {
+				//still available(status algorithm) to serve(cutoff algorithm)
+				cnr, nid, priority, weight = nr, k, v.PW[0], v.PW[1]
+			}
 			continue
 		}
-
-		if priority > v.PW[0] {
-			nr = rt_db.Read_Node_Record(k)
-			if nr.Status {
-				//higher priority node which is ok (priority&weight algorithm)
-				if nr.Usage <= Service_Deny_Percent {
-					//and still available (<90% usage) (cutoff algorithm)
-					cnr, nid, priority, weight = nr, k, v.PW[0], v.PW[1]
-				}
-			}
-		} else {
-			if priority == v.PW[0] {
-				//equipotent nodes
-				if weight <= v.PW[1] {
-					//higher or same Weight (priority&weight algorithm)
-					nr = rt_db.Read_Node_Record(k)
-					if nr.Usage <= cnr.Usage {
-						//which has less Usage (usage algorithm)
-						if nr.Costs < cnr.Costs {
-							//which has less Costs (cost algorithm)
-							if nr.Usage <= Service_Deny_Percent {
-								//and still available (<90% usage) (cutoff algorithm)
-								cnr, nid, priority, weight = nr, k, v.PW[0], v.PW[1]
-							}
-						} else {
-							//less usage, but higher Costs
-							if cnr.Usage > Service_Cutoff_Percent {
-								//chosen node is busy (cutoff algorithm)
-								cnr, nid, priority, weight = nr, k, v.PW[0], v.PW[1]
-							}
+		if v.PW[0] == priority {
+			//equipotent priority nodes
+			if v.PW[1] >= weight {
+				//higher or same Weight(priority&weight algorithm)
+				if nr.Status && (nr.Usage <= cnr.Usage) {
+					//which has less Usage (usage algorithm)
+					if nr.Costs < cnr.Costs {
+						//which has less Costs (cost algorithm)
+						if nr.Usage <= Service_Deny_Percent {
+							//and still available (<90% usage) (cutoff algorithm)
+							cnr, nid, priority, weight = nr, k, v.PW[0], v.PW[1]
+						}
+					} else {
+						//less usage, but higher Costs
+						if cnr.Usage > Service_Cutoff_Percent {
+							//chosen node is busy (cutoff algorithm)
+							cnr, nid, priority, weight = nr, k, v.PW[0], v.PW[1]
 						}
 					}
 				}
+			} else {
+				//lower Weight
+				if nr.Status && (nr.Usage < Service_Cutoff_Percent) && (cnr.Usage > Service_Cutoff_Percent) {
+					//chosen node is in cutoff state, and i am not
+					cnr, nid, priority, weight = nr, k, v.PW[0], v.PW[1]
+				}
 			}
+			continue
+		}
+		if v.PW[0] > priority {
+			//lower priority node
+			if nr.Status && (nr.Usage < Service_Cutoff_Percent) && (cnr.Usage > Service_Cutoff_Percent) {
+				//chosen node is in cutoff state, and i am not
+				cnr, nid, priority, weight = nr, k, v.PW[0], v.PW[1]
+			}
+			continue
 		}
 	}
-	if nid != 0 {
-		return cnr
-	} else {
-		return Node_List_Record{}
+
+	if nid == 0 {
+		cnr = Node_List_Record{}
 	}
+
+	return cnr
 }
 
 //scheduler algorithm of chosing available servers, based on server (load, status), sort by weight
