@@ -195,10 +195,7 @@ func (rt_db *Route_db) ChoseNode(nodes map[uint]PW_List_Record) Node_List_Record
 				//higher priority node which is ok (priority&weight algorithm)
 				if nr.Usage <= Service_Deny_Percent {
 					//and still available (<90% usage) (cutoff algorithm)
-					cnr = nr
-					nid = k
-					priority = v.PW[0]
-					weight = v.PW[1]
+					cnr, nid, priority, weight = nr, k, v.PW[0], v.PW[1]
 				}
 			}
 		} else {
@@ -213,19 +210,13 @@ func (rt_db *Route_db) ChoseNode(nodes map[uint]PW_List_Record) Node_List_Record
 							//which has less Costs (cost algorithm)
 							if nr.Usage <= Service_Deny_Percent {
 								//and still available (<90% usage) (cutoff algorithm)
-								cnr = nr
-								nid = k
-								priority = v.PW[0]
-								weight = v.PW[1]
+								cnr, nid, priority, weight = nr, k, v.PW[0], v.PW[1]
 							}
 						} else {
 							//less usage, but higher Costs
 							if cnr.Usage > Service_Cutoff_Percent {
 								//chosen node is busy (cutoff algorithm)
-								cnr = nr
-								nid = k
-								priority = v.PW[0]
-								weight = v.PW[1]
+								cnr, nid, priority, weight = nr, k, v.PW[0], v.PW[1]
 							}
 						}
 					}
