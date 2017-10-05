@@ -21,7 +21,7 @@ func (rt_db *Route_db) IN_Serverlist(ip net.IP) (uint, bool) {
 }
 
 //longest match the ac code with rid in exiting db
-func (rt_db *Route_db) Match_AC_RR(ac string, rid uint) Route_List_Record {
+func (rt_db *Route_db) Match_AC_RR(ac string, rid uint) (string, Route_List_Record) {
 	var _ac string
 	var find bool = false
 
@@ -42,9 +42,9 @@ func (rt_db *Route_db) Match_AC_RR(ac string, rid uint) Route_List_Record {
 		}
 	}
 	if find {
-		return rt_db.Read_Route_Record(_ac, rid)
+		return _ac, rt_db.Read_Route_Record(_ac, rid)
 	} else {
-		return Route_List_Record{}
+		return "", Route_List_Record{}
 	}
 }
 
@@ -114,7 +114,7 @@ func (rt_db *Route_db) GetAAA(dn string, acode string, ip net.IP) ([]string, uin
 			rid = v
 
 			//find a longest matched AC of this route plan
-			rr = rt_db.Match_AC_RR(ac, rid)
+			_ac, rr = rt_db.Match_AC_RR(ac, rid)
 			if rr.Nodes != nil {
 				break
 			}
@@ -123,7 +123,7 @@ func (rt_db *Route_db) GetAAA(dn string, acode string, ip net.IP) ([]string, uin
 
 	if rr.Nodes == nil {
 		rid = 0 //default route plan
-		rr = rt_db.Match_AC_RR(ac, rid)
+		_ac, rr = rt_db.Match_AC_RR(ac, rid)
 		if rr.Nodes == nil {
 			if G.Debug {
 				log.Printf("GETAAA failed, ac: %s, rid: %d", ac, rid)
@@ -136,7 +136,7 @@ func (rt_db *Route_db) GetAAA(dn string, acode string, ip net.IP) ([]string, uin
 		log.Printf("GETAAA ac: %s, matched ac: %s, rid: %d, rr: %+v", ac, _ac, rid, rr)
 	}
 
-	nr := rt_db.ChoseNode(rr.Nodes)
+	nr := rt_db.ChoseNode(rr.Nodes, ac)
 	//nr := rt_db.Read_Node_Record(224) //for debug
 	nid := nr.NodeId
 
@@ -171,56 +171,53 @@ func (rt_db *Route_db) GetAAA(dn string, acode string, ip net.IP) ([]string, uin
 }
 
 //scheduler algorithm of chosing available nodes, based on priority & weight & costs & usage(%)
-func (rt_db *Route_db) ChoseNode(nodes map[uint]PW_List_Record) Node_List_Record {
+func (rt_db *Route_db) ChoseNode(nodes map[uint]PW_List_Record, client_ac string) Node_List_Record {
 	var nr, cnr Node_List_Record //cnr: chosen node record, nr: node record to compare
 	var nid uint = 0             //nid: chosen node id, default to 0
 	var priority uint = 100      //priority: chosen node priority, default to lowest
 	var weight uint = 0          //weight: chosen node weight, default to lowest
+	var weight_idle, _weight_idle float64
 
 	for k, v := range nodes {
 		nr = rt_db.Read_Node_Record(k)
-		if v.PW[0] < priority {
-			//higher priority node(priority&weight algorithm)
-			if nr.Status && (nr.Usage <= Service_Deny_Percent) {
-				//still available(status algorithm) to serve(cutoff algorithm)
+		if nr.Status == false || nr.Usage >= Service_Deny_Percent {
+			//not available(status algorithm) to serve(cutoff algorithm)
+			continue
+		}
+		if nr.Status && cnr.NodeId != 0 &&
+			(nr.Usage < Service_Cutoff_Percent) && (cnr.Usage > Service_Cutoff_Percent) {
+			//chosen node is in cutoff state, and i am not(cutoff algorithm)
+			if client_ac != cnr.Name || cnr.Usage > Service_Deny_Percent {
+				//cutoff none local client access, then local's
 				cnr, nid, priority, weight = nr, k, v.PW[0], v.PW[1]
 			}
 			continue
 		}
+		if v.PW[0] < priority {
+			//higher priority node(priority&weight algorithm)
+			cnr, nid, priority, weight = nr, k, v.PW[0], v.PW[1]
+			continue
+		}
 		if v.PW[0] == priority {
-			//equipotent priority nodes
-			if v.PW[1] >= weight {
-				//higher or same Weight(priority&weight algorithm)
-				if nr.Status && (nr.Usage <= cnr.Usage) {
-					//which has less Usage (usage algorithm)
-					if nr.Costs < cnr.Costs {
-						//which has less Costs (cost algorithm)
-						if nr.Usage <= Service_Deny_Percent {
-							//and still available(cutoff algorithm)
-							cnr, nid, priority, weight = nr, k, v.PW[0], v.PW[1]
-						}
-					} else {
-						//less usage, but higher Costs
-						if cnr.Usage > Service_Cutoff_Percent {
-							//chosen node is busy(cutoff algorithm)
-							cnr, nid, priority, weight = nr, k, v.PW[0], v.PW[1]
-						}
-					}
-				}
+			//equipotent priority node
+			if nr.Costs <= cnr.Costs {
+				//which has less Costs (cost algorithm)
+				cnr, nid, priority, weight = nr, k, v.PW[0], v.PW[1]
 			} else {
-				//lower Weight
-				if nr.Status && (nr.Usage < Service_Cutoff_Percent) && (cnr.Usage > Service_Cutoff_Percent) {
-					//chosen node is in cutoff state, and i am not
-					cnr, nid, priority, weight = nr, k, v.PW[0], v.PW[1]
-				}
+				//higher Costs
 			}
 			continue
 		}
 		if v.PW[0] > priority {
 			//lower priority node
-			if nr.Status && (nr.Usage < Service_Cutoff_Percent) && (cnr.Usage > Service_Cutoff_Percent) {
-				//chosen node is in cutoff state, and i am not
+			weight_idle = float64(weight * (1 - cnr.Usage/100))
+			_weight_idle = float64(v.PW[1] * (1 - nr.Usage/100))
+
+			if _weight_idle >= weight_idle {
+				//higher or same weight&&idle(weight&usage algorithm)
 				cnr, nid, priority, weight = nr, k, v.PW[0], v.PW[1]
+			} else {
+				//lower weight_idle
 			}
 			continue
 		}
