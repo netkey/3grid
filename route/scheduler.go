@@ -218,11 +218,11 @@ func (rt_db *Route_db) ChoseNode(nodes map[uint]PW_List_Record, client_ac string
 			weight_idle = float64(weight * (1 - cnr.Usage/100))
 			_weight_idle = float64(v.PW[1] * (1 - nr.Usage/100))
 
-			if _weight_idle >= weight_idle {
-				//higher or same weight&&idle(weight&usage algorithm)
+			if _weight_idle >= weight_idle && nr.Costs <= cnr.Costs {
+				//higher or same weight&&idle(weight&usage algorithm) and cheaper node
 				cnr, nid, priority, weight = nr, k, v.PW[0], v.PW[1]
 			} else {
-				//lower weight_idle
+				//lower weight_idle or not cheaper
 			}
 			continue
 		}
