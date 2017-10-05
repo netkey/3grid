@@ -170,6 +170,11 @@ func (rt_db *Route_db) GetAAA(dn string, acode string, ip net.IP) ([]string, uin
 	return aaa, ttl, _type, ok
 }
 
+//check if a node covered the client ac
+func (rt_db *Route_db) Match_Local_AC(node_ac string, client_ac string) bool {
+	return strings.Contains(client_ac, node_ac)
+}
+
 //scheduler algorithm of chosing available nodes, based on priority & weight & costs & usage(%)
 func (rt_db *Route_db) ChoseNode(nodes map[uint]PW_List_Record, client_ac string) Node_List_Record {
 	var nr, cnr Node_List_Record //cnr: chosen node record, nr: node record to compare
@@ -187,7 +192,7 @@ func (rt_db *Route_db) ChoseNode(nodes map[uint]PW_List_Record, client_ac string
 		if nr.Status && cnr.NodeId != 0 &&
 			(nr.Usage < Service_Cutoff_Percent) && (cnr.Usage > Service_Cutoff_Percent) {
 			//chosen node is in cutoff state, and i am not(cutoff algorithm)
-			if client_ac != cnr.Name || cnr.Usage > Service_Deny_Percent {
+			if rt_db.Match_Local_AC(cnr.Name, client_ac) || cnr.Usage > Service_Deny_Percent {
 				//cutoff none local client access, then local's
 				cnr, nid, priority, weight = nr, k, v.PW[0], v.PW[1]
 			}
