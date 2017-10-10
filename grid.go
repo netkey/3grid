@@ -19,15 +19,20 @@ import (
 
 var debug = flag.Bool("debug", true, "output debug info")
 
+//main program related
 var num_cpus int
 var port string
 var daemond bool
+
+//gslb related
+var myname string
 var interval int
 var keepalive int
-var myname string
 var acprefix string
 var cutoff_percent int
 var deny_percent int
+var ip_cache_ttl int
+var rt_cache_ttl int
 
 func read_conf() {
 	viper.SetConfigFile("grid.conf")
@@ -100,6 +105,18 @@ func read_conf() {
 		} else {
 			deny_percent = _deny_percent
 		}
+		_ip_cache_ttl := viper.GetInt("gslb.ip_cache_ttl")
+		if _ip_cache_ttl < 60 {
+			ip_cache_ttl = 60
+		} else {
+			ip_cache_ttl = _ip_cache_ttl
+		}
+		_rt_cache_ttl := viper.GetInt("gslb.rt_cache_ttl")
+		if _rt_cache_ttl < 60 {
+			rt_cache_ttl = 60
+		} else {
+			rt_cache_ttl = _rt_cache_ttl
+		}
 		if *debug {
 			log.Printf("grid running - cpus:%d port:%s daemon:%t debug:%t interval:%d keepalive:%d myname:%s", num_cpus, port, daemond, *debug, interval, keepalive, myname)
 		}
@@ -130,12 +147,14 @@ func main() {
 
 	IP.Ipdb = &IP.IP_db{}
 	IP.Ipdb.IP_db_init()
+	IP.Ip_Cache_TTL = ip_cache_ttl
 
 	RT.Rtdb = &RT.Route_db{}
 	RT.Rtdb.RT_db_init()
 	RT.MyACPrefix = acprefix
 	RT.Service_Cutoff_Percent = uint(cutoff_percent)
 	RT.Service_Deny_Percent = uint(deny_percent)
+	RT.RT_Cache_TTL = rt_cache_ttl
 
 	G.GP = G.GSLB_Params{}
 	G.GP.Init(keepalive)

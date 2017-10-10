@@ -7,6 +7,7 @@ import (
 	"net"
 	//"strconv"
 	"sync"
+	"time"
 )
 
 //ip db version and file path
@@ -30,12 +31,18 @@ IP.Chan <- map[string]string{ip: ac}
 */
 
 var Ipdb *IP_db
+var Ip_Cache_TTL int
 
 type IP_db struct {
-	Ipcache map[string]string
+	Ipcache map[string]Ipcache_Item
 	Ipdb    *geoip2.Reader
 	Lock    *sync.RWMutex
 	Chan    chan map[string]string
+}
+
+type Ipcache_Item struct {
+	AC string
+	TS int64
 }
 
 func (ip_db *IP_db) IP_db_init() {
@@ -43,11 +50,11 @@ func (ip_db *IP_db) IP_db_init() {
 	if ip_db.Lock != nil {
 		//reinit, loading new db file
 		ip_db.Lock.Lock()
-		ip_db.Ipcache = make(map[string]string)
+		ip_db.Ipcache = make(map[string]Ipcache_Item)
 		ip_db.Lock.Unlock()
 		ip_db.Chan <- nil
 	} else {
-		ip_db.Ipcache = make(map[string]string)
+		ip_db.Ipcache = make(map[string]Ipcache_Item)
 		ip_db.Lock = new(sync.RWMutex)
 	}
 
@@ -66,13 +73,13 @@ func (ip_db *IP_db) IP_db_init() {
 func (ip_db *IP_db) GetAreaCode(ip net.IP) string {
 	var (
 		ips string
-		ipc string
+		ipc Ipcache_Item
 	)
 
 	ips = ip.String()
 	ipc = ip_db.ReadIPCache(ips)
 
-	if ipc == "" {
+	if ipc.AC == "" {
 		re, err := ip_db.Ipdb.City(ip)
 		if err == nil {
 			cn := re.City.Names["MMY"]
@@ -81,11 +88,13 @@ func (ip_db *IP_db) GetAreaCode(ip net.IP) string {
 			}
 
 			/*
-				ipc = "AC:" + cn + "|CC:" + re.Country.IsoCode + "|Coordinates:" +
-					strconv.FormatFloat(re.Location.Latitude, 'f', 4, 64) + "," +
-					strconv.FormatFloat(re.Location.Longitude, 'f', 4, 64) + "|AccuracyRadius:" +
-					strconv.FormatUint(uint64(re.Location.AccuracyRadius), 10)
+				ipc.AC = "AC:" + cn + "|CC:" + re.Country.IsoCode + "|Coordinates:" +
+				strconv.FormatFloat(re.Location.Latitude, 'f', 4, 64) + "," +
+				strconv.FormatFloat(re.Location.Longitude, 'f', 4, 64) + "|AccuracyRadius:" +
+				strconv.FormatUint(uint64(re.Location.AccuracyRadius), 10)
 			*/
+
+			//update ip cache
 			ip_db.Chan <- map[string]string{ips: cn}
 
 			if G.Debug {
@@ -98,15 +107,21 @@ func (ip_db *IP_db) GetAreaCode(ip net.IP) string {
 		}
 	}
 
-	return ipc
+	return ipc.AC
 }
 
-func (ip_db *IP_db) ReadIPCache(ips string) string {
+func (ip_db *IP_db) ReadIPCache(ips string) Ipcache_Item {
 	ip_db.Lock.RLock()
 	ipc := ip_db.Ipcache[ips]
 	ip_db.Lock.RUnlock()
 
-	return ipc
+	if ipc.TS < time.Now().Unix()-int64(Ip_Cache_TTL) {
+		//cache expire, delete it
+		ip_db.Chan <- map[string]string{ips: ""}
+		return Ipcache_Item{}
+	} else {
+		return ipc
+	}
 }
 
 func (ip_db *IP_db) UpdateIPCache() error {
@@ -120,7 +135,11 @@ func (ip_db *IP_db) UpdateIPCache() error {
 		}
 		for k, v := range ipm {
 			ip_db.Lock.Lock()
-			ip_db.Ipcache[k] = v
+			if v == "" {
+				delete(ip_db.Ipcache, k)
+			} else {
+				ip_db.Ipcache[k] = Ipcache_Item{AC: v, TS: time.Now().Unix()}
+			}
 			ip_db.Lock.Unlock()
 		}
 	}

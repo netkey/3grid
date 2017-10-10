@@ -28,6 +28,7 @@ var CM_Ver_Major, CM_Ver_Minor, CM_Ver_Patch uint64
 var Chan *chan map[string]map[string][]string
 
 var Rtdb *Route_db
+var RT_Cache_TTL int
 
 /*Route DB update method
 
