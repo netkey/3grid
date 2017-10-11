@@ -8,6 +8,7 @@ import "reflect"
 import "strconv"
 import "strings"
 import "sync"
+import "time"
 
 //route db version and file path
 var RT_Version string
@@ -29,6 +30,7 @@ var Chan *chan map[string]map[string][]string
 
 var Rtdb *Route_db
 var RT_Cache_TTL int
+var RT_Cache_Size int64
 
 /*Route DB update method
 
@@ -47,24 +49,25 @@ area_code(key) : [node_id, route_plan_id, priority, weight]
 MMY.MUT-TJ-TJ-C1-CHU.*:["42" "788" "3" "0"]
 
 update:
-RT.Chan <- map[string]map[string][]string{"domains": domain_records}
-RT.Chan <- map[string]map[string][]string{"servers": server_records}
-RT.Chan <- map[string]map[string][]string{"nodes": node_records}
-RT.Chan <- map[string]map[string][]string{"routes": route_records}
+*RT.Chan <- map[string]map[string][]string{"domains": domain_records}
+*RT.Chan <- map[string]map[string][]string{"servers": server_records}
+*RT.Chan <- map[string]map[string][]string{"nodes": node_records}
+*RT.Chan <- map[string]map[string][]string{"routes": route_records}
 
 delete:
 same as update, set the records value to nil
 */
 
 type Route_db struct {
-	Servers map[uint]Server_List_Record           //uint for server_id
-	Ips     map[string]Server_List_Record         //string for server_ip(net.IP.String())
-	Nodes   map[uint]Node_List_Record             //uint for nodeid
-	Domains map[string]Domain_List_Record         //string for domain name
-	Routes  map[string]map[uint]Route_List_Record //string for AreaCode, uint for RoutePlan ID
-	Cache   map[string]map[string]RT_Cache_Record //string for AreaCode, string for domain name
-	Chan    chan map[string]map[string][]string   //channel for updating dbs
-	Locks   map[string]*sync.RWMutex              //locks for writing dbs
+	Servers   map[uint]Server_List_Record           //uint for server_id
+	Ips       map[string]Server_List_Record         //string for server_ip(net.IP.String())
+	Nodes     map[uint]Node_List_Record             //uint for nodeid
+	Domains   map[string]Domain_List_Record         //string for domain name
+	Routes    map[string]map[uint]Route_List_Record //string for AreaCode, uint for RoutePlan ID
+	Cache     map[string]map[string]RT_Cache_Record //string for AreaCode, string for domain name
+	Chan      chan map[string]map[string][]string   //channel for updating dbs
+	Locks     map[string]*sync.RWMutex              //locks for writing dbs
+	CacheSize int64
 }
 
 type Server_List_Record struct {
@@ -111,6 +114,7 @@ type PW_List_Record struct {
 }
 
 type RT_Cache_Record struct {
+	TS   int64
 	TTL  uint32
 	AAA  []string
 	TYPE string
@@ -544,7 +548,10 @@ func (rt_db *Route_db) Read_Cache_Record(dn string, ac string) RT_Cache_Record {
 	rt_db.Locks["cache"].RLock()
 	if rt_db.Cache[ac] != nil {
 		if rt_db.Cache[ac][dn].TTL != 0 {
-			r = rt_db.Cache[ac][dn]
+			if int64(rt_db.Cache[ac][dn].TTL)+rt_db.Cache[ac][dn].TS >= time.Now().Unix() {
+				//cache not expired
+				r = rt_db.Cache[ac][dn]
+			}
 		}
 	}
 	rt_db.Locks["cache"].RUnlock()
@@ -567,10 +574,27 @@ func (rt_db *Route_db) GetRTCache(dn string, ac string) ([]string, uint32, strin
 func (rt_db *Route_db) Update_Cache_Record(dn string, ac string, r *RT_Cache_Record) {
 	rt_db.Locks["cache"].Lock()
 	if r == nil {
-		delete(rt_db.Cache[ac], dn)
+		if _, ok := rt_db.Cache[ac][dn]; ok {
+			delete(rt_db.Cache[ac], dn)
+			rt_db.CacheSize = rt_db.CacheSize - 1
+		}
 	} else {
 		if rt_db.Cache[ac] == nil {
 			rt_db.Cache[ac] = make(map[string]RT_Cache_Record)
+		}
+		if rt_db.CacheSize >= RT_Cache_Size {
+			//cache too large, pop one
+			for x, _ := range rt_db.Cache {
+				for y, _ := range rt_db.Cache[x] {
+					//it's safe to del keys from golang map within a range loop
+					delete(rt_db.Cache[x], y)
+					break
+				}
+				break
+			}
+		}
+		if _, ok := rt_db.Cache[ac][dn]; !ok {
+			rt_db.CacheSize = rt_db.CacheSize + 1
 		}
 		rt_db.Cache[ac][dn] = *r
 	}
