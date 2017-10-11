@@ -4,9 +4,9 @@ import (
 	IP "3grid/ip"
 	RT "3grid/route"
 	G "3grid/tools/globals"
-	"bytes"
 	"flag"
 	"github.com/miekg/dns"
+	"io"
 	"log"
 	"net"
 	"strings"
@@ -20,7 +20,8 @@ var (
 
 var WorkDir string
 
-var LogBuf bytes.Buffer
+var LogFilename string
+var LogFD io.Writer
 var Logger *log.Logger
 
 const DN = "mmycdn.com"
@@ -165,6 +166,9 @@ func (wkr *DNS_worker) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
 
 	if G.Debug {
 		log.Printf("Query from: %s, type %s, name %s, result %+v", ip.String(), qtype, _dn, aaa)
+	}
+	if LogFD != nil {
+		Logger.Printf("ip %s, type %s, name %s, result %+v", ip.String(), qtype, _dn, aaa)
 	}
 }
 

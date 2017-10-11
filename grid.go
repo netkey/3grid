@@ -140,6 +140,8 @@ func read_conf() {
 
 func main() {
 
+	var err error
+
 	flag.Parse()
 	read_conf()
 
@@ -176,8 +178,19 @@ func main() {
 	G.GP = G.GSLB_Params{}
 	G.GP.Init(keepalive)
 
-	D.WorkDir = filepath.Dir(os.Args[0])
-	D.Logger = log.New(&D.LogBuf, myname+": ", log.Lshortfile)
+	if D.WorkDir, err = filepath.Abs(filepath.Dir(os.Args[0])); err != nil {
+		if G.Debug {
+			log.Printf("Get path  error: %s", err)
+		}
+	}
+
+	if D.LogFD, err = os.OpenFile(D.WorkDir+"/logs/query.log", os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0644); err != nil {
+		if G.Debug {
+			log.Printf("Open log file error: %s", err)
+		}
+	}
+
+	D.Logger = log.New(D.LogFD, myname+": ", log.Lshortfile)
 
 	var name, secret string
 	for i := 0; i < num_cpus; i++ {
