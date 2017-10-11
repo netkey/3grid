@@ -37,7 +37,7 @@ func (c *Cmds) Update(msg *AMQP_Message) (err error) {
 		}
 	}()
 	db_type := msg.Object
-	datas := map[string][string][]string{db_type: *msg.Msg1}
-	*RT.Chan <- datas
+	*RT.Chan <- map[string]map[string][]string{db_type: *msg.Msg1}
+
 	return err
 }
