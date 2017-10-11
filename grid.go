@@ -33,6 +33,8 @@ var cutoff_percent int
 var deny_percent int
 var ip_cache_ttl int
 var rt_cache_ttl int
+var ip_cache_size int
+var rt_cache_size int
 
 func read_conf() {
 	viper.SetConfigFile("grid.conf")
@@ -111,11 +113,23 @@ func read_conf() {
 		} else {
 			ip_cache_ttl = _ip_cache_ttl
 		}
+		_ip_cache_size := viper.GetInt("gslb.ip_cache_size")
+		if _ip_cache_size < 1000 {
+			ip_cache_size = 1000
+		} else {
+			ip_cache_size = _ip_cache_size
+		}
 		_rt_cache_ttl := viper.GetInt("gslb.rt_cache_ttl")
 		if _rt_cache_ttl < 60 {
 			rt_cache_ttl = 60
 		} else {
 			rt_cache_ttl = _rt_cache_ttl
+		}
+		_rt_cache_size := viper.GetInt("gslb.rt_cache_size")
+		if _rt_cache_size < 1000 {
+			rt_cache_size = 1000
+		} else {
+			rt_cache_size = _rt_cache_size
 		}
 		if *debug {
 			log.Printf("grid running - cpus:%d port:%s daemon:%t debug:%t interval:%d keepalive:%d myname:%s", num_cpus, port, daemond, *debug, interval, keepalive, myname)
@@ -148,6 +162,7 @@ func main() {
 	IP.Ipdb = &IP.IP_db{}
 	IP.Ipdb.IP_db_init()
 	IP.Ip_Cache_TTL = ip_cache_ttl
+	IP.Ip_Cache_Size = ip_cache_size
 
 	RT.Rtdb = &RT.Route_db{}
 	RT.Rtdb.RT_db_init()
@@ -155,6 +170,7 @@ func main() {
 	RT.Service_Cutoff_Percent = uint(cutoff_percent)
 	RT.Service_Deny_Percent = uint(deny_percent)
 	RT.RT_Cache_TTL = rt_cache_ttl
+	RT.RT_Cache_Size = int64(rt_cache_size)
 
 	G.GP = G.GSLB_Params{}
 	G.GP.Init(keepalive)
