@@ -4,9 +4,9 @@ import (
 	//IP "3grid/ip"
 	RT "3grid/route"
 	//G "3grid/tools/globals"
-	"log"
 	"errors"
 	"fmt"
+	"log"
 )
 
 type Cmds struct {
@@ -30,8 +30,8 @@ func (c *Cmds) Ver(msg *AMQP_Message) error {
 }
 
 func (c *Cmds) Update(msg *AMQP_Message) (err error) {
-	defer func(){
-		if pan = recover(), pan != nil{
+	defer func() {
+		if pan := recover(); pan != nil {
 			msg := fmt.Sprintf("%s", pan)
 			err = errors.New(msg)
 		}
