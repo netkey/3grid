@@ -565,6 +565,9 @@ func (rt_db *Route_db) Update_Route_Record(k string, rid uint, r *Route_List_Rec
 			rt_db.Routes[k] = make(map[uint]Route_List_Record)
 		}
 		rt_db.Routes[k][rid] = *r
+		if G.Debug {
+			log.Printf("update route record: %s:%d:%+v", k, rid, *r)
+		}
 	}
 	rt_db.Locks["routes"].Unlock()
 }

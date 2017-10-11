@@ -4,6 +4,7 @@ import (
 	IP "3grid/ip"
 	RT "3grid/route"
 	G "3grid/tools/globals"
+	"bytes"
 	"flag"
 	"github.com/miekg/dns"
 	"log"
@@ -17,6 +18,11 @@ var (
 	compress = flag.Bool("compress", false, "compress replies")
 )
 
+var WorkDir string
+
+var LogBuf bytes.Buffer
+var Logger *log.Logger
+
 const DN = "mmycdn.com"
 const Default_ttl = 60
 
@@ -25,6 +31,10 @@ type DNS_worker struct {
 	Server *dns.Server
 	Ipdb   *IP.IP_db
 	Rtdb   *RT.Route_db
+}
+
+func Outlog(line string) {
+	Logger.Printf("%s", line)
 }
 
 func (wkr *DNS_worker) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {

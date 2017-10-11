@@ -13,6 +13,7 @@ import (
 	"log"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"runtime"
 	"syscall"
 )
@@ -174,6 +175,9 @@ func main() {
 
 	G.GP = G.GSLB_Params{}
 	G.GP.Init(keepalive)
+
+	D.WorkDir = filepath.Dir(os.Args[0])
+	D.Logger = log.New(&D.LogBuf, myname+": ", log.Lshortfile)
 
 	var name, secret string
 	for i := 0; i < num_cpus; i++ {

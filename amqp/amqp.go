@@ -147,7 +147,7 @@ func (c *AMQP_Broadcaster) Publish(body []byte) error {
 		amqp.Publishing{
 			Headers:         amqp.Table{},
 			ContentType:     "application/json",
-			ContentEncoding: "",
+			ContentEncoding: "UTF-8",
 			Body:            body,
 			DeliveryMode:    amqp.Transient, // 1=non-persistent, 2=persistent
 			Priority:        0,              // 0-9
@@ -330,7 +330,7 @@ func (c *AMQP_Director) Publish(body []byte, _key string) error {
 		amqp.Publishing{
 			Headers:         amqp.Table{},
 			ContentType:     "application/json",
-			ContentEncoding: "",
+			ContentEncoding: "UTF-8",
 			Body:            body,
 			DeliveryMode:    amqp.Transient, // 1=non-persistent, 2=persistent
 			Priority:        0,              // 0-9
