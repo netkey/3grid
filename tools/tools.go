@@ -110,6 +110,13 @@ func Check_db_versions() error {
 		}
 	}
 
+	if (RT.RT_Db_file0 != "") && (RT.RT_Db_file != RT.RT_Db_file0) {
+		RT.Rtdb.LoadRoutedb(nil)
+		RT.RT_Db_file0 = RT.RT_Db_file
+	} else if RT.RT_Db_file0 == "" {
+		RT.RT_Db_file0 = RT.RT_Db_file
+	}
+
 	RT.DM_Ver_Major, RT.DM_Ver_Minor, RT.DM_Ver_Patch, RT.DM_Version, RT.DM_Db_file, err = check_db_version("domain")
 
 	if err != nil {
@@ -120,6 +127,13 @@ func Check_db_versions() error {
 		}
 	}
 
+	if (RT.DM_Db_file0 != "") && (RT.DM_Db_file != RT.DM_Db_file0) {
+		RT.Rtdb.LoadDomaindb(nil)
+		RT.DM_Db_file0 = RT.DM_Db_file
+	} else if RT.DM_Db_file0 == "" {
+		RT.DM_Db_file0 = RT.DM_Db_file
+	}
+
 	RT.CM_Ver_Major, RT.CM_Ver_Minor, RT.CM_Ver_Patch, RT.CM_Version, RT.CM_Db_file, err = check_db_version("cmdb")
 
 	if err != nil {
@@ -128,6 +142,13 @@ func Check_db_versions() error {
 		if G.Debug {
 			log.Printf("CM db version:%s, major:%d, minor:%d, patch:%d, file_path:%s", RT.CM_Version, RT.CM_Ver_Major, RT.CM_Ver_Minor, RT.CM_Ver_Patch, RT.CM_Db_file)
 		}
+	}
+
+	if (RT.CM_Db_file0 != "") && (RT.CM_Db_file != RT.CM_Db_file0) {
+		RT.Rtdb.LoadCMdb(nil)
+		RT.CM_Db_file0 = RT.CM_Db_file
+	} else if RT.CM_Db_file0 == "" {
+		RT.CM_Db_file0 = RT.CM_Db_file
 	}
 
 	return nil

@@ -13,20 +13,23 @@ import "time"
 //route db version and file path
 var RT_Version string
 var RT_Db_file string
+var RT_Db_file0 string
 var RT_Ver_Major, RT_Ver_Minor, RT_Ver_Patch uint64
 
 //domain db version and file path
 var DM_Version string
 var DM_Db_file string
+var DM_Db_file0 string
 var DM_Ver_Major, DM_Ver_Minor, DM_Ver_Patch uint64
 
 //cmdb version and file path
 var CM_Version string
 var CM_Db_file string
+var CM_Db_file0 string
 var CM_Ver_Major, CM_Ver_Minor, CM_Ver_Patch uint64
 
 //use for route/cm/domain db data update
-var Chan *chan map[string]map[string][]string
+var Chan *chan map[string]map[string]map[string]map[string][]string
 
 var Rtdb *Route_db
 var RT_Cache_TTL int
@@ -59,14 +62,14 @@ same as update, set the records value to nil
 */
 
 type Route_db struct {
-	Servers   map[uint]Server_List_Record           //uint for server_id
-	Ips       map[string]Server_List_Record         //string for server_ip(net.IP.String())
-	Nodes     map[uint]Node_List_Record             //uint for nodeid
-	Domains   map[string]Domain_List_Record         //string for domain name
-	Routes    map[string]map[uint]Route_List_Record //string for AreaCode, uint for RoutePlan ID
-	Cache     map[string]map[string]RT_Cache_Record //string for AreaCode, string for domain name
-	Chan      chan map[string]map[string][]string   //channel for updating dbs
-	Locks     map[string]*sync.RWMutex              //locks for writing dbs
+	Servers   map[uint]Server_List_Record                               //uint for server_id
+	Ips       map[string]Server_List_Record                             //string for server_ip(net.IP.String())
+	Nodes     map[uint]Node_List_Record                                 //uint for nodeid
+	Domains   map[string]Domain_List_Record                             //string for domain name
+	Routes    map[string]map[uint]Route_List_Record                     //string for AreaCode, uint for RoutePlan ID
+	Cache     map[string]map[string]RT_Cache_Record                     //string for AreaCode, string for domain name
+	Chan      chan map[string]map[string]map[string]map[string][]string //channel for updating dbs
+	Locks     map[string]*sync.RWMutex                                  //locks for writing dbs
 	CacheSize int64
 }
 
@@ -131,74 +134,86 @@ func (rt_db *Route_db) RT_db_init() {
 	rt_db.Locks = map[string]*sync.RWMutex{"servers": new(sync.RWMutex), "ips": new(sync.RWMutex),
 		"nodes": new(sync.RWMutex), "domains": new(sync.RWMutex),
 		"routes": new(sync.RWMutex), "cache": new(sync.RWMutex)}
-	rt_db.Chan = make(chan map[string]map[string][]string, 100)
+	rt_db.Chan = make(chan map[string]map[string]map[string]map[string][]string, 100)
 	Chan = &rt_db.Chan
 
 	go rt_db.Updatedb()
 
-	rt_db.LoadDomaindb()
-	rt_db.LoadCMdb()
-	rt_db.LoadRoutedb()
+	rt_db.LoadDomaindb(nil)
+	rt_db.LoadCMdb(nil)
+	rt_db.LoadRoutedb(nil)
 }
 
-func (rt_db *Route_db) LoadDomaindb() error {
+func (rt_db *Route_db) LoadDomaindb(_domain_records map[string][]string) error {
 	var jf []byte
 	var domain_records map[string][]string
 	var err error
 
-	if G.Debug {
-		log.Printf("Loading domain db..")
-	}
-
-	jf, err = ioutil.ReadFile(DM_Db_file)
-	if err != nil {
+	if _domain_records == nil {
 		if G.Debug {
-			log.Printf("error reading domain db: %s", err)
+			log.Printf("Loading domain db..%s", DM_Db_file)
 		}
-	}
 
-	err = json.Unmarshal(jf, &domain_records)
-	if err != nil {
-		if G.Debug {
-			log.Printf("error unmarshaling domain db: %s", err)
+		jf, err = ioutil.ReadFile(DM_Db_file)
+		if err != nil {
+			if G.Debug {
+				log.Printf("error reading domain db: %s", err)
+			}
+		}
+
+		err = json.Unmarshal(jf, &domain_records)
+		if err != nil {
+			if G.Debug {
+				log.Printf("error unmarshaling domain db: %s", err)
+			}
 		}
 	} else {
-		rt_db.Convert_Domain_Record(&domain_records)
-		//can also update in this way:
-		//rt_db.Chan <- map[string]map[string][]string{"domains": domain_records}
+		domain_records = _domain_records
 	}
 
-	if G.Debug {
-		//time.Sleep(time.Duration(100) * time.Millisecond) //for use with channel updating
-		keys := reflect.ValueOf(rt_db.Domains).MapKeys()
-		log.Printf("domains data sample: %+v", rt_db.Domains[keys[0].String()])
+	if err == nil {
+		rt_db.Convert_Domain_Record(domain_records)
+		//can also update in this way:
+		//rt_db.Chan <- map[string]map[string][]string{"domains": domain_records}
+
+		if G.Debug {
+			//time.Sleep(time.Duration(100) * time.Millisecond) //for use with channel updating
+			keys := reflect.ValueOf(rt_db.Domains).MapKeys()
+			log.Printf("domains data sample: %+v", rt_db.Domains[keys[0].String()])
+		}
 	}
 
 	return err
 }
 
-func (rt_db *Route_db) LoadCMdb() error {
+func (rt_db *Route_db) LoadCMdb(_cmdb_records map[string]map[string][]string) error {
 	var jf []byte
 	var cmdb_records map[string]map[string][]string
 	var err error
 
-	if G.Debug {
-		log.Printf("Loading cmdb..")
-	}
-
-	jf, err = ioutil.ReadFile(CM_Db_file)
-	if err != nil {
+	if _cmdb_records == nil {
 		if G.Debug {
-			log.Printf("error reading cmdb: %s", err)
+			log.Printf("Loading cmdb..%s", CM_Db_file)
 		}
-	}
 
-	err = json.Unmarshal(jf, &cmdb_records)
-	if err != nil {
-		if G.Debug {
-			log.Printf("error unmarshaling cmdb: %s", err)
+		jf, err = ioutil.ReadFile(CM_Db_file)
+		if err != nil {
+			if G.Debug {
+				log.Printf("error reading cmdb: %s", err)
+			}
+		}
+
+		err = json.Unmarshal(jf, &cmdb_records)
+		if err != nil {
+			if G.Debug {
+				log.Printf("error unmarshaling cmdb: %s", err)
+			}
 		}
 	} else {
+		cmdb_records = _cmdb_records
+	}
+
+	if err == nil {
 		for nid, servers := range cmdb_records {
 			node_records := make(map[string][]string)
 			server_records := make(map[string][]string)
@@ -214,46 +229,52 @@ func (rt_db *Route_db) LoadCMdb() error {
 			}
 			node_records[nid] = append(node_records[nid], server_list)
 
-			rt_db.Convert_Node_Record(&node_records)
-			rt_db.Convert_Server_Record(&server_records)
+			rt_db.Convert_Node_Record(node_records)
+			rt_db.Convert_Server_Record(server_records)
 		}
-	}
 
-	if G.Debug {
-		keys := reflect.ValueOf(rt_db.Nodes).MapKeys()
-		log.Printf("nodes data sample: %+v", rt_db.Nodes[uint(keys[0].Uint())])
-		keys = reflect.ValueOf(rt_db.Servers).MapKeys()
-		log.Printf("servers data sample: %+v", rt_db.Servers[uint(keys[0].Uint())])
-		keys = reflect.ValueOf(rt_db.Ips).MapKeys()
-		log.Printf("ips data sample: %+v", rt_db.Ips[keys[0].String()])
+		if G.Debug {
+			keys := reflect.ValueOf(rt_db.Nodes).MapKeys()
+			log.Printf("nodes data sample: %+v", rt_db.Nodes[uint(keys[0].Uint())])
+			keys = reflect.ValueOf(rt_db.Servers).MapKeys()
+			log.Printf("servers data sample: %+v", rt_db.Servers[uint(keys[0].Uint())])
+			keys = reflect.ValueOf(rt_db.Ips).MapKeys()
+			log.Printf("ips data sample: %+v", rt_db.Ips[keys[0].String()])
+		}
 	}
 
 	return err
 }
 
-func (rt_db *Route_db) LoadRoutedb() error {
+func (rt_db *Route_db) LoadRoutedb(_rtdb_records map[string]map[string]map[string][]string) error {
 	var jf []byte
 	var rtdb_records map[string]map[string]map[string][]string
 	var route_records map[string][]string
 	var err error
 
-	if G.Debug {
-		log.Printf("Loading route db..")
-	}
-
-	jf, err = ioutil.ReadFile(RT_Db_file)
-	if err != nil {
+	if _rtdb_records == nil {
 		if G.Debug {
-			log.Printf("error reading route db: %s", err)
+			log.Printf("Loading route db..%s", RT_Db_file)
 		}
-	}
 
-	err = json.Unmarshal(jf, &rtdb_records)
-	if err != nil {
-		if G.Debug {
-			log.Printf("error unmarshaling route db: %s", err)
+		jf, err = ioutil.ReadFile(RT_Db_file)
+		if err != nil {
+			if G.Debug {
+				log.Printf("error reading route db: %s", err)
+			}
+		}
+
+		err = json.Unmarshal(jf, &rtdb_records)
+		if err != nil {
+			if G.Debug {
+				log.Printf("error unmarshaling route db: %s", err)
+			}
 		}
 	} else {
+		rtdb_records = _rtdb_records
+	}
+
+	if err == nil {
 		//CMCC-CN-BJ-BJ : [rid, nid, p, w]
 		for rid, plan := range rtdb_records {
 			if plan == nil || rid == "" {
@@ -272,15 +293,15 @@ func (rt_db *Route_db) LoadRoutedb() error {
 					route_records[ac] = append(route_records[ac], nid)
 					route_records[ac] = append(route_records[ac], pws[0])
 					route_records[ac] = append(route_records[ac], pws[1])
-					rt_db.Convert_Route_Record(&route_records)
+					rt_db.Convert_Route_Record(route_records)
 				}
 			}
 		}
-	}
 
-	if G.Debug {
-		keys := reflect.ValueOf(rt_db.Routes).MapKeys()
-		log.Printf("routes data sample: %s %+v", keys[0].String(), rt_db.Routes[keys[0].String()])
+		if G.Debug {
+			keys := reflect.ValueOf(rt_db.Routes).MapKeys()
+			log.Printf("routes data sample: %s %+v", keys[0].String(), rt_db.Routes[keys[0].String()])
+		}
 	}
 
 	return err
@@ -292,13 +313,19 @@ func (rt_db *Route_db) Updatedb() error {
 		for t, a := range m {
 			switch t {
 			case "domains":
-				rt_db.Convert_Domain_Record(&a)
+				rt_db.Convert_Domain_Record(a["domains"]["domains"])
 			case "servers":
-				rt_db.Convert_Server_Record(&a)
+				rt_db.Convert_Server_Record(a["servers"]["servers"])
 			case "nodes":
-				rt_db.Convert_Node_Record(&a)
+				rt_db.Convert_Node_Record(a["nodes"]["nodes"])
 			case "routes":
-				rt_db.Convert_Route_Record(&a)
+				rt_db.Convert_Route_Record(a["routes"]["routes"])
+			case "Cmdb":
+				rt_db.LoadCMdb(a["Cmdb"])
+			case "Domain":
+				rt_db.LoadDomaindb(a["Domain"]["Domain"])
+			case "Routedb":
+				rt_db.LoadRoutedb(a)
 			default:
 			}
 		}
@@ -307,8 +334,8 @@ func (rt_db *Route_db) Updatedb() error {
 	return nil
 }
 
-func (rt_db *Route_db) Convert_Domain_Record(m *map[string][]string) {
-	for k, v := range *m {
+func (rt_db *Route_db) Convert_Domain_Record(m map[string][]string) {
+	for k, v := range m {
 		x := 0
 		r := new(Domain_List_Record)
 
@@ -359,8 +386,8 @@ func (rt_db *Route_db) Update_Domain_Record(k string, r *Domain_List_Record) {
 	rt_db.Locks["domains"].Unlock()
 }
 
-func (rt_db *Route_db) Convert_Server_Record(m *map[string][]string) {
-	for k, v := range *m {
+func (rt_db *Route_db) Convert_Server_Record(m map[string][]string) {
+	for k, v := range m {
 		x := 0
 		r := new(Server_List_Record)
 
@@ -422,8 +449,8 @@ func (rt_db *Route_db) Update_Server_Record(k uint, r *Server_List_Record) {
 	rt_db.Locks["servers"].Unlock()
 }
 
-func (rt_db *Route_db) Convert_Node_Record(m *map[string][]string) {
-	for k, v := range *m {
+func (rt_db *Route_db) Convert_Node_Record(m map[string][]string) {
+	for k, v := range m {
 		x := 0
 		r := new(Node_List_Record)
 
@@ -490,10 +517,10 @@ func (rt_db *Route_db) Update_Node_Record(k uint, r *Node_List_Record) {
 	rt_db.Locks["nodes"].Unlock()
 }
 
-func (rt_db *Route_db) Convert_Route_Record(m *map[string][]string) {
+func (rt_db *Route_db) Convert_Route_Record(m map[string][]string) {
 	var rid uint
 	var nid uint
-	for k, v := range *m {
+	for k, v := range m {
 		x := 0
 		r := new(Route_List_Record)
 		pw := new(PW_List_Record)
@@ -588,6 +615,7 @@ func (rt_db *Route_db) Update_Cache_Record(dn string, ac string, r *RT_Cache_Rec
 				for y, _ := range rt_db.Cache[x] {
 					//it's safe to del keys from golang map within a range loop
 					delete(rt_db.Cache[x], y)
+					rt_db.CacheSize = rt_db.CacheSize - 1
 					break
 				}
 				break
