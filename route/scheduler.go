@@ -5,6 +5,7 @@ import "log"
 import "net"
 import "strings"
 import "strconv"
+import "time"
 
 var MyACPrefix string
 var Service_Cutoff_Percent uint
@@ -165,7 +166,7 @@ func (rt_db *Route_db) GetAAA(dn string, acode string, ip net.IP) ([]string, uin
 		aaa[i] = sr.ServerIp
 	}
 
-	rt_db.Update_Cache_Record(dn, ac, &RT_Cache_Record{TTL: ttl, AAA: aaa, TYPE: _type})
+	rt_db.Update_Cache_Record(dn, ac, &RT_Cache_Record{TS: time.Now().Unix(), TTL: ttl, AAA: aaa, TYPE: _type})
 
 	return aaa, ttl, _type, ok
 }

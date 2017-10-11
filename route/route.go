@@ -8,6 +8,7 @@ import "reflect"
 import "strconv"
 import "strings"
 import "sync"
+import "time"
 
 //route db version and file path
 var RT_Version string
@@ -111,6 +112,7 @@ type PW_List_Record struct {
 }
 
 type RT_Cache_Record struct {
+	TS   int64
 	TTL  uint32
 	AAA  []string
 	TYPE string
@@ -544,7 +546,10 @@ func (rt_db *Route_db) Read_Cache_Record(dn string, ac string) RT_Cache_Record {
 	rt_db.Locks["cache"].RLock()
 	if rt_db.Cache[ac] != nil {
 		if rt_db.Cache[ac][dn].TTL != 0 {
-			r = rt_db.Cache[ac][dn]
+			if int64(rt_db.Cache[ac][dn].TTL)+rt_db.Cache[ac][dn].TS >= time.Now().Unix() {
+				//cache not expired
+				r = rt_db.Cache[ac][dn]
+			}
 		}
 	}
 	rt_db.Locks["cache"].RUnlock()

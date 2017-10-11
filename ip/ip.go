@@ -32,11 +32,13 @@ IP.Chan <- map[string]string{ip: ac}
 
 var Ipdb *IP_db
 var Ip_Cache_TTL int
+var Ip_Cache_Size int
 
 type IP_db struct {
 	Ipcache map[string]Ipcache_Item
 	Ipdb    *geoip2.Reader
-	Lock    *sync.RWMutex
+	DBLock  *sync.RWMutex //DB file lock
+	Lock    *sync.RWMutex //Cache lock
 	Chan    chan map[string]string
 }
 
@@ -48,26 +50,32 @@ type Ipcache_Item struct {
 func (ip_db *IP_db) IP_db_init() {
 
 	if ip_db.Lock != nil {
-		//reinit, loading new db file
-		ip_db.Lock.Lock()
-		ip_db.Ipcache = make(map[string]Ipcache_Item)
-		ip_db.Lock.Unlock()
-		ip_db.Chan <- nil
+		//reinit, reloading new db file
+		ip_db.DBLock.Lock()
+		ip_db.Ipdb.Close()
+		ip_db.Ipdb, _ = geoip2.Open(Db_file)
+		ip_db.DBLock.Unlock()
 	} else {
+		//first init, bala bala
 		ip_db.Ipcache = make(map[string]Ipcache_Item)
 		ip_db.Lock = new(sync.RWMutex)
+		ip_db.DBLock = new(sync.RWMutex)
+
+		ip_db.DBLock.Lock()
+		ip_db.Ipdb, _ = geoip2.Open(Db_file)
+		ip_db.DBLock.Unlock()
+
+		ip_db.Chan = make(chan map[string]string, 100)
+		Chan = &ip_db.Chan
+
+		//cache maintenance func
+		go ip_db.UpdateIPCache()
 	}
-
-	ip_db.Ipdb, _ = geoip2.Open(Db_file)
-
-	ip_db.Chan = make(chan map[string]string, 100)
-	Chan = &ip_db.Chan
 
 	if G.Debug {
 		log.Printf("Loading ip db..%s", Db_file)
 	}
 
-	go ip_db.UpdateIPCache()
 }
 
 func (ip_db *IP_db) GetAreaCode(ip net.IP) string {
@@ -80,7 +88,7 @@ func (ip_db *IP_db) GetAreaCode(ip net.IP) string {
 	ipc = ip_db.ReadIPCache(ips)
 
 	if ipc.AC == "" {
-		re, err := ip_db.Ipdb.City(ip)
+		re, err := ip_db.ReadIPdb(ip)
 		if err == nil {
 			cn := re.City.Names["MMY"]
 			if cn == "" {
@@ -110,14 +118,25 @@ func (ip_db *IP_db) GetAreaCode(ip net.IP) string {
 	return ipc.AC
 }
 
+func (ip_db *IP_db) ReadIPdb(ip net.IP) (*geoip2.City, error) {
+	ip_db.DBLock.RLock()
+	city, err := ip_db.Ipdb.City(ip)
+	ip_db.DBLock.RUnlock()
+
+	return city, err
+}
+
 func (ip_db *IP_db) ReadIPCache(ips string) Ipcache_Item {
 	ip_db.Lock.RLock()
 	ipc := ip_db.Ipcache[ips]
 	ip_db.Lock.RUnlock()
 
-	if ipc.TS < time.Now().Unix()-int64(Ip_Cache_TTL) {
-		//cache expire, delete it
-		ip_db.Chan <- map[string]string{ips: ""}
+	if ipc.TS == 0 {
+		//no cache item
+		return Ipcache_Item{}
+	} else if ipc.TS+int64(Ip_Cache_TTL) < time.Now().Unix() {
+		//cache expire, delete it or just ignore it?
+		//ip_db.Chan <- map[string]string{ips: ""}
 		return Ipcache_Item{}
 	} else {
 		return ipc
@@ -138,6 +157,13 @@ func (ip_db *IP_db) UpdateIPCache() error {
 			if v == "" {
 				delete(ip_db.Ipcache, k)
 			} else {
+				if len(ip_db.Ipcache) >= Ip_Cache_Size {
+					//cache too large, pop one
+					for x, _ := range ip_db.Ipcache {
+						delete(ip_db.Ipcache, x)
+						break
+					}
+				}
 				ip_db.Ipcache[k] = Ipcache_Item{AC: v, TS: time.Now().Unix()}
 			}
 			ip_db.Lock.Unlock()
