@@ -30,13 +30,8 @@ func (c *Cmds) Ver(msg *AMQP_Message) error {
 }
 
 func (c *Cmds) Update(msg *AMQP_Message) (err error) {
-<<<<<<< HEAD
-	defer func(){
-		if pan := recover(), pan != nil{
-=======
 	defer func() {
 		if pan := recover(); pan != nil {
->>>>>>> 2eed699998a5dced53b2f6433cd42e8597d835ce
 			msg := fmt.Sprintf("%s", pan)
 			err = errors.New(msg)
 		}
