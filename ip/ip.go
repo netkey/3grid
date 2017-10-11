@@ -160,6 +160,7 @@ func (ip_db *IP_db) UpdateIPCache() error {
 				if len(ip_db.Ipcache) >= Ip_Cache_Size {
 					//cache too large, pop one
 					for x, _ := range ip_db.Ipcache {
+						//it's safe to del keys from golang map within a range loop
 						delete(ip_db.Ipcache, x)
 						break
 					}
