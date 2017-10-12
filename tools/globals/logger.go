@@ -12,6 +12,7 @@ const (
 	LOG_SCHEDULER = "sche"
 	LOG_GSLB      = "gslb"
 	LOG_DEBUG     = "debug"
+	LOG_AMQP      = "amqp"
 )
 
 var Log bool
@@ -27,9 +28,13 @@ type Grid_Logger struct {
 	Chan    chan map[string]string
 }
 
+func Outlog(target string, line string) {
+	*LogChan <- map[string]string{target: line}
+}
+
 func NewLogger() (*Grid_Logger, error) {
 	var err error
-	var logto = []string{LOG_IP, LOG_DNS, LOG_ROUTE, LOG_SCHEDULER, LOG_GSLB, LOG_DEBUG}
+	var logto = []string{LOG_IP, LOG_DNS, LOG_ROUTE, LOG_SCHEDULER, LOG_GSLB, LOG_DEBUG, LOG_AMQP}
 	var lg = Grid_Logger{}
 
 	if lg.Workdir, err = filepath.Abs(filepath.Dir(os.Args[0])); err != nil {

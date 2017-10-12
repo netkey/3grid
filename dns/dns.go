@@ -7,7 +7,6 @@ import (
 	"flag"
 	"fmt"
 	"github.com/miekg/dns"
-	"log"
 	"net"
 	"strings"
 	"time"
@@ -155,7 +154,7 @@ func (wkr *DNS_worker) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
 	G.GP.Chan <- map[string]uint64{"QS": 1}
 
 	if G.Log {
-		*G.LogChan <- map[string]string{G.LOG_DNS: fmt.Sprintf("ip:%s type:%s name:%s result:%+v", ip.String(), qtype, _dn, aaa)}
+		G.Outlog(G.LOG_DNS, fmt.Sprintf("ip:%s type:%s name:%s result:%+v", ip.String(), qtype, _dn, aaa))
 	}
 }
 
@@ -171,13 +170,13 @@ func Working(net, port, name, secret string, num int, ipdb *IP.IP_db, rtdb *RT.R
 		worker.Server = &dns.Server{Addr: ":" + port, Net: net, TsigSecret: nil}
 		worker.Server.Handler = &worker
 		if err := worker.Server.ListenAndServe(); err != nil {
-			log.Printf("Failed to setup the "+net+" server: %s\n", err.Error())
+			G.Outlog(G.LOG_DEBUG, fmt.Sprintf("Failed to setup the "+net+" server: %s\n", err.Error()))
 		}
 	default:
 		worker.Server = &dns.Server{Addr: ":" + port, Net: net, TsigSecret: map[string]string{name: secret}}
 		worker.Server.Handler = &worker
 		if err := worker.Server.ListenAndServe(); err != nil {
-			log.Printf("Failed to setup the "+net+" server: %s\n", err.Error())
+			G.Outlog(G.LOG_DEBUG, fmt.Sprintf("Failed to setup the "+net+" server: %s\n", err.Error()))
 		}
 	}
 }

@@ -3,7 +3,7 @@ package grid_route
 import G "3grid/tools/globals"
 import "encoding/json"
 import "io/ioutil"
-import "log"
+import "fmt"
 import "reflect"
 import "strconv"
 import "strings"
@@ -152,20 +152,20 @@ func (rt_db *Route_db) LoadDomaindb(_domain_records map[string][]string) error {
 
 	if _domain_records == nil {
 		if G.Debug {
-			log.Printf("Loading domain db..%s", DM_Db_file)
+			G.Outlog(G.LOG_DEBUG, fmt.Sprintf("Loading domain db..%s", DM_Db_file))
 		}
 
 		jf, err = ioutil.ReadFile(DM_Db_file)
 		if err != nil {
 			if G.Debug {
-				log.Printf("error reading domain db: %s", err)
+				G.Outlog(G.LOG_DEBUG, fmt.Sprintf("error reading domain db: %s", err))
 			}
 		}
 
 		err = json.Unmarshal(jf, &domain_records)
 		if err != nil {
 			if G.Debug {
-				log.Printf("error unmarshaling domain db: %s", err)
+				G.Outlog(G.LOG_DEBUG, fmt.Sprintf("error unmarshaling domain db: %s", err))
 			}
 		}
 	} else {
@@ -180,7 +180,7 @@ func (rt_db *Route_db) LoadDomaindb(_domain_records map[string][]string) error {
 		if G.Debug {
 			//time.Sleep(time.Duration(100) * time.Millisecond) //for use with channel updating
 			keys := reflect.ValueOf(rt_db.Domains).MapKeys()
-			log.Printf("domains data sample: %+v", rt_db.Domains[keys[0].String()])
+			G.Outlog(G.LOG_DEBUG, fmt.Sprintf("domains data sample: %+v", rt_db.Domains[keys[0].String()]))
 		}
 	}
 
@@ -194,20 +194,20 @@ func (rt_db *Route_db) LoadCMdb(_cmdb_records map[string]map[string][]string) er
 
 	if _cmdb_records == nil {
 		if G.Debug {
-			log.Printf("Loading cmdb..%s", CM_Db_file)
+			G.Outlog(G.LOG_DEBUG, fmt.Sprintf("Loading cmdb..%s", CM_Db_file))
 		}
 
 		jf, err = ioutil.ReadFile(CM_Db_file)
 		if err != nil {
 			if G.Debug {
-				log.Printf("error reading cmdb: %s", err)
+				G.Outlog(G.LOG_DEBUG, fmt.Sprintf("error reading cmdb: %s", err))
 			}
 		}
 
 		err = json.Unmarshal(jf, &cmdb_records)
 		if err != nil {
 			if G.Debug {
-				log.Printf("error unmarshaling cmdb: %s", err)
+				G.Outlog(G.LOG_DEBUG, fmt.Sprintf("error unmarshaling cmdb: %s", err))
 			}
 		}
 	} else {
@@ -236,11 +236,11 @@ func (rt_db *Route_db) LoadCMdb(_cmdb_records map[string]map[string][]string) er
 
 		if G.Debug {
 			keys := reflect.ValueOf(rt_db.Nodes).MapKeys()
-			log.Printf("nodes data sample: %+v", rt_db.Nodes[uint(keys[0].Uint())])
+			G.Outlog(G.LOG_DEBUG, fmt.Sprintf("nodes data sample: %+v", rt_db.Nodes[uint(keys[0].Uint())]))
 			keys = reflect.ValueOf(rt_db.Servers).MapKeys()
-			log.Printf("servers data sample: %+v", rt_db.Servers[uint(keys[0].Uint())])
+			G.Outlog(G.LOG_DEBUG, fmt.Sprintf("servers data sample: %+v", rt_db.Servers[uint(keys[0].Uint())]))
 			keys = reflect.ValueOf(rt_db.Ips).MapKeys()
-			log.Printf("ips data sample: %+v", rt_db.Ips[keys[0].String()])
+			G.Outlog(G.LOG_DEBUG, fmt.Sprintf("ips data sample: %+v", rt_db.Ips[keys[0].String()]))
 		}
 	}
 
@@ -255,20 +255,20 @@ func (rt_db *Route_db) LoadRoutedb(_rtdb_records map[string]map[string]map[strin
 
 	if _rtdb_records == nil {
 		if G.Debug {
-			log.Printf("Loading route db..%s", RT_Db_file)
+			G.Outlog(G.LOG_DEBUG, fmt.Sprintf("Loading route db..%s", RT_Db_file))
 		}
 
 		jf, err = ioutil.ReadFile(RT_Db_file)
 		if err != nil {
 			if G.Debug {
-				log.Printf("error reading route db: %s", err)
+				G.Outlog(G.LOG_DEBUG, fmt.Sprintf("error reading route db: %s", err))
 			}
 		}
 
 		err = json.Unmarshal(jf, &rtdb_records)
 		if err != nil {
 			if G.Debug {
-				log.Printf("error unmarshaling route db: %s", err)
+				G.Outlog(G.LOG_DEBUG, fmt.Sprintf("error unmarshaling route db: %s", err))
 			}
 		}
 	} else {
@@ -301,7 +301,7 @@ func (rt_db *Route_db) LoadRoutedb(_rtdb_records map[string]map[string]map[strin
 
 		if G.Debug {
 			keys := reflect.ValueOf(rt_db.Routes).MapKeys()
-			log.Printf("routes data sample: %s %+v", keys[0].String(), rt_db.Routes[keys[0].String()])
+			G.Outlog(G.LOG_DEBUG, fmt.Sprintf("routes data sample: %s %+v", keys[0].String(), rt_db.Routes[keys[0].String()]))
 		}
 	}
 
@@ -361,7 +361,7 @@ func (rt_db *Route_db) Convert_Domain_Record(m map[string][]string) {
 			}
 			rt_db.Update_Domain_Record(k, r)
 			if G.Debug {
-				//log.Printf("update domain record: %+v", r)
+				//G.Outlog(G.LOG_DEBUG, fmt.Sprintf("update domain record: %+v", r))
 			}
 		}
 	}
@@ -412,7 +412,7 @@ func (rt_db *Route_db) Convert_Server_Record(m map[string][]string) {
 
 			rt_db.Update_Server_Record(r.ServerId, r)
 			if G.Debug {
-				//log.Printf("update server record: %+v", r)
+				//G.Outlog(G.LOG_DEBUG, fmt.Sprintf("update server record: %+v", r))
 			}
 		}
 	}
@@ -494,7 +494,7 @@ func (rt_db *Route_db) Convert_Node_Record(m map[string][]string) {
 
 			rt_db.Update_Node_Record(r.NodeId, r)
 			if G.Debug {
-				//log.Printf("update node record: %+v", r)
+				//G.Outlog(G.LOG_DEBUG, fmt.Sprintf("update node record: %+v", r))
 			}
 		}
 	}
@@ -506,7 +506,7 @@ func (rt_db *Route_db) Read_Node_Record(k uint) Node_List_Record {
 	rt_db.Locks["nodes"].RLock()
 	r = rt_db.Nodes[k]
 	if G.Debug {
-		//log.Printf("Nodes: %+v", rt_db.Nodes)
+		//G.Outlog(G.LOG_DEBUG, fmt.Sprintf("Nodes: %+v", rt_db.Nodes))
 	}
 	rt_db.Locks["nodes"].RUnlock()
 
@@ -546,7 +546,7 @@ func (rt_db *Route_db) Convert_Route_Record(m map[string][]string) {
 
 			rt_db.Update_Route_Record(k, rid, r)
 			if G.Debug {
-				//log.Printf("update route record: %s:%d:%+v", k, nid, r)
+				//G.Outlog(G.LOG_DEBUG, fmt.Sprintf("update route record: %s:%d:%+v", k, nid, r))
 			}
 		}
 	}

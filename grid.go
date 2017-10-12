@@ -190,7 +190,8 @@ func main() {
 				if G.Debug {
 					log.SetOutput(G.Logger.Fds[G.LOG_DEBUG])
 					if debug_info != "" {
-						log.Printf("%s", debug_info)
+						G.Outlog(G.LOG_DEBUG, fmt.Sprintf("%s", debug_info))
+						G.Outlog(G.LOG_GSLB, fmt.Sprintf("%s", debug_info))
 					}
 				}
 			}

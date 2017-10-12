@@ -11,6 +11,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"flag"
+	"fmt"
 	"io"
 	"log"
 	"strconv"
@@ -72,7 +73,7 @@ func Synchronize(_interval, _ka_interval int, _myname string) {
 	}
 
 	defer func() {
-		log.Printf("shutting down")
+		G.Outlog(G.LOG_AMQP, fmt.Sprintf("shutting down"))
 		if err := AMQP_D.Shutdown(); err != nil {
 			log.Fatalf("error during direcror shutdown: %s", err)
 		}
@@ -94,7 +95,7 @@ func CheckVersion(_interval int) {
 		_param[AMQP_OBJ_CMDB] = grid_route.CM_Version
 		_param[AMQP_OBJ_DOMAIN] = grid_route.DM_Version
 		if err = Sendmsg("", AMQP_CMD_VER, &_param, "", &_msg1, "", *gslb_center, 0); err != nil {
-			log.Printf("checkversion: %s", err)
+			G.Outlog(G.LOG_AMQP, fmt.Sprintf("checkversion: %s", err))
 		}
 	}
 }
@@ -108,14 +109,14 @@ func Keepalive(_interval int) {
 	for {
 		if _first {
 			if err = Sendmsg("", AMQP_CMD_ONLINE, &_param, "", &_msg1, "", *gslb_center, 0); err != nil {
-				log.Printf("online: %s", err)
+				G.Outlog(G.LOG_AMQP, fmt.Sprintf("online: %s", err))
 			}
 			_first = false
 		} else {
 			_param["Qps"] = strconv.FormatUint(G.GP.Read_Qps(), 10)
 			_param["Load"] = strconv.FormatUint(G.GP.Read_Load(), 10)
 			if err = Sendmsg("", AMQP_CMD_KA, &_param, "", &_msg1, "", *gslb_center, 0); err != nil {
-				log.Printf("keepalive: %s", err)
+				G.Outlog(G.LOG_AMQP, fmt.Sprintf("keepalive: %s", err))
 			}
 		}
 
@@ -176,14 +177,14 @@ func Sendmsg(_type, _command string, _param *map[string]string, _obj string, _ms
 	}
 
 	if *debug {
-		log.Printf(
+		G.Outlog(G.LOG_AMQP, fmt.Sprintf(
 			"msg to [%s] of [%s]: size [%v], msgid [%d], value: [%+v]",
 			target,
 			exchange,
 			len(jam),
 			am.ID,
 			am,
-		)
+		))
 	}
 
 	return nil
@@ -193,7 +194,7 @@ func Transmsg(_msg []byte, _am *AMQP_Message) error {
 	var err error
 
 	if err = json.Unmarshal(_msg, _am); err != nil {
-		log.Printf("trans msg: %s", _msg)
+		G.Outlog(G.LOG_AMQP, fmt.Sprintf("trans msg: %s", _msg))
 		return err
 	}
 
@@ -223,13 +224,13 @@ func Transmsg(_msg []byte, _am *AMQP_Message) error {
 	}
 
 	if *debug {
-		log.Printf(
+		G.Outlog(G.LOG_AMQP, fmt.Sprintf(
 			"msg from [%s]: size [%v], msgid [%d], msg: [%+v] ",
 			_am.Sender,
 			len(_msg),
 			_am.ID,
 			_am,
-		)
+		))
 	}
 	return nil
 }

@@ -2,8 +2,8 @@ package grid_ip
 
 import (
 	G "3grid/tools/globals"
+	"fmt"
 	"github.com/oschwald/geoip2-golang"
-	"log"
 	"net"
 	//"strconv"
 	"sync"
@@ -73,7 +73,7 @@ func (ip_db *IP_db) IP_db_init() {
 	}
 
 	if G.Debug {
-		log.Printf("Loading ip db..%s", Db_file)
+		G.Outlog(G.LOG_DEBUG, fmt.Sprintf("Loading ip db..%s", Db_file))
 	}
 
 }
@@ -106,11 +106,11 @@ func (ip_db *IP_db) GetAreaCode(ip net.IP) string {
 			ip_db.Chan <- map[string]string{ips: cn}
 
 			if G.Debug {
-				log.Printf("Area Code of %s: %s", ips, cn)
+				G.Outlog(G.LOG_DEBUG, fmt.Sprintf("Area Code of %s: %s", ips, cn))
 			}
 		} else {
 			if G.Debug {
-				log.Printf("IP lookup error: %s", err)
+				G.Outlog(G.LOG_DEBUG, fmt.Sprintf("IP lookup error: %s", err))
 			}
 		}
 	}
@@ -148,7 +148,7 @@ func (ip_db *IP_db) UpdateIPCache() error {
 		ipm := <-ip_db.Chan
 		if ipm == nil {
 			if G.Debug {
-				log.Printf("Exiting ip cache update loop..")
+				G.Outlog(G.LOG_DEBUG, fmt.Sprintf("Exiting ip cache update loop.."))
 			}
 			break
 		}
