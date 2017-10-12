@@ -91,11 +91,15 @@ func Check_db_versions() error {
 		}
 	} else {
 		if G.Debug {
-			G.Outlog(G.LOG_DEBUG, fmt.Sprintf("IP db version:%s, major:%d, minor:%d, patch:%d, file_path:%s", IP.Version, IP.Ver_Major, IP.Ver_Minor, IP.Ver_Patch, IP.Db_file))
+			//G.Outlog(G.LOG_DEBUG, fmt.Sprintf("IP db version:%s, major:%d, minor:%d, patch:%d, file_path:%s", IP.Version, IP.Ver_Major, IP.Ver_Minor, IP.Ver_Patch, IP.Db_file))
+			//G.Outlog(G.LOG_DEBUG, fmt.Sprintf("IP db version: %s", IP.Version))
 		}
 	}
 
 	if (IP.Db_file0 != "") && (IP.Db_file != IP.Db_file0) {
+		if G.Debug {
+			G.Outlog(G.LOG_DEBUG, fmt.Sprintf("IP db new version: %s", IP.Version))
+		}
 		IP.Ipdb.IP_db_init()
 		IP.Db_file0 = IP.Db_file
 	} else if IP.Db_file0 == "" {
@@ -110,11 +114,15 @@ func Check_db_versions() error {
 		}
 	} else {
 		if G.Debug {
-			G.Outlog(G.LOG_DEBUG, fmt.Sprintf("Route db version:%s, major:%d, minor:%d, patch:%d, file_path:%s", RT.RT_Version, RT.RT_Ver_Major, RT.RT_Ver_Minor, RT.RT_Ver_Patch, RT.RT_Db_file))
+			//G.Outlog(G.LOG_DEBUG, fmt.Sprintf("Route db version:%s, major:%d, minor:%d, patch:%d, file_path:%s", RT.RT_Version, RT.RT_Ver_Major, RT.RT_Ver_Minor, RT.RT_Ver_Patch, RT.RT_Db_file))
+			//G.Outlog(G.LOG_DEBUG, fmt.Sprintf("Route db version: %s", RT.RT_Version))
 		}
 	}
 
 	if (RT.RT_Db_file0 != "") && (RT.RT_Db_file != RT.RT_Db_file0) {
+		if G.Debug {
+			G.Outlog(G.LOG_DEBUG, fmt.Sprintf("Route db new version: %s", RT.RT_Version))
+		}
 		RT.Rtdb.LoadRoutedb(nil)
 		RT.RT_Db_file0 = RT.RT_Db_file
 	} else if RT.RT_Db_file0 == "" {
@@ -129,11 +137,15 @@ func Check_db_versions() error {
 		}
 	} else {
 		if G.Debug {
-			G.Outlog(G.LOG_DEBUG, fmt.Sprintf("Domain db version:%s, major:%d, minor:%d, patch:%d, file_path:%s", RT.DM_Version, RT.DM_Ver_Major, RT.DM_Ver_Minor, RT.DM_Ver_Patch, RT.DM_Db_file))
+			//G.Outlog(G.LOG_DEBUG, fmt.Sprintf("Domain db version:%s, major:%d, minor:%d, patch:%d, file_path:%s", RT.DM_Version, RT.DM_Ver_Major, RT.DM_Ver_Minor, RT.DM_Ver_Patch, RT.DM_Db_file))
+			//G.Outlog(G.LOG_DEBUG, fmt.Sprintf("Domain db version: %s", RT.DM_Version))
 		}
 	}
 
 	if (RT.DM_Db_file0 != "") && (RT.DM_Db_file != RT.DM_Db_file0) {
+		if G.Debug {
+			G.Outlog(G.LOG_DEBUG, fmt.Sprintf("Domain db new version: %s", RT.DM_Version))
+		}
 		RT.Rtdb.LoadDomaindb(nil)
 		RT.DM_Db_file0 = RT.DM_Db_file
 	} else if RT.DM_Db_file0 == "" {
@@ -148,11 +160,15 @@ func Check_db_versions() error {
 		}
 	} else {
 		if G.Debug {
-			G.Outlog(G.LOG_DEBUG, fmt.Sprintf("CM db version:%s, major:%d, minor:%d, patch:%d, file_path:%s", RT.CM_Version, RT.CM_Ver_Major, RT.CM_Ver_Minor, RT.CM_Ver_Patch, RT.CM_Db_file))
+			//G.Outlog(G.LOG_DEBUG, fmt.Sprintf("CM db version:%s, major:%d, minor:%d, patch:%d, file_path:%s", RT.CM_Version, RT.CM_Ver_Major, RT.CM_Ver_Minor, RT.CM_Ver_Patch, RT.CM_Db_file))
+			//G.Outlog(G.LOG_DEBUG, fmt.Sprintf("CM db version: %s", RT.CM_Version))
 		}
 	}
 
 	if (RT.CM_Db_file0 != "") && (RT.CM_Db_file != RT.CM_Db_file0) {
+		if G.Debug {
+			G.Outlog(G.LOG_DEBUG, fmt.Sprintf("CM db new version: %s", RT.CM_Version))
+		}
 		RT.Rtdb.LoadCMdb(nil)
 		RT.CM_Db_file0 = RT.CM_Db_file
 	} else if RT.CM_Db_file0 == "" {

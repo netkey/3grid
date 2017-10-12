@@ -54,6 +54,7 @@ func NewLogger() (*Grid_Logger, error) {
 	lg.Files = make(map[string]string)
 	lg.Fds = make(map[string]io.Writer)
 	lg.Loggers = make(map[string]*log.Logger)
+	lg.Locks = make(map[string]*sync.RWMutex)
 
 	for _, to := range logto {
 		lg.Files[to] = lg.Workdir + "/logs/" + to + ".log"
@@ -80,7 +81,7 @@ func (lg *Grid_Logger) Output() {
 		lmap := <-lg.Chan
 		for to, line := range lmap {
 			lg.Locks[to].Lock()
-			lg.Loggers[to].Printf(line)
+			lg.Loggers[to].Output(2, line)
 			lg.Locks[to].Unlock()
 		}
 	}
@@ -88,10 +89,12 @@ func (lg *Grid_Logger) Output() {
 
 func (lg *Grid_Logger) Checklogs() {
 	for {
-		time.Sleep(time.Duration(10) * time.Second)
+		time.Sleep(time.Duration(15) * time.Second)
 		for n, f := range lg.Files {
 			if _, err := os.Stat(f); err != nil {
-				//file gone
+				if Debug {
+					log.Printf("Logfile %s, reopen it", err)
+				}
 				lg.Locks[n].Lock()
 				if lg.Fds[n], err = os.OpenFile(lg.Files[n],
 					os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0644); err != nil {
