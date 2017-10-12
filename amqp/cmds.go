@@ -1,9 +1,7 @@
 package grid_amqp
 
 import (
-	//IP "3grid/ip"
 	RT "3grid/route"
-	//G "3grid/tools/globals"
 	G "3grid/tools/globals"
 	"errors"
 	"fmt"
