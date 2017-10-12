@@ -1,2 +1,4 @@
-grid
+3grid
 *.mmdb
+*.db
+*.log
