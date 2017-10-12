@@ -4,6 +4,7 @@ import "io"
 import "log"
 import "os"
 import "path/filepath"
+import "sync"
 import "time"
 
 const (
@@ -27,6 +28,7 @@ type Grid_Logger struct {
 	Fds     map[string]io.Writer
 	Loggers map[string]*log.Logger
 	Chan    chan map[string]string
+	Locks   map[string]*sync.RWMutex
 }
 
 func Outlog(target string, line string) {
@@ -64,6 +66,8 @@ func NewLogger() (*Grid_Logger, error) {
 		} else {
 			lg.Loggers[to] = log.New(lg.Fds[to], "", log.LstdFlags)
 		}
+
+		lg.Locks[to] = new(sync.RWMutex)
 	}
 
 	lg.Chan = make(chan map[string]string, LogBufSize)
@@ -75,7 +79,9 @@ func (lg *Grid_Logger) Output() {
 	for {
 		lmap := <-lg.Chan
 		for to, line := range lmap {
+			lg.Locks[to].Lock()
 			lg.Loggers[to].Printf(line)
+			lg.Locks[to].Unlock()
 		}
 	}
 }
@@ -86,6 +92,7 @@ func (lg *Grid_Logger) Checklogs() {
 		for n, f := range lg.Files {
 			if _, err := os.Stat(f); err != nil {
 				//file gone
+				lg.Locks[n].Lock()
 				if lg.Fds[n], err = os.OpenFile(lg.Files[n],
 					os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0644); err != nil {
 					if Debug {
@@ -94,7 +101,7 @@ func (lg *Grid_Logger) Checklogs() {
 				} else {
 					lg.Loggers[n] = log.New(lg.Fds[n], "", log.LstdFlags)
 				}
-
+				lg.Locks[n].Unlock()
 			}
 		}
 	}
