@@ -2,3 +2,5 @@
 *.mmdb
 *.db
 *.log
+logs
+db
