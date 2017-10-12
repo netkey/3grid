@@ -57,7 +57,9 @@ func check_db_version(_type string) (uint64, uint64, uint64, string, string, err
 
 	cur_dir, err = os.Getwd()
 	if err != nil {
-		G.Outlog(G.LOG_GSLB, fmt.Sprintf("%s", err))
+		if G.Log || G.Debug {
+			G.Outlog(G.LOG_GSLB, fmt.Sprintf("Error getting work dir: %s", err))
+		}
 	}
 
 	if err = filepath.Walk(cur_dir+"/", update_version); err != nil {
@@ -103,7 +105,9 @@ func Check_db_versions() error {
 	RT.RT_Ver_Major, RT.RT_Ver_Minor, RT.RT_Ver_Patch, RT.RT_Version, RT.RT_Db_file, err = check_db_version("route")
 
 	if err != nil {
-		G.Outlog(G.LOG_GSLB, fmt.Sprintf("Check db version error: %s", err))
+		if G.Debug {
+			G.Outlog(G.LOG_DEBUG, fmt.Sprintf("Check db version error: %s", err))
+		}
 	} else {
 		if G.Debug {
 			G.Outlog(G.LOG_DEBUG, fmt.Sprintf("Route db version:%s, major:%d, minor:%d, patch:%d, file_path:%s", RT.RT_Version, RT.RT_Ver_Major, RT.RT_Ver_Minor, RT.RT_Ver_Patch, RT.RT_Db_file))
@@ -120,7 +124,9 @@ func Check_db_versions() error {
 	RT.DM_Ver_Major, RT.DM_Ver_Minor, RT.DM_Ver_Patch, RT.DM_Version, RT.DM_Db_file, err = check_db_version("domain")
 
 	if err != nil {
-		G.Outlog(G.LOG_GSLB, fmt.Sprintf("Check db version error: %s", err))
+		if G.Debug {
+			G.Outlog(G.LOG_DEBUG, fmt.Sprintf("Check db version error: %s", err))
+		}
 	} else {
 		if G.Debug {
 			G.Outlog(G.LOG_DEBUG, fmt.Sprintf("Domain db version:%s, major:%d, minor:%d, patch:%d, file_path:%s", RT.DM_Version, RT.DM_Ver_Major, RT.DM_Ver_Minor, RT.DM_Ver_Patch, RT.DM_Db_file))
@@ -137,7 +143,9 @@ func Check_db_versions() error {
 	RT.CM_Ver_Major, RT.CM_Ver_Minor, RT.CM_Ver_Patch, RT.CM_Version, RT.CM_Db_file, err = check_db_version("cmdb")
 
 	if err != nil {
-		G.Outlog(G.LOG_GSLB, fmt.Sprintf("Check db version error: %s", err))
+		if G.Debug {
+			G.Outlog(G.LOG_DEBUG, fmt.Sprintf("Check db version error: %s", err))
+		}
 	} else {
 		if G.Debug {
 			G.Outlog(G.LOG_DEBUG, fmt.Sprintf("CM db version:%s, major:%d, minor:%d, patch:%d, file_path:%s", RT.CM_Version, RT.CM_Ver_Major, RT.CM_Ver_Minor, RT.CM_Ver_Patch, RT.CM_Db_file))
