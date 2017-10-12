@@ -13,7 +13,6 @@ import (
 	"log"
 	"os"
 	"os/signal"
-	"path/filepath"
 	"runtime"
 	"syscall"
 )
@@ -36,6 +35,7 @@ var ip_cache_ttl int
 var rt_cache_ttl int
 var ip_cache_size int
 var rt_cache_size int
+var log_buf_size int
 
 func read_conf() {
 	viper.SetConfigFile("grid.conf")
@@ -132,6 +132,12 @@ func read_conf() {
 		} else {
 			rt_cache_size = _rt_cache_size
 		}
+		_log_buf_size := viper.GetInt("gslb.log_buf_size")
+		if _log_buf_size < 1000 {
+			log_buf_size = 1000
+		} else {
+			log_buf_size = _log_buf_size
+		}
 		if *debug {
 			log.Printf("grid running - cpus:%d port:%s daemon:%t debug:%t interval:%d keepalive:%d myname:%s", num_cpus, port, daemond, *debug, interval, keepalive, myname)
 		}
@@ -139,7 +145,6 @@ func read_conf() {
 }
 
 func main() {
-
 	var err error
 
 	flag.Parse()
@@ -162,42 +167,56 @@ func main() {
 	//after fork as daemon, go on working
 	runtime.GOMAXPROCS(num_cpus)
 
-	IP.Ipdb = &IP.IP_db{}
-	IP.Ipdb.IP_db_init()
-	IP.Ip_Cache_TTL = ip_cache_ttl
-	IP.Ip_Cache_Size = ip_cache_size
+	{
+		//init ip db
+		IP.Ipdb = &IP.IP_db{}
+		IP.Ipdb.IP_db_init()
+		IP.Ip_Cache_TTL = ip_cache_ttl
+		IP.Ip_Cache_Size = ip_cache_size
+	}
 
-	RT.Rtdb = &RT.Route_db{}
-	RT.Rtdb.RT_db_init()
-	RT.MyACPrefix = acprefix
-	RT.Service_Cutoff_Percent = uint(cutoff_percent)
-	RT.Service_Deny_Percent = uint(deny_percent)
-	RT.RT_Cache_TTL = rt_cache_ttl
-	RT.RT_Cache_Size = int64(rt_cache_size)
+	{
+		//init route/domain/cm db
+		RT.Rtdb = &RT.Route_db{}
+		RT.Rtdb.RT_db_init()
+		RT.MyACPrefix = acprefix
+		RT.Service_Cutoff_Percent = uint(cutoff_percent)
+		RT.Service_Deny_Percent = uint(deny_percent)
+		RT.RT_Cache_TTL = rt_cache_ttl
+		RT.RT_Cache_Size = int64(rt_cache_size)
+	}
 
-	G.GP = G.GSLB_Params{}
-	G.GP.Init(keepalive)
+	{
+		//global counters
+		G.GP = G.GSLB_Params{}
+		G.GP.Init(keepalive)
+	}
 
-	if D.WorkDir, err = filepath.Abs(filepath.Dir(os.Args[0])); err != nil {
-		if G.Debug {
-			log.Printf("Get path  error: %s", err)
+	{
+		//init logger
+		G.LogBufSize = log_buf_size
+		if G.Logger, err = G.NewLogger(); err != nil {
+			if G.Debug {
+				log.Printf("Error making logger: %s", err)
+			}
+		} else {
+			G.LogChan = &G.Logger.Chan
+			go G.Logger.Out()
 		}
 	}
 
-	if D.LogFD, err = os.OpenFile(D.WorkDir+"/logs/query.log", os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0644); err != nil {
-		if G.Debug {
-			log.Printf("Open log file error: %s", err)
+	{
+		//init dns workers
+		var name, secret string
+		for i := 0; i < num_cpus; i++ {
+			go D.Working("udp", port, name, secret, i, IP.Ipdb, RT.Rtdb)
 		}
 	}
 
-	D.Logger = log.New(D.LogFD, myname+": ", log.Lshortfile)
-
-	var name, secret string
-	for i := 0; i < num_cpus; i++ {
-		go D.Working("udp", port, name, secret, i, IP.Ipdb, RT.Rtdb)
+	{
+		//init amqp synchronize routine
+		go A.Synchronize(interval, keepalive, myname)
 	}
-
-	go A.Synchronize(interval, keepalive, myname)
 
 	sig := make(chan os.Signal)
 	signal.Notify(sig, syscall.SIGINT, syscall.SIGTERM)

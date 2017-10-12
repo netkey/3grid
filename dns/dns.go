@@ -5,8 +5,8 @@ import (
 	RT "3grid/route"
 	G "3grid/tools/globals"
 	"flag"
+	"fmt"
 	"github.com/miekg/dns"
-	"io"
 	"log"
 	"net"
 	"strings"
@@ -18,12 +18,6 @@ var (
 	compress = flag.Bool("compress", false, "compress replies")
 )
 
-var WorkDir string
-
-var LogFilename string
-var LogFD io.Writer
-var Logger *log.Logger
-
 const DN = "mmycdn.com"
 const Default_ttl = 60
 
@@ -32,10 +26,6 @@ type DNS_worker struct {
 	Server *dns.Server
 	Ipdb   *IP.IP_db
 	Rtdb   *RT.Route_db
-}
-
-func Outlog(line string) {
-	Logger.Printf("%s", line)
 }
 
 func (wkr *DNS_worker) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
@@ -167,8 +157,9 @@ func (wkr *DNS_worker) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
 	if G.Debug {
 		log.Printf("Query from: %s, type %s, name %s, result %+v", ip.String(), qtype, _dn, aaa)
 	}
-	if LogFD != nil {
-		Logger.Printf("ip %s, type %s, name %s, result %+v", ip.String(), qtype, _dn, aaa)
+
+	if true {
+		*G.LogChan <- map[string]string{"query": fmt.Sprintf("ip %s, type %s, name %s, result %+v", ip.String(), qtype, _dn, aaa)}
 	}
 }
 
