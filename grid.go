@@ -36,6 +36,7 @@ var rt_cache_ttl int
 var ip_cache_size int
 var rt_cache_size int
 var log_buf_size int
+var log_enable bool
 
 func read_conf() {
 	viper.SetConfigFile("grid.conf")
@@ -138,6 +139,12 @@ func read_conf() {
 		} else {
 			log_buf_size = _log_buf_size
 		}
+		_log_enable := viper.GetBool("gslb.log_enable")
+		if _log_enable == false {
+			log_enable = false
+		} else {
+			log_enable = true
+		}
 		if *debug {
 			log.Printf("grid running - cpus:%d port:%s daemon:%t debug:%t interval:%d keepalive:%d myname:%s", num_cpus, port, daemond, *debug, interval, keepalive, myname)
 		}
@@ -194,14 +201,17 @@ func main() {
 
 	{
 		//init logger
-		G.LogBufSize = log_buf_size
-		if G.Logger, err = G.NewLogger(); err != nil {
-			if G.Debug {
-				log.Printf("Error making logger: %s", err)
+		if log_enable {
+			G.Log = true
+			G.LogBufSize = log_buf_size
+			if G.Logger, err = G.NewLogger(); err != nil {
+				if G.Debug {
+					log.Printf("Error making logger: %s", err)
+				}
+			} else {
+				G.LogChan = &G.Logger.Chan
+				go G.Logger.Output()
 			}
-		} else {
-			G.LogChan = &G.Logger.Chan
-			go G.Logger.Out()
 		}
 	}
 

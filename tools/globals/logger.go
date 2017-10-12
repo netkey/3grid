@@ -5,6 +5,7 @@ import "log"
 import "os"
 import "path/filepath"
 
+var Log bool
 var LogBufSize int
 var Logger *Grid_Logger
 var LogChan *chan map[string]string
@@ -51,7 +52,7 @@ func NewLogger() (*Grid_Logger, error) {
 	return &lg, err
 }
 
-func (lg *Grid_Logger) Out() {
+func (lg *Grid_Logger) Output() {
 	for {
 		lm := <-lg.Chan
 		for to, line := range lm {

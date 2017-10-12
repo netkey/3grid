@@ -158,7 +158,7 @@ func (wkr *DNS_worker) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
 		log.Printf("Query from: %s, type %s, name %s, result %+v", ip.String(), qtype, _dn, aaa)
 	}
 
-	if true {
+	if G.Log {
 		*G.LogChan <- map[string]string{"query": fmt.Sprintf("ip %s, type %s, name %s, result %+v", ip.String(), qtype, _dn, aaa)}
 	}
 }
