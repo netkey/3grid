@@ -5,6 +5,15 @@ import "log"
 import "os"
 import "path/filepath"
 
+const (
+	LOG_IP        = "ip"
+	LOG_DNS       = "query"
+	LOG_ROUTE     = "route"
+	LOG_SCHEDULER = "sche"
+	LOG_GSLB      = "gslb"
+	LOG_DEBUG     = "debug"
+)
+
 var Log bool
 var LogBufSize int
 var Logger *Grid_Logger
@@ -20,7 +29,7 @@ type Grid_Logger struct {
 
 func NewLogger() (*Grid_Logger, error) {
 	var err error
-	var logto = []string{"ip", "query", "route", "sche", "gslb"}
+	var logto = []string{LOG_IP, LOG_DNS, LOG_ROUTE, LOG_SCHEDULER, LOG_GSLB, LOG_DEBUG}
 	var lg = Grid_Logger{}
 
 	if lg.Workdir, err = filepath.Abs(filepath.Dir(os.Args[0])); err != nil {
@@ -43,7 +52,7 @@ func NewLogger() (*Grid_Logger, error) {
 				log.Printf("Error openning log file %s: %s", err)
 			}
 		} else {
-			lg.Loggers[to] = log.New(lg.Fds[to], "", log.Lshortfile)
+			lg.Loggers[to] = log.New(lg.Fds[to], "", log.LstdFlags)
 		}
 	}
 
@@ -56,7 +65,9 @@ func (lg *Grid_Logger) Output() {
 	for {
 		lm := <-lg.Chan
 		for to, line := range lm {
-			lg.Loggers[to].Printf("%s", line)
+			if err := lg.Loggers[to].Output(1, line); err != nil {
+				log.Printf("Error output lines to %s: %s", lg.Files[to], err)
+			}
 		}
 	}
 }

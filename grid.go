@@ -8,6 +8,7 @@ import (
 	T "3grid/tools"
 	G "3grid/tools/globals"
 	"flag"
+	"fmt"
 	"github.com/sevlyar/go-daemon"
 	"github.com/spf13/viper"
 	"log"
@@ -23,6 +24,7 @@ var debug = flag.Bool("debug", true, "output debug info")
 var num_cpus int
 var port string
 var daemond bool
+var debug_info string
 
 //gslb related
 var myname string
@@ -146,7 +148,7 @@ func read_conf() {
 			log_enable = true
 		}
 		if *debug {
-			log.Printf("grid running - cpus:%d port:%s daemon:%t debug:%t interval:%d keepalive:%d myname:%s", num_cpus, port, daemond, *debug, interval, keepalive, myname)
+			debug_info = fmt.Sprintf("%s running - cpus:%d port:%s daemon:%t debug:%t interval:%d keepalive:%d myname:%s", myname, num_cpus, port, daemond, *debug, interval, keepalive, myname)
 		}
 	}
 }
@@ -158,7 +160,6 @@ func main() {
 	read_conf()
 
 	G.Debug = *debug
-	T.Check_db_versions()
 
 	if daemond {
 		context := new(daemon.Context)
@@ -173,6 +174,36 @@ func main() {
 
 	//after fork as daemon, go on working
 	runtime.GOMAXPROCS(num_cpus)
+
+	{
+		//init logger
+		if log_enable {
+			G.Log = true
+			G.LogBufSize = log_buf_size
+			if G.Logger, err = G.NewLogger(); err != nil {
+				if G.Debug {
+					log.Printf("Error making logger: %s", err)
+				}
+			} else {
+				G.LogChan = &G.Logger.Chan
+				go G.Logger.Output()
+				if G.Debug {
+					log.SetOutput(G.Logger.Fds[G.LOG_DEBUG])
+					if debug_info != "" {
+						log.Printf("%s", debug_info)
+					}
+				}
+			}
+		}
+	}
+
+	{
+		//global options
+		G.GP = G.GSLB_Params{}
+		G.GP.Init(keepalive)
+
+		T.Check_db_versions()
+	}
 
 	{
 		//init ip db
@@ -194,28 +225,6 @@ func main() {
 	}
 
 	{
-		//global counters
-		G.GP = G.GSLB_Params{}
-		G.GP.Init(keepalive)
-	}
-
-	{
-		//init logger
-		if log_enable {
-			G.Log = true
-			G.LogBufSize = log_buf_size
-			if G.Logger, err = G.NewLogger(); err != nil {
-				if G.Debug {
-					log.Printf("Error making logger: %s", err)
-				}
-			} else {
-				G.LogChan = &G.Logger.Chan
-				go G.Logger.Output()
-			}
-		}
-	}
-
-	{
 		//init dns workers
 		var name, secret string
 		for i := 0; i < num_cpus; i++ {
@@ -231,5 +240,5 @@ func main() {
 	sig := make(chan os.Signal)
 	signal.Notify(sig, syscall.SIGINT, syscall.SIGTERM)
 	s := <-sig
-	log.Printf("Signal (%s) received, stopping\n", s)
+	log.Printf("%s stopping - signal (%s) received", myname, s)
 }

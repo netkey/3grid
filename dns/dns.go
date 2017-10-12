@@ -154,12 +154,8 @@ func (wkr *DNS_worker) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
 	//update query/s counter
 	G.GP.Chan <- map[string]uint64{"QS": 1}
 
-	if G.Debug {
-		log.Printf("Query from: %s, type %s, name %s, result %+v", ip.String(), qtype, _dn, aaa)
-	}
-
 	if G.Log {
-		*G.LogChan <- map[string]string{"query": fmt.Sprintf("ip %s, type %s, name %s, result %+v", ip.String(), qtype, _dn, aaa)}
+		*G.LogChan <- map[string]string{G.LOG_DNS: fmt.Sprintf("ip:%s type:%s name:%s result:%+v", ip.String(), qtype, _dn, aaa)}
 	}
 }
 

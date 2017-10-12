@@ -1,6 +1,7 @@
 package grid_route
 
 import G "3grid/tools/globals"
+import "fmt"
 import "log"
 import "net"
 import "strings"
@@ -133,8 +134,8 @@ func (rt_db *Route_db) GetAAA(dn string, acode string, ip net.IP) ([]string, uin
 		}
 	}
 
-	if G.Debug {
-		log.Printf("GETAAA ac: %s, matched ac: %s, rid: %d, rr: %+v", ac, _ac, rid, rr)
+	if G.Log {
+		*G.LogChan <- map[string]string{G.LOG_ROUTE: fmt.Sprintf("GETAAA ac:%s, matched ac:%s, rid:%d, rr:%+v", ac, _ac, rid, rr)}
 	}
 
 	nr := rt_db.ChoseNode(rr.Nodes, ac)
@@ -193,7 +194,7 @@ func (rt_db *Route_db) ChoseNode(nodes map[uint]PW_List_Record, client_ac string
 		if nr.Status && cnr.NodeId != 0 &&
 			(nr.Usage < Service_Cutoff_Percent) && (cnr.Usage > Service_Cutoff_Percent) {
 			//chosen node is in cutoff state, and i am not(cutoff algorithm)
-			if rt_db.Match_Local_AC(cnr.Name, client_ac) || cnr.Usage > Service_Deny_Percent {
+			if rt_db.Match_Local_AC(cnr.AC, client_ac) || cnr.Usage > Service_Deny_Percent {
 				//cutoff none local client access, then local's
 				cnr, nid, priority, weight = nr, k, v.PW[0], v.PW[1]
 			}
@@ -231,6 +232,10 @@ func (rt_db *Route_db) ChoseNode(nodes map[uint]PW_List_Record, client_ac string
 
 	if nid == 0 {
 		cnr = Node_List_Record{}
+	}
+
+	if G.Log {
+		*G.LogChan <- map[string]string{G.LOG_SCHEDULER: fmt.Sprintf("ac:%s node %+v", client_ac, nr)}
 	}
 
 	return cnr

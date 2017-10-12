@@ -87,6 +87,7 @@ type Server_List_Record struct {
 type Node_List_Record struct {
 	NodeId       uint   //node id
 	Name         string //node name
+	AC           string //node AreaCode
 	NodeCapacity uint64 //bandwidth
 	Usage        uint   //percentage
 	Status       bool   //1:ok 0:fail
@@ -449,12 +450,13 @@ func (rt_db *Route_db) Update_Server_Record(k uint, r *Server_List_Record) {
 	rt_db.Locks["servers"].Unlock()
 }
 
+//Tag: NNN
 func (rt_db *Route_db) Convert_Node_Record(m map[string][]string) {
 	for k, v := range m {
 		x := 0
 		r := new(Node_List_Record)
 
-		if len(v) > 8 {
+		if len(v) > 9 {
 			x, _ = strconv.Atoi(k)
 			r.NodeId = uint(x)
 			r.Name = v[0]
@@ -465,16 +467,20 @@ func (rt_db *Route_db) Convert_Node_Record(m map[string][]string) {
 			x, _ = strconv.Atoi(v[3])
 			r.Costs = int(x)
 			x, _ = strconv.Atoi(v[4])
-			r.Usage = uint(x)
+			r.NodeCapacity = uint64(x)
 			if v[5] == "1" {
 				r.Status = true
 			} else {
 				r.Status = false
 			}
 			x, _ = strconv.Atoi(v[6])
-			r.NodeCapacity = uint64(x)
+			r.Usage = uint(x)
 			r.Type = v[7]
-			s := strings.Split(v[8], ",")
+			r.AC = v[8]
+			if r.AC == "" {
+				r.AC = r.Name
+			}
+			s := strings.Split(v[9], ",")
 			if len(s) > 0 {
 				p := make([]uint, len(s)-1)
 				for i, v := range s {
