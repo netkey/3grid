@@ -32,6 +32,10 @@ func Outlog(target string, line string) {
 	*LogChan <- map[string]string{target: line}
 }
 
+func Outlog2(lines *map[string]string) {
+	*LogChan <- *lines
+}
+
 func NewLogger() (*Grid_Logger, error) {
 	var err error
 	var logto = []string{LOG_IP, LOG_DNS, LOG_ROUTE, LOG_SCHEDULER, LOG_GSLB, LOG_DEBUG, LOG_AMQP}
