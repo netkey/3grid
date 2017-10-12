@@ -4,6 +4,7 @@ import "io"
 import "log"
 import "os"
 import "path/filepath"
+import "time"
 
 const (
 	LOG_IP        = "ip"
@@ -58,7 +59,7 @@ func NewLogger() (*Grid_Logger, error) {
 		if lg.Fds[to], err = os.OpenFile(lg.Files[to],
 			os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0644); err != nil {
 			if Debug {
-				log.Printf("Error openning log file %s: %s", err)
+				log.Printf("Error open log file %s: %s", err)
 			}
 		} else {
 			lg.Loggers[to] = log.New(lg.Fds[to], "", log.LstdFlags)
@@ -72,10 +73,28 @@ func NewLogger() (*Grid_Logger, error) {
 
 func (lg *Grid_Logger) Output() {
 	for {
-		lm := <-lg.Chan
-		for to, line := range lm {
-			if err := lg.Loggers[to].Output(1, line); err != nil {
-				log.Printf("Error output lines to %s: %s", lg.Files[to], err)
+		lmap := <-lg.Chan
+		for to, line := range lmap {
+			lg.Loggers[to].Printf(line)
+		}
+	}
+}
+
+func (lg *Grid_Logger) Checklogs() {
+	for {
+		time.Sleep(time.Duration(10) * time.Second)
+		for n, f := range lg.Files {
+			if _, err := os.Stat(f); err != nil {
+				//file gone
+				if lg.Fds[n], err = os.OpenFile(lg.Files[n],
+					os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0644); err != nil {
+					if Debug {
+						log.Printf("Error reopen log file %s: %s", err)
+					}
+				} else {
+					lg.Loggers[n] = log.New(lg.Fds[n], "", log.LstdFlags)
+				}
+
 			}
 		}
 	}

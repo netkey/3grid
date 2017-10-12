@@ -187,6 +187,7 @@ func main() {
 			} else {
 				G.LogChan = &G.Logger.Chan
 				go G.Logger.Output()
+				go G.Logger.Checklogs()
 				if G.Debug {
 					log.SetOutput(G.Logger.Fds[G.LOG_DEBUG])
 					if debug_info != "" {
