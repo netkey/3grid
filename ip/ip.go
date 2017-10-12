@@ -82,6 +82,7 @@ func (ip_db *IP_db) GetAreaCode(ip net.IP) string {
 	var (
 		ips string
 		ipc Ipcache_Item
+		cn  string
 	)
 
 	ips = ip.String()
@@ -90,7 +91,7 @@ func (ip_db *IP_db) GetAreaCode(ip net.IP) string {
 	if ipc.AC == "" {
 		re, err := ip_db.ReadIPdb(ip)
 		if err == nil {
-			cn := re.City.Names["MMY"]
+			cn = re.City.Names["MMY"]
 			if cn == "" {
 				cn = re.Country.Names["en"]
 			}
@@ -113,9 +114,15 @@ func (ip_db *IP_db) GetAreaCode(ip net.IP) string {
 				G.Outlog(G.LOG_DEBUG, fmt.Sprintf("IP lookup error: %s", err))
 			}
 		}
+	} else {
+		cn = ipc.AC
 	}
 
-	return ipc.AC
+	if G.Log {
+		G.Outlog(G.LOG_IP, fmt.Sprintf("ip:%s ac:%s", ips, cn))
+	}
+
+	return cn
 }
 
 func (ip_db *IP_db) ReadIPdb(ip net.IP) (*geoip2.City, error) {
