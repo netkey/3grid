@@ -247,8 +247,8 @@ func (rt_db *Route_db) ChoseNode(nodes map[uint]PW_List_Record, client_ac string
 		}
 		if v.PW[0] > priority {
 			//lower priority node
-			weight_idle = float64(weight * (1 - cnr.Usage/100))
-			_weight_idle = float64(v.PW[1] * (1 - nr.Usage/100))
+			weight_idle = float64(float64(weight) * (1.0 - float64(cnr.Usage)/100.0))
+			_weight_idle = float64(float64(v.PW[1]) * (1.0 - float64(nr.Usage)/100.0))
 
 			if _weight_idle >= weight_idle && nr.Costs < cnr.Costs {
 				//higher or same weight&&idle(weight&usage algorithm) and cheaper node
@@ -288,8 +288,10 @@ func (rt_db *Route_db) ChoseServer(servers []uint, servergroup uint) []uint {
 			//server down/overload or not belong to the servergroup
 			continue
 		}
-		weight_idle = float64(rt_db.Servers[sid].Weight * (1 - rt_db.Servers[sid].Usage/100))
+
+		weight_idle = float64(float64(rt_db.Servers[sid].Weight) * (1.0 - float64(rt_db.Servers[sid].Usage)/100.0))
 		sorted = false
+
 		for i, _sid := range server_list {
 			//sort by weight&&idle, weight*(1-usage/100)
 			_weight_idle = float64(rt_db.Servers[_sid].Weight * (1 - rt_db.Servers[_sid].Usage/100))
