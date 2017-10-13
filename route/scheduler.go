@@ -222,14 +222,26 @@ func (rt_db *Route_db) ChoseNode(nodes map[uint]PW_List_Record, client_ac string
 		}
 		if v.PW[0] == priority {
 			//equipotent priority node
-			if nr.Costs <= cnr.Costs {
+			if nr.Costs < cnr.Costs {
 				//which has less Costs (cost algorithm)
 				cnr, nid, priority, weight = nr, k, v.PW[0], v.PW[1]
 				if G.Log {
 					G.Outlog(G.LOG_SCHEDULER, fmt.Sprintf("%s is less costs, use it", nr.Name))
 				}
-			} else {
-				//higher Costs
+			} else if nr.Costs == cnr.Costs {
+				//same Costs
+				weight_idle = float64(float64(weight) * (1.0 - float64(cnr.Usage)/100.0))
+				_weight_idle = float64(float64(v.PW[1]) * (1.0 - float64(nr.Usage)/100.0))
+
+				if _weight_idle >= weight_idle {
+					//higher or same weight&&idle(weight&usage algorithm), means more idle
+					cnr, nid, priority, weight = nr, k, v.PW[0], v.PW[1]
+					if G.Log {
+						G.Outlog(G.LOG_SCHEDULER, fmt.Sprintf("%s is more idle(%f %f), use it", nr.Name, weight_idle, _weight_idle))
+					}
+				} else {
+					//lower weight_idle and not cheaper
+				}
 			}
 			continue
 		}
@@ -238,11 +250,11 @@ func (rt_db *Route_db) ChoseNode(nodes map[uint]PW_List_Record, client_ac string
 			weight_idle = float64(weight * (1 - cnr.Usage/100))
 			_weight_idle = float64(v.PW[1] * (1 - nr.Usage/100))
 
-			if _weight_idle >= weight_idle && nr.Costs <= cnr.Costs {
+			if _weight_idle >= weight_idle && nr.Costs < cnr.Costs {
 				//higher or same weight&&idle(weight&usage algorithm) and cheaper node
 				cnr, nid, priority, weight = nr, k, v.PW[0], v.PW[1]
 				if G.Log {
-					G.Outlog(G.LOG_SCHEDULER, fmt.Sprintf("%s is more idle or less costs, use it", nr.Name))
+					G.Outlog(G.LOG_SCHEDULER, fmt.Sprintf("%s is more idle and less costs, use it", nr.Name))
 				}
 			} else {
 				//lower weight_idle or not cheaper

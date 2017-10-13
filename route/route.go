@@ -309,6 +309,9 @@ func (rt_db *Route_db) LoadRoutedb(_rtdb_records map[string]map[string]map[strin
 						route_records[ac] = append(route_records[ac], pws[0])
 						route_records[ac] = append(route_records[ac], pws[1])
 						rt_db.Convert_Route_Record(route_records)
+						if G.Debug {
+							G.Outlog(G.LOG_DEBUG, fmt.Sprintf("route_records: %+v", route_records))
+						}
 					}
 				}
 			} else if plan == nil {
@@ -573,11 +576,12 @@ func (rt_db *Route_db) Update_Node_Record(k uint, r *Node_List_Record) {
 func (rt_db *Route_db) Convert_Route_Record(m map[string][]string) {
 	var rid uint
 	var nid uint
+	r := new(Route_List_Record)
+	r.Nodes = make(map[uint]PW_List_Record)
+
 	for k, v := range m {
 		x := 0
-		r := new(Route_List_Record)
 		pw := new(PW_List_Record)
-		r.Nodes = make(map[uint]PW_List_Record)
 
 		if v != nil {
 			if len(v) > 3 {
@@ -620,10 +624,20 @@ func (rt_db *Route_db) Update_Route_Record(k string, rid uint, r *Route_List_Rec
 	} else {
 		if rt_db.Routes[k] == nil {
 			rt_db.Routes[k] = make(map[uint]Route_List_Record)
+		} else if rt_db.Routes[k][rid].Nodes == nil {
+			//new one
+			rt_db.Routes[k][rid] = *r
+		} else {
+			//add or update new nodes
+			for nid := range r.Nodes {
+				rt_db.Routes[k][rid].Nodes[nid] = r.Nodes[nid]
+			}
 		}
-		rt_db.Routes[k][rid] = *r
+		rt_db.Locks["routes"].Unlock()
+		if G.Debug {
+			//G.Outlog(G.LOG_DEBUG, fmt.Sprintf("update route record: ac:%s rid:%d rr:%+v", k, rid, rt_db.Routes[k][rid]))
+		}
 	}
-	rt_db.Locks["routes"].Unlock()
 }
 
 func (rt_db *Route_db) Read_Cache_Record(dn string, ac string) RT_Cache_Record {
