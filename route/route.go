@@ -99,14 +99,17 @@ type Node_List_Record struct {
 }
 
 type Domain_List_Record struct {
-	Name        string //domain name
-	Type        string //A CNAME NS CDN
-	Value       string //value of A/NS/CNAME
-	Priority    string //domain class
-	ServerGroup string //server group serving this domain
-	Records     uint   //A records return once
-	TTL         uint   //TTL of A
-	RoutePlan   []uint //RP serving this domain
+	Name        string         //domain name
+	Type        string         //A CNAME NS CDN
+	Value       string         //value of A/NS/CNAME
+	Priority    string         //domain class
+	ServerGroup uint           //server group serving this domain
+	Records     uint           //A records return once
+	TTL         uint           //TTL of A
+	RoutePlan   []uint         //RP serving this domain
+	Status      uint           //1:enable 0:disable
+	Forbidden   string         //ACs to forbid resolve(audit)
+	Perf        *G.GSLB_Params //domain query performance
 }
 
 type Route_List_Record struct {
@@ -174,8 +177,6 @@ func (rt_db *Route_db) LoadDomaindb(_domain_records map[string][]string) error {
 
 	if err == nil {
 		rt_db.Convert_Domain_Record(domain_records)
-		//can also update in this way:
-		//rt_db.Chan <- map[string]map[string][]string{"domains": domain_records}
 
 		if G.Debug {
 			//time.Sleep(time.Duration(100) * time.Millisecond) //for use with channel updating
@@ -335,34 +336,45 @@ func (rt_db *Route_db) Updatedb() error {
 	return nil
 }
 
+//Tag: NNN
 func (rt_db *Route_db) Convert_Domain_Record(m map[string][]string) {
 	for k, v := range m {
 		x := 0
 		r := new(Domain_List_Record)
 
-		if len(v) > 6 {
-			r.Name = k
-			r.Type = strings.ToUpper(v[0])
-			r.Value = v[1]
-			r.Priority = v[2]
-			r.ServerGroup = v[3]
-			x, _ = strconv.Atoi(v[4])
-			r.Records = uint(x)
-			x, _ = strconv.Atoi(v[5])
-			r.TTL = uint(x)
-			s := strings.Split(v[6], ",")
-			if len(s) > 0 {
-				p := make([]uint, len(s))
-				for i, v := range s {
-					x, _ = strconv.Atoi(v)
-					p[i] = uint(x)
+		if v != nil {
+			if len(v) > 6 {
+				r.Name = k
+				r.Type = strings.ToUpper(v[0])
+				r.Value = v[1]
+				r.Priority = v[2]
+				x, _ = strconv.Atoi(v[3])
+				r.ServerGroup = uint(x)
+				x, _ = strconv.Atoi(v[4])
+				r.Records = uint(x)
+				x, _ = strconv.Atoi(v[5])
+				r.TTL = uint(x)
+				s := strings.Split(v[6], ",")
+				if len(s) > 0 {
+					p := make([]uint, len(s))
+					for i, v := range s {
+						x, _ = strconv.Atoi(v)
+						p[i] = uint(x)
+					}
+					r.RoutePlan = p
 				}
-				r.RoutePlan = p
+				if len(v) > 7 {
+					x, _ = strconv.Atoi(v[7])
+					r.Status = uint(x)
+					r.Forbidden = v[8]
+				}
+				rt_db.Update_Domain_Record(k, r)
+				if G.Debug {
+					//G.Outlog(G.LOG_DEBUG, fmt.Sprintf("update domain record: %+v", r))
+				}
 			}
-			rt_db.Update_Domain_Record(k, r)
-			if G.Debug {
-				//G.Outlog(G.LOG_DEBUG, fmt.Sprintf("update domain record: %+v", r))
-			}
+		} else {
+			rt_db.Update_Domain_Record(k, nil)
 		}
 	}
 }

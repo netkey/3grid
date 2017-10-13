@@ -4,7 +4,6 @@ import G "3grid/tools/globals"
 import "fmt"
 import "net"
 import "strings"
-import "strconv"
 import "time"
 
 var MyACPrefix string
@@ -58,7 +57,6 @@ func (rt_db *Route_db) GetAAA(dn string, acode string, ip net.IP) ([]string, uin
 	var _ac string
 	var ok bool = true
 	var _type string
-	var x int
 
 	if _nid, ok := rt_db.IN_Serverlist(ip); ok {
 		//it's my server, change the area code to its node
@@ -145,8 +143,7 @@ func (rt_db *Route_db) GetAAA(dn string, acode string, ip net.IP) ([]string, uin
 		G.Outlog(G.LOG_DEBUG, fmt.Sprintf("GETAAA nid: %d, nr: %+v", nid, nr))
 	}
 
-	x, _ = strconv.Atoi(dr.ServerGroup)
-	sl := rt_db.ChoseServer(nr.ServerList, uint(x))
+	sl := rt_db.ChoseServer(nr.ServerList, dr.ServerGroup)
 
 	if dr.Records <= uint(len(sl)) {
 		aaa = make([]string, dr.Records)
