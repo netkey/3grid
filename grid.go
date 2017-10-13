@@ -8,6 +8,7 @@ import (
 	T "3grid/tools"
 	G "3grid/tools/globals"
 	"flag"
+	"fmt"
 	"github.com/sevlyar/go-daemon"
 	"github.com/spf13/viper"
 	"log"
@@ -23,6 +24,7 @@ var debug = flag.Bool("debug", true, "output debug info")
 var num_cpus int
 var port string
 var daemond bool
+var debug_info string
 
 //gslb related
 var myname string
@@ -35,6 +37,8 @@ var ip_cache_ttl int
 var rt_cache_ttl int
 var ip_cache_size int
 var rt_cache_size int
+var log_buf_size int
+var log_enable bool
 
 func read_conf() {
 	viper.SetConfigFile("grid.conf")
@@ -131,19 +135,31 @@ func read_conf() {
 		} else {
 			rt_cache_size = _rt_cache_size
 		}
+		_log_buf_size := viper.GetInt("gslb.log_buf_size")
+		if _log_buf_size < 1000 {
+			log_buf_size = 1000
+		} else {
+			log_buf_size = _log_buf_size
+		}
+		_log_enable := viper.GetBool("gslb.log_enable")
+		if _log_enable == false {
+			log_enable = false
+		} else {
+			log_enable = true
+		}
 		if *debug {
-			log.Printf("grid running - cpus:%d port:%s daemon:%t debug:%t interval:%d keepalive:%d myname:%s", num_cpus, port, daemond, *debug, interval, keepalive, myname)
+			debug_info = fmt.Sprintf("%s running - cpus:%d port:%s daemon:%t debug:%t interval:%d keepalive:%d myname:%s", myname, num_cpus, port, daemond, *debug, interval, keepalive, myname)
 		}
 	}
 }
 
 func main() {
+	var err error
 
 	flag.Parse()
 	read_conf()
 
 	G.Debug = *debug
-	T.Check_db_versions()
 
 	if daemond {
 		context := new(daemon.Context)
@@ -159,31 +175,72 @@ func main() {
 	//after fork as daemon, go on working
 	runtime.GOMAXPROCS(num_cpus)
 
-	IP.Ipdb = &IP.IP_db{}
-	IP.Ipdb.IP_db_init()
-	IP.Ip_Cache_TTL = ip_cache_ttl
-	IP.Ip_Cache_Size = ip_cache_size
-
-	RT.Rtdb = &RT.Route_db{}
-	RT.Rtdb.RT_db_init()
-	RT.MyACPrefix = acprefix
-	RT.Service_Cutoff_Percent = uint(cutoff_percent)
-	RT.Service_Deny_Percent = uint(deny_percent)
-	RT.RT_Cache_TTL = rt_cache_ttl
-	RT.RT_Cache_Size = int64(rt_cache_size)
-
-	G.GP = G.GSLB_Params{}
-	G.GP.Init(keepalive)
-
-	var name, secret string
-	for i := 0; i < num_cpus; i++ {
-		go D.Working("udp", port, name, secret, i, IP.Ipdb, RT.Rtdb)
+	{
+		//init logger
+		if log_enable {
+			G.Log = true
+			G.LogBufSize = log_buf_size
+			if G.Logger, err = G.NewLogger(); err != nil {
+				if G.Debug {
+					log.Printf("Error making logger: %s", err)
+				}
+			} else {
+				G.LogChan = &G.Logger.Chan
+				go G.Logger.Output()
+				go G.Logger.Checklogs()
+				if G.Debug {
+					log.SetOutput(G.Logger.Fds[G.LOG_DEBUG])
+					if debug_info != "" {
+						G.Outlog(G.LOG_DEBUG, fmt.Sprintf("%s", debug_info))
+						G.Outlog(G.LOG_GSLB, fmt.Sprintf("%s", debug_info))
+					}
+				}
+			}
+		}
 	}
 
-	go A.Synchronize(interval, keepalive, myname)
+	{
+		//global options
+		G.GP = G.GSLB_Params{}
+		G.GP.Init(keepalive)
+
+		T.Check_db_versions()
+	}
+
+	{
+		//init ip db
+		IP.Ipdb = &IP.IP_db{}
+		IP.Ipdb.IP_db_init()
+		IP.Ip_Cache_TTL = ip_cache_ttl
+		IP.Ip_Cache_Size = ip_cache_size
+	}
+
+	{
+		//init route/domain/cm db
+		RT.Rtdb = &RT.Route_db{}
+		RT.Rtdb.RT_db_init()
+		RT.MyACPrefix = acprefix
+		RT.Service_Cutoff_Percent = uint(cutoff_percent)
+		RT.Service_Deny_Percent = uint(deny_percent)
+		RT.RT_Cache_TTL = rt_cache_ttl
+		RT.RT_Cache_Size = int64(rt_cache_size)
+	}
+
+	{
+		//init dns workers
+		var name, secret string
+		for i := 0; i < num_cpus; i++ {
+			go D.Working("udp", port, name, secret, i, IP.Ipdb, RT.Rtdb)
+		}
+	}
+
+	{
+		//init amqp synchronize routine
+		go A.Synchronize(interval, keepalive, myname)
+	}
 
 	sig := make(chan os.Signal)
 	signal.Notify(sig, syscall.SIGINT, syscall.SIGTERM)
 	s := <-sig
-	log.Printf("Signal (%s) received, stopping\n", s)
+	log.Printf("%s stopping - signal (%s) received", myname, s)
 }

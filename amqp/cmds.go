@@ -1,23 +1,22 @@
 package grid_amqp
 
 import (
-	//IP "3grid/ip"
 	RT "3grid/route"
-	//G "3grid/tools/globals"
+	G "3grid/tools/globals"
 	"errors"
 	"fmt"
-	"log"
 )
 
 type Cmds struct {
 }
 
 func (c *Cmds) Ka(msg *AMQP_Message) error {
-	log.Printf("Processing Ka cmd..")
+	G.Outlog(G.LOG_AMQP, fmt.Sprintf("Processing Ka cmd.."))
 	return nil
 }
 
 func (c *Cmds) Add(msg *AMQP_Message) (err error) {
+<<<<<<< HEAD
 	defer func() {
 		if pan := recover(); pan != nil {
 			msg1 := fmt.Sprintf("%s", pan)
@@ -27,11 +26,16 @@ func (c *Cmds) Add(msg *AMQP_Message) (err error) {
 	db_type := msg.Object
 	*RT.Chan <- map[string]map[string]map[string]map[string][]string{db_type: *msg.Msg1}
 	return err
+=======
+	G.Outlog(G.LOG_AMQP, fmt.Sprintf("Processing Add cmd.."))
+	G.Outlog(G.LOG_AMQP, fmt.Sprintf("Adding: %+v", (*msg.Msg1)))
+	return nil
+>>>>>>> a4b0140e6c64ec7505e993a92d1a5b177be74e47
 }
 
 func (c *Cmds) Ver(msg *AMQP_Message) error {
-	log.Printf("Processing Ver cmd..")
-	log.Printf("Version: %s", (*msg.Params)["ver"])
+	G.Outlog(G.LOG_AMQP, fmt.Sprintf("Processing Ver cmd.."))
+	G.Outlog(G.LOG_AMQP, fmt.Sprintf("Version: %s", (*msg.Params)["ver"]))
 	return nil
 }
 

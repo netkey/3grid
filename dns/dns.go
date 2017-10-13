@@ -5,8 +5,8 @@ import (
 	RT "3grid/route"
 	G "3grid/tools/globals"
 	"flag"
+	"fmt"
 	"github.com/miekg/dns"
-	"log"
 	"net"
 	"strings"
 	"time"
@@ -153,8 +153,8 @@ func (wkr *DNS_worker) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
 	//update query/s counter
 	G.GP.Chan <- map[string]uint64{"QS": 1}
 
-	if G.Debug {
-		log.Printf("Query from: %s, type %s, name %s, result %+v", ip.String(), qtype, _dn, aaa)
+	if G.Log {
+		G.Outlog(G.LOG_DNS, fmt.Sprintf("ip:%s type:%s name:%s result:%+v", ip.String(), qtype, _dn, aaa))
 	}
 }
 
@@ -170,13 +170,13 @@ func Working(net, port, name, secret string, num int, ipdb *IP.IP_db, rtdb *RT.R
 		worker.Server = &dns.Server{Addr: ":" + port, Net: net, TsigSecret: nil}
 		worker.Server.Handler = &worker
 		if err := worker.Server.ListenAndServe(); err != nil {
-			log.Printf("Failed to setup the "+net+" server: %s\n", err.Error())
+			G.Outlog(G.LOG_DEBUG, fmt.Sprintf("Failed to setup the "+net+" server: %s\n", err.Error()))
 		}
 	default:
 		worker.Server = &dns.Server{Addr: ":" + port, Net: net, TsigSecret: map[string]string{name: secret}}
 		worker.Server.Handler = &worker
 		if err := worker.Server.ListenAndServe(); err != nil {
-			log.Printf("Failed to setup the "+net+" server: %s\n", err.Error())
+			G.Outlog(G.LOG_DEBUG, fmt.Sprintf("Failed to setup the "+net+" server: %s\n", err.Error()))
 		}
 	}
 }

@@ -2,8 +2,8 @@ package grid_ip
 
 import (
 	G "3grid/tools/globals"
+	"fmt"
 	"github.com/oschwald/geoip2-golang"
-	"log"
 	"net"
 	//"strconv"
 	"sync"
@@ -73,7 +73,7 @@ func (ip_db *IP_db) IP_db_init() {
 	}
 
 	if G.Debug {
-		log.Printf("Loading ip db..%s", Db_file)
+		G.Outlog(G.LOG_DEBUG, fmt.Sprintf("Loading ip db..%s", Db_file))
 	}
 
 }
@@ -82,6 +82,7 @@ func (ip_db *IP_db) GetAreaCode(ip net.IP) string {
 	var (
 		ips string
 		ipc Ipcache_Item
+		cn  string
 	)
 
 	ips = ip.String()
@@ -90,7 +91,7 @@ func (ip_db *IP_db) GetAreaCode(ip net.IP) string {
 	if ipc.AC == "" {
 		re, err := ip_db.ReadIPdb(ip)
 		if err == nil {
-			cn := re.City.Names["MMY"]
+			cn = re.City.Names["MMY"]
 			if cn == "" {
 				cn = re.Country.Names["en"]
 			}
@@ -106,16 +107,22 @@ func (ip_db *IP_db) GetAreaCode(ip net.IP) string {
 			ip_db.Chan <- map[string]string{ips: cn}
 
 			if G.Debug {
-				log.Printf("Area Code of %s: %s", ips, cn)
+				G.Outlog(G.LOG_DEBUG, fmt.Sprintf("Area Code of %s: %s", ips, cn))
 			}
 		} else {
 			if G.Debug {
-				log.Printf("IP lookup error: %s", err)
+				G.Outlog(G.LOG_DEBUG, fmt.Sprintf("IP lookup error: %s", err))
 			}
 		}
+	} else {
+		cn = ipc.AC
 	}
 
-	return ipc.AC
+	if G.Log {
+		G.Outlog(G.LOG_IP, fmt.Sprintf("ip:%s ac:%s", ips, cn))
+	}
+
+	return cn
 }
 
 func (ip_db *IP_db) ReadIPdb(ip net.IP) (*geoip2.City, error) {
@@ -148,7 +155,7 @@ func (ip_db *IP_db) UpdateIPCache() error {
 		ipm := <-ip_db.Chan
 		if ipm == nil {
 			if G.Debug {
-				log.Printf("Exiting ip cache update loop..")
+				G.Outlog(G.LOG_DEBUG, fmt.Sprintf("Exiting ip cache update loop.."))
 			}
 			break
 		}
