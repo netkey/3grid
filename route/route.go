@@ -449,6 +449,7 @@ func (rt_db *Route_db) Convert_Server_Record(m map[string][]string) {
 
 			if G.Debug {
 				//G.Outlog(G.LOG_DEBUG, fmt.Sprintf("update server record: %+v", r))
+				G.Outlog(G.LOG_DEBUG, fmt.Sprintf("Convert server record: %+v", r))
 			}
 		}
 	}
@@ -484,6 +485,9 @@ func (rt_db *Route_db) Update_Server_Record(k uint, r *Server_List_Record) {
 		rt_db.Ips[(*r).ServerIp] = *r
 	}
 	rt_db.Locks["servers"].Unlock()
+	if G.Debug {
+		G.Outlog(G.LOG_DEBUG, fmt.Sprintf("Server: %+v", rt_db.Servers[k]))
+	}
 }
 
 //Tag: NNN
@@ -536,6 +540,7 @@ func (rt_db *Route_db) Convert_Node_Record(m map[string][]string) {
 
 			if G.Debug {
 				//G.Outlog(G.LOG_DEBUG, fmt.Sprintf("update node record: %+v", r))
+				G.Outlog(G.LOG_DEBUG, fmt.Sprintf("Convert node record: %+v", r))
 			}
 		}
 	}
@@ -562,6 +567,9 @@ func (rt_db *Route_db) Update_Node_Record(k uint, r *Node_List_Record) {
 		rt_db.Nodes[k] = *r
 	}
 	rt_db.Locks["nodes"].Unlock()
+	if G.Debug {
+		G.Outlog(G.LOG_DEBUG, fmt.Sprintf("Node: %+v", rt_db.Nodes[k]))
+	}
 }
 
 func (rt_db *Route_db) Convert_Route_Record(m map[string][]string) {
