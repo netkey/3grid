@@ -477,8 +477,8 @@ func (rt_db *Route_db) Read_IP_Record(k string) Server_List_Record {
 func (rt_db *Route_db) Update_Server_Record(k uint, r *Server_List_Record) {
 	rt_db.Locks["servers"].Lock()
 	if r == nil {
+		delete(rt_db.Ips, rt_db.Servers[k].ServerIp)
 		delete(rt_db.Servers, k)
-		delete(rt_db.Ips, (*r).ServerIp)
 	} else {
 		rt_db.Servers[k] = *r
 		rt_db.Ips[(*r).ServerIp] = *r
