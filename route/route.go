@@ -448,8 +448,7 @@ func (rt_db *Route_db) Convert_Server_Record(m map[string][]string) {
 			}
 
 			if G.Debug {
-				//G.Outlog(G.LOG_DEBUG, fmt.Sprintf("update server record: %+v", r))
-				G.Outlog(G.LOG_DEBUG, fmt.Sprintf("Convert server record: %+v", r))
+				//G.Outlog(G.LOG_DEBUG, fmt.Sprintf("Convert server record: %+v", r))
 			}
 		}
 	}
@@ -486,7 +485,7 @@ func (rt_db *Route_db) Update_Server_Record(k uint, r *Server_List_Record) {
 	}
 	rt_db.Locks["servers"].Unlock()
 	if G.Debug {
-		G.Outlog(G.LOG_DEBUG, fmt.Sprintf("Server: %+v", rt_db.Servers[k]))
+		//G.Outlog(G.LOG_DEBUG, fmt.Sprintf("Server: %+v", rt_db.Servers[k]))
 	}
 }
 
@@ -508,14 +507,14 @@ func (rt_db *Route_db) Convert_Node_Record(m map[string][]string) {
 				x, _ = strconv.Atoi(v[3])
 				r.Costs = int(x)
 				x, _ = strconv.Atoi(v[4])
-				r.NodeCapacity = uint64(x)
+				r.Usage = uint(x)
 				if v[5] == "1" {
 					r.Status = true
 				} else {
 					r.Status = false
 				}
 				x, _ = strconv.Atoi(v[6])
-				r.Usage = uint(x)
+				r.NodeCapacity = uint64(x)
 				r.Type = v[7]
 				r.AC = v[8]
 				if r.AC == "" {
@@ -539,8 +538,7 @@ func (rt_db *Route_db) Convert_Node_Record(m map[string][]string) {
 			}
 
 			if G.Debug {
-				//G.Outlog(G.LOG_DEBUG, fmt.Sprintf("update node record: %+v", r))
-				G.Outlog(G.LOG_DEBUG, fmt.Sprintf("Convert node record: %+v", r))
+				//G.Outlog(G.LOG_DEBUG, fmt.Sprintf("Convert node record: %+v", r))
 			}
 		}
 	}
@@ -568,7 +566,7 @@ func (rt_db *Route_db) Update_Node_Record(k uint, r *Node_List_Record) {
 	}
 	rt_db.Locks["nodes"].Unlock()
 	if G.Debug {
-		G.Outlog(G.LOG_DEBUG, fmt.Sprintf("Node: %+v", rt_db.Nodes[k]))
+		//G.Outlog(G.LOG_DEBUG, fmt.Sprintf("Node: %+v", rt_db.Nodes[k]))
 	}
 }
 

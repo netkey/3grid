@@ -40,6 +40,7 @@ func (wkr *DNS_worker) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
 		ttl   uint32
 		aaa   []string
 		_type string
+		_ok   bool
 	)
 	m := new(dns.Msg)
 	m.SetReply(r)
@@ -58,7 +59,9 @@ func (wkr *DNS_worker) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
 		ip = _udp_addr.IP
 		ac = wkr.Ipdb.GetAreaCode(ip)
 		ac = "CTC.CN.HAN.GD" //for debug
-		aaa, ttl, _type, _ = wkr.Rtdb.GetAAA(_dn, ac, ip)
+		if aaa, ttl, _type, _ok = wkr.Rtdb.GetAAA(_dn, ac, ip); !_ok {
+			return
+		}
 	} else {
 		return
 	}

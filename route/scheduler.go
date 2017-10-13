@@ -132,6 +132,7 @@ func (rt_db *Route_db) GetAAA(dn string, acode string, ip net.IP) ([]string, uin
 	}
 
 	if G.Log {
+		G.Outlog(G.LOG_DEBUG, fmt.Sprintf("GETAAA match_ac_rr: %+v", rr))
 		G.Outlog(G.LOG_ROUTE, fmt.Sprintf("GETAAA ac:%s, matched ac:%s, rid:%d, rr:%+v", ac, _ac, rid, rr))
 	}
 
@@ -181,10 +182,22 @@ func (rt_db *Route_db) ChoseNode(nodes map[uint]PW_List_Record, client_ac string
 	var weight uint = 0          //weight: chosen node weight, default to lowest
 	var weight_idle, _weight_idle float64
 
+	nr, cnr = Node_List_Record{}, Node_List_Record{}
+
+	if G.Debug {
+		G.Outlog(G.LOG_SCHEDULER, fmt.Sprintf("we have nodes: %+v", nodes))
+	}
+
 	for k, v := range nodes {
 		nr = rt_db.Read_Node_Record(k)
+		if G.Debug {
+			G.Outlog(G.LOG_SCHEDULER, fmt.Sprintf("looking at node: %+v", nr))
+		}
 		if nr.Status == false || nr.Usage >= Service_Deny_Percent {
 			//not available(status algorithm) to serve(cutoff algorithm)
+			if G.Debug {
+				G.Outlog(G.LOG_SCHEDULER, fmt.Sprintf("%s not available to serve", nr.Name))
+			}
 			continue
 		}
 		if nr.Status && cnr.NodeId != 0 &&
@@ -192,6 +205,9 @@ func (rt_db *Route_db) ChoseNode(nodes map[uint]PW_List_Record, client_ac string
 			//chosen node is in cutoff state, and i am not(cutoff algorithm)
 			if rt_db.Match_Local_AC(cnr.AC, client_ac) || cnr.Usage > Service_Deny_Percent {
 				//cutoff none local client access, then local's
+				if G.Debug {
+					G.Outlog(G.LOG_SCHEDULER, fmt.Sprintf("%s is in busy, use %s instead", cnr.Name, nr.Name))
+				}
 				cnr, nid, priority, weight = nr, k, v.PW[0], v.PW[1]
 			}
 			continue
@@ -199,6 +215,9 @@ func (rt_db *Route_db) ChoseNode(nodes map[uint]PW_List_Record, client_ac string
 		if v.PW[0] < priority {
 			//higher priority node(priority&weight algorithm)
 			cnr, nid, priority, weight = nr, k, v.PW[0], v.PW[1]
+			if G.Debug {
+				G.Outlog(G.LOG_SCHEDULER, fmt.Sprintf("%s has higher priority", nr.Name))
+			}
 			continue
 		}
 		if v.PW[0] == priority {
@@ -206,6 +225,9 @@ func (rt_db *Route_db) ChoseNode(nodes map[uint]PW_List_Record, client_ac string
 			if nr.Costs <= cnr.Costs {
 				//which has less Costs (cost algorithm)
 				cnr, nid, priority, weight = nr, k, v.PW[0], v.PW[1]
+				if G.Log {
+					G.Outlog(G.LOG_SCHEDULER, fmt.Sprintf("%s is less costs, use it", nr.Name))
+				}
 			} else {
 				//higher Costs
 			}
@@ -219,6 +241,9 @@ func (rt_db *Route_db) ChoseNode(nodes map[uint]PW_List_Record, client_ac string
 			if _weight_idle >= weight_idle && nr.Costs <= cnr.Costs {
 				//higher or same weight&&idle(weight&usage algorithm) and cheaper node
 				cnr, nid, priority, weight = nr, k, v.PW[0], v.PW[1]
+				if G.Log {
+					G.Outlog(G.LOG_SCHEDULER, fmt.Sprintf("%s is more idle or less costs, use it", nr.Name))
+				}
 			} else {
 				//lower weight_idle or not cheaper
 			}
@@ -226,12 +251,12 @@ func (rt_db *Route_db) ChoseNode(nodes map[uint]PW_List_Record, client_ac string
 		}
 	}
 
-	if nid == 0 {
-		cnr = Node_List_Record{}
+	if G.Log {
+		G.Outlog(G.LOG_SCHEDULER, fmt.Sprintf("Chose node:%+v for ac:%s", cnr, client_ac))
 	}
 
-	if G.Log {
-		G.Outlog(G.LOG_SCHEDULER, fmt.Sprintf("ac:%s node %+v", client_ac, nr))
+	if nid == 0 {
+		cnr = Node_List_Record{}
 	}
 
 	return cnr
