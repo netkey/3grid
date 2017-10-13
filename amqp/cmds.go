@@ -16,7 +16,7 @@ func (c *Cmds) Ka(msg *AMQP_Message) error {
 }
 
 func (c *Cmds) Add(msg *AMQP_Message) (err error) {
-<<<<<<< HEAD
+	G.Outlog(G.LOG_AMQP, fmt.Sprintf("Processing Add cmd.."))
 	defer func() {
 		if pan := recover(); pan != nil {
 			msg1 := fmt.Sprintf("%s", pan)
@@ -26,11 +26,6 @@ func (c *Cmds) Add(msg *AMQP_Message) (err error) {
 	db_type := msg.Object
 	*RT.Chan <- map[string]map[string]map[string]map[string][]string{db_type: *msg.Msg1}
 	return err
-=======
-	G.Outlog(G.LOG_AMQP, fmt.Sprintf("Processing Add cmd.."))
-	G.Outlog(G.LOG_AMQP, fmt.Sprintf("Adding: %+v", (*msg.Msg1)))
-	return nil
->>>>>>> a4b0140e6c64ec7505e993a92d1a5b177be74e47
 }
 
 func (c *Cmds) Ver(msg *AMQP_Message) error {
@@ -55,7 +50,7 @@ func (c *Cmds) Delete(msg *AMQP_Message) (err error) {
 	defer func() {
 		if pan := recover(); pan != nil {
 			msg1 := fmt.Sprintf("%s", pan)
-			erro = errors.New(msg1)
+			//erro := errors.New(msg1)
 		}
 	}()
 	db_type := msg.Object

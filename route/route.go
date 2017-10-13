@@ -363,6 +363,7 @@ func (rt_db *Route_db) Convert_Domain_Record(m map[string][]string) {
 					}
 					r.RoutePlan = p
 				}
+				r.Status = 1
 				if len(v) > 7 {
 					x, _ = strconv.Atoi(v[7])
 					r.Status = uint(x)
