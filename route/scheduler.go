@@ -153,7 +153,7 @@ func (rt_db *Route_db) GetAAA(dn string, acode string, ip net.IP) ([]string, uin
 
 	if G.Debug {
 		//G.Outlog(G.LOG_DEBUG, fmt.Sprintf("GETAAA nid: %d, nr: %+v", nid, nr))
-		G.Outlog(G.LOG_DEBUG, fmt.Sprintf("GETAAA nid:%d", nid))
+		G.Outlog(G.LOG_DEBUG, fmt.Sprintf("GETAAA choose node: %d", nid))
 	}
 
 	sl := rt_db.ChooseServer(nr.ServerList, dr.ServerGroup)

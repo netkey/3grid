@@ -99,17 +99,17 @@ type Node_List_Record struct {
 }
 
 type Domain_List_Record struct {
-	Name        string         //domain name
-	Type        string         //A CNAME NS CDN
-	Value       string         //value of A/NS/CNAME
-	Priority    string         //domain class
-	ServerGroup uint           //server group serving this domain
-	Records     uint           //A records return once
-	TTL         uint           //TTL of A
-	RoutePlan   []uint         //RP serving this domain
-	Status      uint           //1:enable 0:disable
-	Forbidden   string         //ACs to forbid resolve(audit)
-	Perf        *G.GSLB_Params //domain query performance
+	Name        string          //domain name
+	Type        string          //A CNAME NS CDN
+	Value       string          //value of A/NS/CNAME
+	Priority    string          //domain class
+	ServerGroup uint            //server group serving this domain
+	Records     uint            //A records return once
+	TTL         uint            //TTL of A
+	RoutePlan   []uint          //RP serving this domain
+	Status      uint            //1:enable 0:disable
+	Forbidden   string          //ACs to forbid resolve(audit)
+	Perf        *G.Perf_Counter //domain query/load performance
 }
 
 type Route_List_Record struct {

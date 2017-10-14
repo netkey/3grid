@@ -200,8 +200,8 @@ func main() {
 	}
 
 	{
-		//global options
-		G.GP = G.GSLB_Params{}
+		//global perf counters
+		G.GP = G.Perf_Counter{}
 		G.GP.Init(keepalive)
 
 		T.Check_db_versions()
