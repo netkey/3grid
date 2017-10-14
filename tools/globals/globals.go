@@ -6,22 +6,97 @@ import "strings"
 import "sync"
 import "time"
 
-var Debug bool
+var Debug bool //global debug flag
 
-var GP Perf_Counter
+var GP Perf_Counter //global perf counter
+var PC Perfcs       //specific perf counter
+
+const (
+	PERF_DOMAIN = "domain"
+)
+
+type Perfcs struct {
+	Interval uint64
+	Pcs      map[string]map[string]*Perf_Counter //string for type, string for name/id
+	Chan     chan map[string]map[string]uint64
+}
+
+func (pcs *Perfcs) Init(interval int) {
+	pcs.Interval = uint64(interval)
+	pcs.Pcs = make(map[string]map[string]*Perf_Counter)
+	pcs.Chan = make(chan map[string]map[string]uint64, 1000)
+
+	go pcs.update_pcs()
+	go pcs.keeper()
+}
+
+func (pcs *Perfcs) update_pcs() error {
+	for {
+		pcm := <-pcs.Chan
+		for _type, _values := range pcm {
+			for k, v := range _values {
+				if pcs.Pcs[_type] == nil {
+					pcs.Pcs[_type] = make(map[string]*Perf_Counter)
+				} else if pcs.Pcs[_type][k] == nil {
+					_pc := &Perf_Counter{}
+					_pc.Init(int(pcs.Interval), false)
+					pcs.Pcs[_type][k] = _pc
+				}
+				pc := *pcs.Pcs[_type][k]
+				pc.Inc_Qs(v)
+			}
+		}
+	}
+
+	return nil
+}
+
+func (pcs *Perfcs) keeper() error {
+	var qs, qps uint64
+
+	for {
+		time.Sleep(time.Duration(pcs.Interval) * time.Second)
+
+		for _type, _v := range pcs.Pcs {
+			for k, _ := range _v {
+				pc := pcs.Pcs[_type][k]
+
+				//update qps, reset qs counter
+				qs = pc.Read_Qs()
+				qps = uint64(qs / pc.Interval)
+
+				pc.Zero_Qs()
+				pc.Update_Qps(qps)
+
+				//update load
+				/*
+					switch _type {
+					case PERF_DOMAIN:
+						//do load counter specific tasks of domain
+						load := 0
+						pc.Chan <- map[string]uint64{"LOAD": load}
+					}
+				*/
+			}
+		}
+	}
+
+	return nil
+}
 
 type Perf_Counter struct {
+	Chan     chan map[string]uint64
 	Interval uint64
+	goit     bool
 	qs       uint64
 	qps      uint64
 	load     uint64
 	qslock   *sync.RWMutex
 	qpslock  *sync.RWMutex
 	loadlock *sync.RWMutex
-	Chan     chan map[string]uint64
 }
 
-func (pc *Perf_Counter) Init(interval int) {
+func (pc *Perf_Counter) Init(interval int, goit bool) {
 	pc.qs = 0
 	pc.qps = 0
 	pc.load = 0
@@ -31,10 +106,12 @@ func (pc *Perf_Counter) Init(interval int) {
 	pc.qpslock = new(sync.RWMutex)
 	pc.loadlock = new(sync.RWMutex)
 
-	pc.Chan = make(chan map[string]uint64, 100)
+	if pc.goit = goit; goit {
+		pc.Chan = make(chan map[string]uint64, 100)
+		go pc.update_gp()
+		go pc.keeper()
+	}
 
-	go pc.update_gp()
-	go pc.keeper()
 }
 
 func (pc *Perf_Counter) Read_Qs() uint64 {
@@ -90,9 +167,9 @@ func (pc *Perf_Counter) update_gp() error {
 		gpm := <-pc.Chan
 		for k, v := range gpm {
 			switch k {
-			case "QS":
+			case "QS", "qs":
 				pc.Inc_Qs(v)
-			case "LOAD":
+			case "LOAD", "load":
 				pc.Update_Load(v)
 			}
 		}

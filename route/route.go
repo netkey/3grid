@@ -35,6 +35,10 @@ var Rtdb *Route_db
 var RT_Cache_TTL int
 var RT_Cache_Size int64
 
+const (
+	PERF_DOMAIN = "domain"
+)
+
 /*Route DB update method
 
 domain/servers/nodes update record : map[string][]string
@@ -62,15 +66,16 @@ same as update, set the records value to nil
 */
 
 type Route_db struct {
-	Servers   map[uint]Server_List_Record                               //uint for server_id
-	Ips       map[string]Server_List_Record                             //string for server_ip(net.IP.String())
-	Nodes     map[uint]Node_List_Record                                 //uint for nodeid
-	Domains   map[string]Domain_List_Record                             //string for domain name
-	Routes    map[string]map[uint]Route_List_Record                     //string for AreaCode, uint for RoutePlan ID
-	Cache     map[string]map[string]RT_Cache_Record                     //string for AreaCode, string for domain name
-	Chan      chan map[string]map[string]map[string]map[string][]string //channel for updating dbs
-	Locks     map[string]*sync.RWMutex                                  //locks for writing dbs
-	CacheSize int64
+	Chan chan map[string]map[string]map[string]map[string][]string
+	//^ channel for updating dbs
+	Servers   map[uint]Server_List_Record           //uint for server_id
+	Ips       map[string]Server_List_Record         //string for server_ip(net.IP.String())
+	Nodes     map[uint]Node_List_Record             //uint for nodeid
+	Domains   map[string]Domain_List_Record         //string for domain name
+	Routes    map[string]map[uint]Route_List_Record //string for AreaCode, uint for RoutePlan ID
+	Cache     map[string]map[string]RT_Cache_Record //string for AreaCode, string for domain name
+	Locks     map[string]*sync.RWMutex              //locks for writing dbs
+	CacheSize int64                                 //cache limit
 }
 
 type Server_List_Record struct {
@@ -99,17 +104,16 @@ type Node_List_Record struct {
 }
 
 type Domain_List_Record struct {
-	Name        string          //domain name
-	Type        string          //A CNAME NS CDN
-	Value       string          //value of A/NS/CNAME
-	Priority    string          //domain class
-	ServerGroup uint            //server group serving this domain
-	Records     uint            //A records return once
-	TTL         uint            //TTL of A
-	RoutePlan   []uint          //RP serving this domain
-	Status      uint            //1:enable 0:disable
-	Forbidden   string          //ACs to forbid resolve(audit)
-	Perf        *G.Perf_Counter //domain query/load performance
+	Name        string //domain name
+	Type        string //A CNAME NS CDN
+	Value       string //value of A/NS/CNAME
+	Priority    string //domain class
+	ServerGroup uint   //server group serving this domain
+	Records     uint   //A records return once
+	TTL         uint   //TTL of A
+	RoutePlan   []uint //RP serving this domain
+	Status      uint   //1:enable 0:disable
+	Forbidden   string //ACs to forbid resolve(audit)
 }
 
 type Route_List_Record struct {

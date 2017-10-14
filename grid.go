@@ -202,7 +202,11 @@ func main() {
 	{
 		//global perf counters
 		G.GP = G.Perf_Counter{}
-		G.GP.Init(keepalive)
+		G.GP.Init(keepalive, true)
+
+		//specific oerf counters
+		G.PC = G.Perfcs{}
+		G.PC.Init(keepalive)
 
 		T.Check_db_versions()
 	}
