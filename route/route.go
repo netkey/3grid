@@ -309,9 +309,6 @@ func (rt_db *Route_db) LoadRoutedb(_rtdb_records map[string]map[string]map[strin
 						route_records[ac] = append(route_records[ac], pws[0])
 						route_records[ac] = append(route_records[ac], pws[1])
 						rt_db.Convert_Route_Record(route_records)
-						if G.Debug {
-							G.Outlog(G.LOG_DEBUG, fmt.Sprintf("route_records: %+v", route_records))
-						}
 					}
 				}
 			} else if plan == nil {
@@ -680,6 +677,9 @@ func (rt_db *Route_db) Update_Cache_Record(dn string, ac string, r *RT_Cache_Rec
 		if rt_db.Cache[ac] == nil {
 			rt_db.Cache[ac] = make(map[string]RT_Cache_Record)
 		}
+		if G.Debug {
+			G.Outlog(G.LOG_DEBUG, fmt.Sprintf("Updating cache record %+v", r))
+		}
 		if rt_db.CacheSize >= RT_Cache_Size {
 			//cache too large, pop one
 			for x, _ := range rt_db.Cache {
@@ -696,6 +696,9 @@ func (rt_db *Route_db) Update_Cache_Record(dn string, ac string, r *RT_Cache_Rec
 			rt_db.CacheSize = rt_db.CacheSize + 1
 		}
 		rt_db.Cache[ac][dn] = *r
+		if G.Debug {
+			G.Outlog(G.LOG_DEBUG, fmt.Sprintf("Updating cache record done"))
+		}
 	}
 	rt_db.Locks["cache"].Unlock()
 }

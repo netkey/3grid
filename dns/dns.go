@@ -58,8 +58,10 @@ func (wkr *DNS_worker) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
 	if _udp_addr, ok := w.RemoteAddr().(*net.UDPAddr); ok {
 		ip = _udp_addr.IP
 		ac = wkr.Ipdb.GetAreaCode(ip)
-		ac = "CTC.CN.HAN.GD" //for debug
 		if aaa, ttl, _type, _ok = wkr.Rtdb.GetAAA(_dn, ac, ip); !_ok {
+			if G.Debug {
+				G.Outlog(G.LOG_DEBUG, fmt.Sprintf("GetAAA failed ip:%s ac:%s dn:%s", ip, ac, _dn))
+			}
 			return
 		}
 	} else {
@@ -153,12 +155,12 @@ func (wkr *DNS_worker) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
 
 	w.WriteMsg(m)
 
-	//update query/s counter
-	G.GP.Chan <- map[string]uint64{"QS": 1}
-
-	if G.Log {
+	if G.Debug {
 		G.Outlog(G.LOG_DNS, fmt.Sprintf("ip:%s type:%s name:%s result:%+v", ip.String(), qtype, _dn, aaa))
 	}
+
+	//update query/s counter
+	G.GP.Chan <- map[string]uint64{"QS": 1}
 }
 
 func Working(net, port, name, secret string, num int, ipdb *IP.IP_db, rtdb *RT.Route_db) {
