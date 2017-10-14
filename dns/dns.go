@@ -161,6 +161,7 @@ func (wkr *DNS_worker) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
 
 	//update perf counter async
 	G.GP.Chan <- map[string]uint64{"QS": 1}
+	G.PC.Chan <- map[string]map[string]uint64{G.PERF_DOMAIN: {_dn: 1}}
 }
 
 func Working(net, port, name, secret string, num int, ipdb *IP.IP_db, rtdb *RT.Route_db) {
