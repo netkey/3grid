@@ -1,10 +1,13 @@
 package grid_globals
 
-import "io/ioutil"
-import "strconv"
-import "strings"
-import "sync"
-import "time"
+import (
+	"fmt"
+	"io/ioutil"
+	"strconv"
+	"strings"
+	"sync"
+	"time"
+)
 
 var Debug bool //global debug flag
 
@@ -30,6 +33,22 @@ func (pcs *Perfcs) Init(interval int) {
 	go pcs.keeper()
 }
 
+func (pcs *Perfcs) Read_Perfcs(perf_type string) *map[string]string {
+	var qps uint64
+
+	pfcs := make(map[string]string)
+
+	switch perf_type {
+	case PERF_DOMAIN:
+		for k, v := range pcs.Pcs[perf_type] {
+			qps = v.Read_Qps()
+			pfcs[k] = strconv.Itoa(int(qps))
+		}
+	}
+
+	return &pfcs
+}
+
 func (pcs *Perfcs) update_pcs() error {
 	for {
 		pcm := <-pcs.Chan
@@ -37,12 +56,14 @@ func (pcs *Perfcs) update_pcs() error {
 			for k, v := range _values {
 				if pcs.Pcs[_type] == nil {
 					pcs.Pcs[_type] = make(map[string]*Perf_Counter)
-				} else if pcs.Pcs[_type][k] == nil {
+				}
+				if pcs.Pcs[_type][k] == nil {
 					_pc := &Perf_Counter{}
 					_pc.Init(int(pcs.Interval), false)
+
 					pcs.Pcs[_type][k] = _pc
 				}
-				pc := *pcs.Pcs[_type][k]
+				pc := pcs.Pcs[_type][k]
 				pc.Inc_Qs(v)
 			}
 		}
@@ -68,6 +89,9 @@ func (pcs *Perfcs) keeper() error {
 				pc.Zero_Qs()
 				pc.Update_Qps(qps)
 
+				if Debug {
+					Outlog(LOG_DEBUG, fmt.Sprintf("Perf: dn:%s qs:%d qps:%d", k, qs, qps))
+				}
 				//update load
 				/*
 					switch _type {
@@ -79,6 +103,7 @@ func (pcs *Perfcs) keeper() error {
 				*/
 			}
 		}
+
 	}
 
 	return nil
@@ -196,6 +221,11 @@ func (pc *Perf_Counter) keeper() error {
 		load = uint64(((total - _total) - (idle - _idle)) / (total - _total) * 100)
 		pc.Chan <- map[string]uint64{"LOAD": load}
 		_idle, _total = idle, total
+
+		if Debug {
+			Outlog(LOG_DEBUG, fmt.Sprintf("Perf: qs:%d qps:%d load:%d", qs, qps, load))
+		}
+
 	}
 
 	return nil

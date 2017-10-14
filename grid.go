@@ -176,6 +176,12 @@ func main() {
 	runtime.GOMAXPROCS(num_cpus)
 
 	{
+
+		//force enable log when debug mode
+		if G.Debug && log_enable == false {
+			log_enable = true
+		}
+
 		//init logger
 		if log_enable {
 			G.Log = true

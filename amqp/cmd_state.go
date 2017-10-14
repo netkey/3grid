@@ -37,7 +37,7 @@ func (c *Cmds) State(msg *AMQP_Message) error {
 				r := append(strings.Split(v, ","), strconv.Itoa(int(nid)))
 				m := map[string][]string{strconv.Itoa(int(sid)): r}
 				if G.Debug {
-					G.Outlog(G.LOG_DEBUG, fmt.Sprintf("Server id: %d, %+v", sid, m))
+					//G.Outlog(G.LOG_DEBUG, fmt.Sprintf("Server id: %d, %+v", sid, m))
 				}
 				RT.Rtdb.Convert_Server_Record(m)
 			} else {
@@ -50,7 +50,7 @@ func (c *Cmds) State(msg *AMQP_Message) error {
 				}
 				r := append(strings.Split(v, ","), server_list)
 				if G.Debug {
-					G.Outlog(G.LOG_DEBUG, fmt.Sprintf("node id: %s, %+v", k, RT.Rtdb.Nodes[nid].ServerList))
+					//G.Outlog(G.LOG_DEBUG, fmt.Sprintf("node id: %s, %+v", k, RT.Rtdb.Nodes[nid].ServerList))
 				}
 				RT.Rtdb.Convert_Node_Record(map[string][]string{k: r})
 			}
