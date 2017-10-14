@@ -64,7 +64,7 @@ func (rt_db *Route_db) Match_AC_RR(ac string, rid uint) (string, Route_List_Reco
 
 //Tag: AAA
 //return A IPs based on AreaCode and DomainName
-func (rt_db *Route_db) GetAAA(dn string, acode string, ip net.IP) ([]string, uint32, string, bool) {
+func (rt_db *Route_db) GetAAA(dn string, acode string, ip net.IP) ([]string, uint32, string, bool, string) {
 	var ttl uint32 = 0
 	var rid uint = 0
 	var aaa []string
@@ -90,7 +90,7 @@ func (rt_db *Route_db) GetAAA(dn string, acode string, ip net.IP) ([]string, uin
 
 	if aaa, ttl, _type, ok = rt_db.GetRTCache(dn, ac); ok {
 		//found in route cache
-		return aaa, ttl, _type, ok
+		return aaa, ttl, _type, ok, _ac
 	}
 
 	dr := rt_db.Read_Domain_Record(dn)
@@ -100,7 +100,7 @@ func (rt_db *Route_db) GetAAA(dn string, acode string, ip net.IP) ([]string, uin
 
 	if dr.TTL == 0 {
 		ok = false
-		return aaa, ttl, _type, ok
+		return aaa, ttl, _type, ok, _ac
 	} else {
 		ttl = uint32(dr.TTL)
 		_type = dr.Type
@@ -113,7 +113,7 @@ func (rt_db *Route_db) GetAAA(dn string, acode string, ip net.IP) ([]string, uin
 		for _, x := range s {
 			aaa = append(aaa, x)
 		}
-		return aaa, ttl, _type, ok
+		return aaa, ttl, _type, ok, _ac
 	}
 
 	rr := Route_List_Record{}
@@ -138,7 +138,7 @@ func (rt_db *Route_db) GetAAA(dn string, acode string, ip net.IP) ([]string, uin
 			if G.Debug {
 				G.Outlog(G.LOG_DEBUG, fmt.Sprintf("GETAAA failed, ac: %s, rid: %d", ac, rid))
 			}
-			return aaa, ttl, _type, false
+			return aaa, ttl, _type, false, _ac
 		}
 	}
 
@@ -178,7 +178,7 @@ func (rt_db *Route_db) GetAAA(dn string, acode string, ip net.IP) ([]string, uin
 
 	rt_db.Update_Cache_Record(dn, ac, &RT_Cache_Record{TS: time.Now().Unix(), TTL: ttl, AAA: aaa, TYPE: _type})
 
-	return aaa, ttl, _type, true
+	return aaa, ttl, _type, true, _ac
 }
 
 //check if a node covered the client ac

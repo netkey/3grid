@@ -29,18 +29,18 @@ type DNS_worker struct {
 
 func (wkr *DNS_worker) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
 	var (
-		rr    dns.RR
-		a     net.IP
-		ip    net.IP
-		ac    string
-		t     *dns.TXT
-		qtype string
-		dn    string
-		_dn   string
-		ttl   uint32
-		aaa   []string
-		_type string
-		_ok   bool
+		rr             dns.RR
+		a              net.IP
+		ip             net.IP
+		ac, matched_ac string
+		t              *dns.TXT
+		qtype          string
+		dn             string
+		_dn            string
+		ttl            uint32
+		aaa            []string
+		_type          string
+		_ok            bool
 	)
 	m := new(dns.Msg)
 	m.SetReply(r)
@@ -58,7 +58,7 @@ func (wkr *DNS_worker) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
 	if _udp_addr, ok := w.RemoteAddr().(*net.UDPAddr); ok {
 		ip = _udp_addr.IP
 		ac = wkr.Ipdb.GetAreaCode(ip)
-		if aaa, ttl, _type, _ok = wkr.Rtdb.GetAAA(_dn, ac, ip); !_ok {
+		if aaa, ttl, _type, _ok, matched_ac = wkr.Rtdb.GetAAA(_dn, ac, ip); !_ok {
 			if G.Debug {
 				G.Outlog(G.LOG_DEBUG, fmt.Sprintf("GetAAA failed ip:%s ac:%s dn:%s", ip, ac, _dn))
 			}
@@ -85,7 +85,7 @@ func (wkr *DNS_worker) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
 	if G.Debug {
 		t = &dns.TXT{
 			Hdr: dns.RR_Header{Name: dn, Rrtype: dns.TypeTXT, Class: dns.ClassINET, Ttl: ttl},
-			Txt: []string{ac},
+			Txt: []string{ac + ":" + matched_ac},
 		}
 	}
 
