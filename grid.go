@@ -198,20 +198,9 @@ func main() {
 
 	if master && !*worker {
 		//I am master, fork worker and guard it
-		env := os.Environ()
-		attr := &os.ProcAttr{
-			Env: env,
-			Files: []*os.File{
-				os.Stdin,
-				os.Stdout,
-				os.Stderr,
-			},
-		}
-
-		child, _ = os.StartProcess(progname, []string{os.Args[0], "-worker=1"}, attr)
+		child, _ = fork_process()
 
 		go guard_child()
-
 		signal_loop()
 	} else {
 		//after fork as worker, go on working
@@ -325,16 +314,21 @@ func guard_child() {
 	for {
 		child.Wait()
 
-		env := os.Environ()
-		attr := &os.ProcAttr{
-			Env: env,
-			Files: []*os.File{
-				os.Stdin,
-				os.Stdout,
-				os.Stderr,
-			},
-		}
+		child, _ = fork_process()
 
-		child, _ = os.StartProcess(progname, []string{os.Args[0], "-worker=1"}, attr)
 	}
+}
+
+func fork_process() (*os.Process, error) {
+	env := os.Environ()
+	attr := &os.ProcAttr{
+		Env: env,
+		Files: []*os.File{
+			os.Stdin,
+			os.Stdout,
+			os.Stderr,
+		},
+	}
+
+	return os.StartProcess(progname, []string{os.Args[0], "-worker=1"}, attr)
 }
