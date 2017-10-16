@@ -176,6 +176,12 @@ func main() {
 	runtime.GOMAXPROCS(num_cpus)
 
 	{
+
+		//force enable log when debug mode
+		if G.Debug && log_enable == false {
+			log_enable = true
+		}
+
 		//init logger
 		if log_enable {
 			G.Log = true
@@ -200,9 +206,13 @@ func main() {
 	}
 
 	{
-		//global options
-		G.GP = G.GSLB_Params{}
-		G.GP.Init(keepalive)
+		//global perf counters
+		G.GP = G.Perf_Counter{}
+		G.GP.Init(keepalive, true)
+
+		//specific oerf counters
+		G.PC = G.Perfcs{}
+		G.PC.Init(keepalive)
 
 		T.Check_db_versions()
 	}

@@ -63,8 +63,9 @@ func Synchronize(_interval, _ka_interval int, _myname string) {
 		if err != nil {
 			log.Fatalf("%s", err)
 		} else {
-			go CheckVersion(_interval) //Check version of ipdb & routedb
-			go Keepalive(_ka_interval) //keepalive with backend servers
+			go CheckVersion(_interval)    //Check version of ipdb & routedb
+			go Keepalive(_ka_interval)    //keepalive with backend servers
+			go State_Notify(_ka_interval) //state notify with backend servers
 			for {
 				time.Sleep(time.Duration(_interval) * time.Second)
 				T.Check_db_versions()
@@ -94,8 +95,23 @@ func CheckVersion(_interval int) {
 		_param[AMQP_OBJ_ROUTE] = grid_route.RT_Version
 		_param[AMQP_OBJ_CMDB] = grid_route.CM_Version
 		_param[AMQP_OBJ_DOMAIN] = grid_route.DM_Version
-		if err = Sendmsg("", AMQP_CMD_VER, &_param, "", &_msg1, "", *gslb_center, 0); err != nil {
+		if err = Sendmsg("", AMQP_CMD_VER, &_param, AMQP_OBJ_CONTROL, &_msg1, "", *gslb_center, 0); err != nil {
 			G.Outlog(G.LOG_AMQP, fmt.Sprintf("checkversion: %s", err))
+		}
+	}
+}
+
+func State_Notify(_interval int) {
+	var err error
+	var _param *map[string]string
+	var _msg1 []string
+
+	for {
+		time.Sleep(time.Duration(_interval) * time.Second)
+
+		_param = G.PC.Read_Perfcs(G.PERF_DOMAIN)
+		if err = Sendmsg("", AMQP_CMD_STATE, _param, AMQP_OBJ_DOMAIN, &_msg1, "", *gslb_center, 0); err != nil {
+			G.Outlog(G.LOG_AMQP, fmt.Sprintf("state: %s", err))
 		}
 	}
 }

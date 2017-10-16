@@ -32,7 +32,11 @@ type Grid_Logger struct {
 }
 
 func Outlog(target string, line string) {
-	*LogChan <- map[string]string{target: line}
+	if Log {
+		*LogChan <- map[string]string{target: line}
+	} else {
+		log.Printf(line)
+	}
 }
 
 func Outlog2(lines *map[string]string) {

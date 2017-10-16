@@ -35,6 +35,10 @@ var Rtdb *Route_db
 var RT_Cache_TTL int
 var RT_Cache_Size int64
 
+const (
+	PERF_DOMAIN = "domain"
+)
+
 /*Route DB update method
 
 domain/servers/nodes update record : map[string][]string
@@ -62,15 +66,16 @@ same as update, set the records value to nil
 */
 
 type Route_db struct {
-	Servers   map[uint]Server_List_Record                               //uint for server_id
-	Ips       map[string]Server_List_Record                             //string for server_ip(net.IP.String())
-	Nodes     map[uint]Node_List_Record                                 //uint for nodeid
-	Domains   map[string]Domain_List_Record                             //string for domain name
-	Routes    map[string]map[uint]Route_List_Record                     //string for AreaCode, uint for RoutePlan ID
-	Cache     map[string]map[string]RT_Cache_Record                     //string for AreaCode, string for domain name
-	Chan      chan map[string]map[string]map[string]map[string][]string //channel for updating dbs
-	Locks     map[string]*sync.RWMutex                                  //locks for writing dbs
-	CacheSize int64
+	Chan chan map[string]map[string]map[string]map[string][]string
+	//^ channel for updating dbs
+	Servers   map[uint]Server_List_Record           //uint for server_id
+	Ips       map[string]Server_List_Record         //string for server_ip(net.IP.String())
+	Nodes     map[uint]Node_List_Record             //uint for nodeid
+	Domains   map[string]Domain_List_Record         //string for domain name
+	Routes    map[string]map[uint]Route_List_Record //string for AreaCode, uint for RoutePlan ID
+	Cache     map[string]map[string]RT_Cache_Record //string for AreaCode, string for domain name
+	Locks     map[string]*sync.RWMutex              //locks for writing dbs
+	CacheSize int64                                 //cache limit
 }
 
 type Server_List_Record struct {
@@ -99,17 +104,16 @@ type Node_List_Record struct {
 }
 
 type Domain_List_Record struct {
-	Name        string         //domain name
-	Type        string         //A CNAME NS CDN
-	Value       string         //value of A/NS/CNAME
-	Priority    string         //domain class
-	ServerGroup uint           //server group serving this domain
-	Records     uint           //A records return once
-	TTL         uint           //TTL of A
-	RoutePlan   []uint         //RP serving this domain
-	Status      uint           //1:enable 0:disable
-	Forbidden   string         //ACs to forbid resolve(audit)
-	Perf        *G.GSLB_Params //domain query performance
+	Name        string //domain name
+	Type        string //A CNAME NS CDN
+	Value       string //value of A/NS/CNAME
+	Priority    string //domain class
+	ServerGroup uint   //server group serving this domain
+	Records     uint   //A records return once
+	TTL         uint   //TTL of A
+	RoutePlan   []uint //RP serving this domain
+	Status      uint   //1:enable 0:disable
+	Forbidden   string //ACs to forbid resolve(audit)
 }
 
 type Route_List_Record struct {
@@ -188,6 +192,7 @@ func (rt_db *Route_db) LoadDomaindb(_domain_records map[string][]string) error {
 	return err
 }
 
+//Tag: CCC
 func (rt_db *Route_db) LoadCMdb(_cmdb_records map[string]map[string][]string) error {
 	var jf []byte
 	var cmdb_records map[string]map[string][]string
@@ -217,22 +222,36 @@ func (rt_db *Route_db) LoadCMdb(_cmdb_records map[string]map[string][]string) er
 
 	if err == nil {
 		for nid, servers := range cmdb_records {
-			node_records := make(map[string][]string)
-			server_records := make(map[string][]string)
-			server_list := ""
-			for sid, server := range servers {
-				if sid == "0" {
-					node_records[nid] = server
-				} else {
-					server_records[sid] = server
-					server_records[sid] = append(server_records[sid], nid)
-					server_list = server_list + sid + ","
+			if servers != nil {
+				node_records := make(map[string][]string)
+				server_records := make(map[string][]string)
+				server_list := ""
+				for sid, server := range servers {
+					if sid == "0" {
+						node_records[nid] = server
+					} else {
+						server_records[sid] = server
+						server_records[sid] = append(server_records[sid], nid)
+						server_list = server_list + sid + ","
+					}
 				}
-			}
-			node_records[nid] = append(node_records[nid], server_list)
+				node_records[nid] = append(node_records[nid], server_list)
 
-			rt_db.Convert_Node_Record(node_records)
-			rt_db.Convert_Server_Record(server_records)
+				rt_db.Convert_Node_Record(node_records)
+				rt_db.Convert_Server_Record(server_records)
+			} else {
+				rt_db.Convert_Node_Record(map[string][]string{nid: nil})
+
+				server_records := make(map[string][]string)
+				x, _ := strconv.Atoi(nid)
+				xnid := uint(x)
+				for sid, server := range rt_db.Servers {
+					if server.NodeId == xnid {
+						server_records[strconv.Itoa(int(sid))] = nil
+					}
+				}
+				rt_db.Convert_Server_Record(server_records)
+			}
 		}
 
 		if G.Debug {
@@ -279,23 +298,26 @@ func (rt_db *Route_db) LoadRoutedb(_rtdb_records map[string]map[string]map[strin
 	if err == nil {
 		//CMCC-CN-BJ-BJ : [rid, nid, p, w]
 		for rid, plan := range rtdb_records {
-			if plan == nil || rid == "" {
-				continue
-			}
-			for ac, nodes := range plan {
-				if nodes == nil || ac == "" {
-					continue
-				}
-				for nid, pws := range nodes {
-					route_records = make(map[string][]string)
-					if pws == nil || nid == "" {
+			if plan != nil && rid != "" {
+				for ac, nodes := range plan {
+					if nodes == nil || ac == "" {
 						continue
 					}
-					route_records[ac] = append(route_records[ac], rid)
-					route_records[ac] = append(route_records[ac], nid)
-					route_records[ac] = append(route_records[ac], pws[0])
-					route_records[ac] = append(route_records[ac], pws[1])
-					rt_db.Convert_Route_Record(route_records)
+					for nid, pws := range nodes {
+						route_records = make(map[string][]string)
+						if pws == nil || nid == "" {
+							continue
+						}
+						route_records[ac] = append(route_records[ac], rid)
+						route_records[ac] = append(route_records[ac], nid)
+						route_records[ac] = append(route_records[ac], pws[0])
+						route_records[ac] = append(route_records[ac], pws[1])
+						rt_db.Convert_Route_Record(route_records)
+					}
+				}
+			} else if plan == nil {
+				if rid != "" {
+					rt_db.Convert_Route_Record(map[string][]string{rid: nil})
 				}
 			}
 		}
@@ -336,7 +358,6 @@ func (rt_db *Route_db) Updatedb() error {
 	return nil
 }
 
-//Tag: NNN
 func (rt_db *Route_db) Convert_Domain_Record(m map[string][]string) {
 	for k, v := range m {
 		x := 0
@@ -363,6 +384,7 @@ func (rt_db *Route_db) Convert_Domain_Record(m map[string][]string) {
 					}
 					r.RoutePlan = p
 				}
+				r.Status = 1
 				if len(v) > 7 {
 					x, _ = strconv.Atoi(v[7])
 					r.Status = uint(x)
@@ -399,32 +421,38 @@ func (rt_db *Route_db) Update_Domain_Record(k string, r *Domain_List_Record) {
 	rt_db.Locks["domains"].Unlock()
 }
 
+//Tag: SSS
 func (rt_db *Route_db) Convert_Server_Record(m map[string][]string) {
 	for k, v := range m {
 		x := 0
 		r := new(Server_List_Record)
 
-		if len(v) > 5 {
-			x, _ = strconv.Atoi(k)
-			r.ServerId = uint(x)
-			r.ServerIp = v[0]
-			x, _ = strconv.Atoi(v[1])
-			r.Usage = uint(x)
-			x, _ = strconv.Atoi(v[2])
-			r.ServerGroup = uint(x)
-			x, _ = strconv.Atoi(v[3])
-			r.Weight = uint(x)
-			if v[4] == "1" {
-				r.Status = true
-			} else {
-				r.Status = false
-			}
-			x, _ = strconv.Atoi(v[5])
-			r.NodeId = uint(x)
+		if v != nil {
+			if len(v) > 5 {
+				x, _ = strconv.Atoi(k)
+				r.ServerId = uint(x)
+				r.ServerIp = v[0]
+				x, _ = strconv.Atoi(v[1])
+				r.Usage = uint(x)
+				x, _ = strconv.Atoi(v[2])
+				r.ServerGroup = uint(x)
+				x, _ = strconv.Atoi(v[3])
+				r.Weight = uint(x)
+				if v[4] == "1" {
+					r.Status = true
+				} else {
+					r.Status = false
+				}
+				x, _ = strconv.Atoi(v[5])
+				r.NodeId = uint(x)
 
-			rt_db.Update_Server_Record(r.ServerId, r)
+				rt_db.Update_Server_Record(r.ServerId, r)
+			} else {
+				rt_db.Update_Server_Record(r.ServerId, nil)
+			}
+
 			if G.Debug {
-				//G.Outlog(G.LOG_DEBUG, fmt.Sprintf("update server record: %+v", r))
+				//G.Outlog(G.LOG_DEBUG, fmt.Sprintf("Convert server record: %+v", r))
 			}
 		}
 	}
@@ -453,13 +481,16 @@ func (rt_db *Route_db) Read_IP_Record(k string) Server_List_Record {
 func (rt_db *Route_db) Update_Server_Record(k uint, r *Server_List_Record) {
 	rt_db.Locks["servers"].Lock()
 	if r == nil {
+		delete(rt_db.Ips, rt_db.Servers[k].ServerIp)
 		delete(rt_db.Servers, k)
-		delete(rt_db.Ips, (*r).ServerIp)
 	} else {
 		rt_db.Servers[k] = *r
 		rt_db.Ips[(*r).ServerIp] = *r
 	}
 	rt_db.Locks["servers"].Unlock()
+	if G.Debug {
+		//G.Outlog(G.LOG_DEBUG, fmt.Sprintf("Server: %+v", rt_db.Servers[k]))
+	}
 }
 
 //Tag: NNN
@@ -468,45 +499,50 @@ func (rt_db *Route_db) Convert_Node_Record(m map[string][]string) {
 		x := 0
 		r := new(Node_List_Record)
 
-		if len(v) > 9 {
-			x, _ = strconv.Atoi(k)
-			r.NodeId = uint(x)
-			r.Name = v[0]
-			x, _ = strconv.Atoi(v[1])
-			r.Priority = uint(x)
-			x, _ = strconv.Atoi(v[2])
-			r.Weight = uint(x)
-			x, _ = strconv.Atoi(v[3])
-			r.Costs = int(x)
-			x, _ = strconv.Atoi(v[4])
-			r.NodeCapacity = uint64(x)
-			if v[5] == "1" {
-				r.Status = true
-			} else {
-				r.Status = false
-			}
-			x, _ = strconv.Atoi(v[6])
-			r.Usage = uint(x)
-			r.Type = v[7]
-			r.AC = v[8]
-			if r.AC == "" {
-				r.AC = r.Name
-			}
-			s := strings.Split(v[9], ",")
-			if len(s) > 0 {
-				p := make([]uint, len(s)-1)
-				for i, v := range s {
-					x, _ = strconv.Atoi(v)
-					if x != 0 {
-						p[i] = uint(x)
-					}
+		if v != nil {
+			if len(v) > 9 {
+				x, _ = strconv.Atoi(k)
+				r.NodeId = uint(x)
+				r.Name = v[0]
+				x, _ = strconv.Atoi(v[1])
+				r.Priority = uint(x)
+				x, _ = strconv.Atoi(v[2])
+				r.Weight = uint(x)
+				x, _ = strconv.Atoi(v[3])
+				r.Costs = int(x)
+				x, _ = strconv.Atoi(v[4])
+				r.Usage = uint(x)
+				if v[5] == "1" {
+					r.Status = true
+				} else {
+					r.Status = false
 				}
-				r.ServerList = p
+				x, _ = strconv.Atoi(v[6])
+				r.NodeCapacity = uint64(x)
+				r.Type = v[7]
+				r.AC = v[8]
+				if r.AC == "" {
+					r.AC = r.Name
+				}
+				s := strings.Split(v[9], ",")
+				if len(s) > 0 {
+					p := make([]uint, len(s)-1)
+					for i, v := range s {
+						x, _ = strconv.Atoi(v)
+						if x != 0 {
+							p[i] = uint(x)
+						}
+					}
+					r.ServerList = p
+				}
+
+				rt_db.Update_Node_Record(r.NodeId, r)
+			} else {
+				rt_db.Update_Node_Record(r.NodeId, nil)
 			}
 
-			rt_db.Update_Node_Record(r.NodeId, r)
 			if G.Debug {
-				//G.Outlog(G.LOG_DEBUG, fmt.Sprintf("update node record: %+v", r))
+				//G.Outlog(G.LOG_DEBUG, fmt.Sprintf("Convert node record: %+v", r))
 			}
 		}
 	}
@@ -533,33 +569,41 @@ func (rt_db *Route_db) Update_Node_Record(k uint, r *Node_List_Record) {
 		rt_db.Nodes[k] = *r
 	}
 	rt_db.Locks["nodes"].Unlock()
+	if G.Debug {
+		//G.Outlog(G.LOG_DEBUG, fmt.Sprintf("Node: %+v", rt_db.Nodes[k]))
+	}
 }
 
 func (rt_db *Route_db) Convert_Route_Record(m map[string][]string) {
 	var rid uint
 	var nid uint
+	r := new(Route_List_Record)
+	r.Nodes = make(map[uint]PW_List_Record)
+
 	for k, v := range m {
 		x := 0
-		r := new(Route_List_Record)
 		pw := new(PW_List_Record)
-		r.Nodes = make(map[uint]PW_List_Record)
 
-		if len(v) > 3 {
-			x, _ = strconv.Atoi(v[0])
-			rid = uint(x)
-			x, _ = strconv.Atoi(v[1])
-			nid = uint(x)
-			x, _ = strconv.Atoi(v[2])
-			pw.PW[0] = uint(x)
-			x, _ = strconv.Atoi(v[3])
-			pw.PW[1] = uint(x)
+		if v != nil {
+			if len(v) > 3 {
+				x, _ = strconv.Atoi(v[0])
+				rid = uint(x)
+				x, _ = strconv.Atoi(v[1])
+				nid = uint(x)
+				x, _ = strconv.Atoi(v[2])
+				pw.PW[0] = uint(x)
+				x, _ = strconv.Atoi(v[3])
+				pw.PW[1] = uint(x)
 
-			r.Nodes[nid] = *pw
+				r.Nodes[nid] = *pw
 
-			rt_db.Update_Route_Record(k, rid, r)
-			if G.Debug {
-				//G.Outlog(G.LOG_DEBUG, fmt.Sprintf("update route record: %s:%d:%+v", k, nid, r))
+				rt_db.Update_Route_Record(k, rid, r)
 			}
+		} else {
+			rt_db.Update_Route_Record(k, 0, nil)
+		}
+		if G.Debug {
+			//G.Outlog(G.LOG_DEBUG, fmt.Sprintf("update route record: %s:%d:%+v", k, nid, r))
 		}
 	}
 }
@@ -576,15 +620,25 @@ func (rt_db *Route_db) Read_Route_Record(k string, rid uint) Route_List_Record {
 
 func (rt_db *Route_db) Update_Route_Record(k string, rid uint, r *Route_List_Record) {
 	rt_db.Locks["routes"].Lock()
-	if r == nil {
-		delete(rt_db.Routes[k], rid)
+	if r == nil && rid == 0 {
+		delete(rt_db.Routes, k)
 	} else {
 		if rt_db.Routes[k] == nil {
 			rt_db.Routes[k] = make(map[uint]Route_List_Record)
+		} else if rt_db.Routes[k][rid].Nodes == nil {
+			//new one
+			rt_db.Routes[k][rid] = *r
+		} else {
+			//add or update new nodes
+			for nid := range r.Nodes {
+				rt_db.Routes[k][rid].Nodes[nid] = r.Nodes[nid]
+			}
 		}
-		rt_db.Routes[k][rid] = *r
+		rt_db.Locks["routes"].Unlock()
+		if G.Debug {
+			//G.Outlog(G.LOG_DEBUG, fmt.Sprintf("update route record: ac:%s rid:%d rr:%+v", k, rid, rt_db.Routes[k][rid]))
+		}
 	}
-	rt_db.Locks["routes"].Unlock()
 }
 
 func (rt_db *Route_db) Read_Cache_Record(dn string, ac string) RT_Cache_Record {

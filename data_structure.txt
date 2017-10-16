@@ -12,7 +12,9 @@
 		  3,				# 本路由方案, 
 		  2,				# 父路由方案,
 		  1				# 父父路由方案(根路由方案)
-		]
+		],
+		1,				#状态，1正常 0禁用
+		"CT.CN.HAD,CHU.CN.HAD"		#禁止解析区域（AC）
 	  ],
 }
 
@@ -60,4 +62,3 @@ nodeid   0       name        pri  weigh cost bandwidth  status  usage  type AC
 Object: 'Cmdb'
 
 Params: {'1': '0,0,0', '2.2.2.2':'0,0,0', '45': '0,0,0'}
-
