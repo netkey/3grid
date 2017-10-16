@@ -47,7 +47,8 @@ var log_buf_size int
 var log_enable bool
 
 func read_conf() {
-	viper.SetConfigFile("grid.conf")
+	viper.SupportedExts = append(viper.SupportedExts, "conf")
+	viper.SetConfigName("grid")
 	viper.SetConfigType("toml")
 
 	viper.AddConfigPath("/etc")
@@ -181,12 +182,12 @@ func main() {
 
 	if daemond && !*worker {
 		context := daemon.Context{}
-
 		context.Args = append(context.Args, progname)
 		if master {
 			context.Args = append(context.Args, "master")
 		}
 
+		os.Chdir(workdir)
 		child, _ = context.Reborn()
 
 		if child != nil {
