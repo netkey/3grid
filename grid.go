@@ -311,12 +311,9 @@ func signal_loop() {
 
 //wait the child process to end, handle it
 func guard_child() {
-
 	for {
 		child.Wait()
-
 		child, _ = fork_process()
-
 	}
 }
 
