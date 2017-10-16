@@ -172,6 +172,8 @@ func main() {
 	flag.Parse()
 	read_conf()
 
+	runtime.GOMAXPROCS(num_cpus)
+
 	G.Debug = *debug
 
 	if daemond {
@@ -186,6 +188,7 @@ func main() {
 	}
 
 	if master && !*worker {
+		//I am master, fork worker and guard it
 		env := os.Environ()
 		attr := &os.ProcAttr{
 			Env: env,
@@ -202,9 +205,7 @@ func main() {
 
 		signal_loop(child)
 	} else {
-
-		//after fork as child, go on working
-		runtime.GOMAXPROCS(num_cpus)
+		//after fork as worker, go on working
 
 		{
 
