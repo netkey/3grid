@@ -3,7 +3,7 @@ package grid_amqp
 import (
 	RT "3grid/route"
 	G "3grid/tools/globals"
-	"fmt"
+	//"fmt"
 	"strconv"
 	"strings"
 )
@@ -20,13 +20,13 @@ func (c *Cmds) State(msg *AMQP_Message) error {
 		}
 
 		if G.Debug {
-			G.Outlog(G.LOG_DEBUG, fmt.Sprintf("Updating domain status: %+v", *msg.Params))
+			//G.Outlog(G.LOG_DEBUG, fmt.Sprintf("Updating domain status: %+v", *msg.Params))
 		}
 
 	case AMQP_OBJ_CMDB:
 
 		if G.Debug {
-			G.Outlog(G.LOG_DEBUG, fmt.Sprintf("Updating node/server: %+v", *msg.Params))
+			//G.Outlog(G.LOG_DEBUG, fmt.Sprintf("Updating node/server: %+v", *msg.Params))
 		}
 
 		for k, v := range *msg.Params {

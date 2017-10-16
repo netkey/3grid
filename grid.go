@@ -14,17 +14,21 @@ import (
 	"log"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"runtime"
 	"syscall"
 )
 
 var debug = flag.Bool("debug", true, "output debug info")
+var worker = flag.Bool("worker", false, "worker mode, no daemon mode")
 
 //main program related
 var num_cpus int
 var port string
 var daemond bool
 var debug_info string
+var master bool
+var workdir string
 
 //gslb related
 var myname string
@@ -45,6 +49,7 @@ func read_conf() {
 	viper.SetConfigType("toml")
 
 	viper.AddConfigPath("/etc")
+	viper.AddConfigPath(workdir)
 	viper.AddConfigPath(".")
 
 	err := viper.ReadInConfig()
@@ -74,6 +79,12 @@ func read_conf() {
 			*debug = false
 		} else {
 			*debug = true
+		}
+		_master := viper.GetBool("server.master")
+		if _master == false {
+			master = false
+		} else {
+			master = true
 		}
 		_interval := viper.GetInt("gslb.interval")
 		if _interval < 30 {
@@ -156,101 +167,160 @@ func read_conf() {
 func main() {
 	var err error
 
+	workdir, _ = filepath.Abs(filepath.Dir(os.Args[0]))
+
 	flag.Parse()
 	read_conf()
 
 	G.Debug = *debug
 
 	if daemond {
-		context := new(daemon.Context)
+		context := daemon.Context{}
 		child, _ := context.Reborn()
 
 		if child != nil {
 			os.Exit(0)
+		} else {
+			defer context.Release()
 		}
-
-		defer context.Release()
 	}
 
-	//after fork as daemon, go on working
-	runtime.GOMAXPROCS(num_cpus)
-
-	{
-
-		//force enable log when debug mode
-		if G.Debug && log_enable == false {
-			log_enable = true
+	if master && !*worker {
+		env := os.Environ()
+		attr := &os.ProcAttr{
+			Env: env,
+			Files: []*os.File{
+				os.Stdin,
+				os.Stdout,
+				os.Stderr,
+			},
 		}
 
-		//init logger
-		if log_enable {
-			G.Log = true
-			G.LogBufSize = log_buf_size
-			if G.Logger, err = G.NewLogger(); err != nil {
-				if G.Debug {
-					log.Printf("Error making logger: %s", err)
-				}
-			} else {
-				G.LogChan = &G.Logger.Chan
-				go G.Logger.Output()
-				go G.Logger.Checklogs()
-				if G.Debug {
-					log.SetOutput(G.Logger.Fds[G.LOG_DEBUG])
-					if debug_info != "" {
-						G.Outlog(G.LOG_DEBUG, fmt.Sprintf("%s", debug_info))
-						G.Outlog(G.LOG_GSLB, fmt.Sprintf("%s", debug_info))
+		child, _ := os.StartProcess("3grid", []string{os.Args[0], "-worker=1"}, attr)
+
+		go guard_child(child)
+
+		signal_loop(child)
+	} else {
+
+		//after fork as child, go on working
+		runtime.GOMAXPROCS(num_cpus)
+
+		{
+
+			//force enable log when debug mode
+			if G.Debug && log_enable == false {
+				log_enable = true
+			}
+
+			//init logger
+			if log_enable {
+				G.Log = true
+				G.LogBufSize = log_buf_size
+				if G.Logger, err = G.NewLogger(); err != nil {
+					if G.Debug {
+						log.Printf("Error making logger: %s", err)
+					}
+				} else {
+					G.LogChan = &G.Logger.Chan
+					go G.Logger.Output()
+					go G.Logger.Checklogs()
+					if G.Debug {
+						log.SetOutput(G.Logger.Fds[G.LOG_DEBUG])
+						if debug_info != "" {
+							G.Outlog(G.LOG_DEBUG, fmt.Sprintf("%s", debug_info))
+							G.Outlog(G.LOG_GSLB, fmt.Sprintf("%s", debug_info))
+						}
 					}
 				}
 			}
 		}
+
+		{
+			//global perf counters
+			G.GP = G.Perf_Counter{}
+			G.GP.Init(keepalive, true)
+
+			//specific oerf counters
+			G.PC = G.Perfcs{}
+			G.PC.Init(keepalive)
+
+			T.Check_db_versions()
+		}
+
+		{
+			//init ip db
+			IP.Ipdb = &IP.IP_db{}
+			IP.Ipdb.IP_db_init()
+			IP.Ip_Cache_TTL = ip_cache_ttl
+			IP.Ip_Cache_Size = ip_cache_size
+		}
+
+		{
+			//init route/domain/cm db
+			RT.Rtdb = &RT.Route_db{}
+			RT.Rtdb.RT_db_init()
+			RT.MyACPrefix = acprefix
+			RT.Service_Cutoff_Percent = uint(cutoff_percent)
+			RT.Service_Deny_Percent = uint(deny_percent)
+			RT.RT_Cache_TTL = rt_cache_ttl
+			RT.RT_Cache_Size = int64(rt_cache_size)
+		}
+
+		{
+			//init dns workers
+			var name, secret string
+			for i := 0; i < num_cpus; i++ {
+				go D.Working("udp", port, name, secret, i, IP.Ipdb, RT.Rtdb)
+			}
+		}
+
+		{
+			//init amqp synchronize routine
+			go A.Synchronize(interval, keepalive, myname)
+		}
+
+		sig := make(chan os.Signal)
+		signal.Notify(sig, syscall.SIGINT, syscall.SIGTERM)
+		s := <-sig
+		log.Printf("%s stopping - signal (%s) received", myname, s)
 	}
+}
 
-	{
-		//global perf counters
-		G.GP = G.Perf_Counter{}
-		G.GP.Init(keepalive, true)
+//waiting for signal, reload child if neccessary
+func signal_loop(child *os.Process) {
+	sig := make(chan os.Signal)
+	signal.Notify(sig, syscall.SIGINT, syscall.SIGTERM, syscall.SIGHUP)
 
-		//specific oerf counters
-		G.PC = G.Perfcs{}
-		G.PC.Init(keepalive)
+	for {
+		s := <-sig
+		switch s {
 
-		T.Check_db_versions()
-	}
+		case syscall.SIGKILL, syscall.SIGINT, syscall.SIGTERM:
+			os.Exit(0)
 
-	{
-		//init ip db
-		IP.Ipdb = &IP.IP_db{}
-		IP.Ipdb.IP_db_init()
-		IP.Ip_Cache_TTL = ip_cache_ttl
-		IP.Ip_Cache_Size = ip_cache_size
-	}
-
-	{
-		//init route/domain/cm db
-		RT.Rtdb = &RT.Route_db{}
-		RT.Rtdb.RT_db_init()
-		RT.MyACPrefix = acprefix
-		RT.Service_Cutoff_Percent = uint(cutoff_percent)
-		RT.Service_Deny_Percent = uint(deny_percent)
-		RT.RT_Cache_TTL = rt_cache_ttl
-		RT.RT_Cache_Size = int64(rt_cache_size)
-	}
-
-	{
-		//init dns workers
-		var name, secret string
-		for i := 0; i < num_cpus; i++ {
-			go D.Working("udp", port, name, secret, i, IP.Ipdb, RT.Rtdb)
+		case syscall.SIGHUP:
+			child.Signal(syscall.SIGTERM)
 		}
 	}
+}
 
-	{
-		//init amqp synchronize routine
-		go A.Synchronize(interval, keepalive, myname)
+//wait the child process to end, handle it
+func guard_child(child *os.Process) {
+
+	for {
+		child.Wait()
+
+		env := os.Environ()
+		attr := &os.ProcAttr{
+			Env: env,
+			Files: []*os.File{
+				os.Stdin,
+				os.Stdout,
+				os.Stderr,
+			},
+		}
+
+		child, _ = os.StartProcess("3grid", []string{os.Args[0], "-worker=1"}, attr)
 	}
-
-	sig := make(chan os.Signal)
-	signal.Notify(sig, syscall.SIGINT, syscall.SIGTERM)
-	s := <-sig
-	log.Printf("%s stopping - signal (%s) received", myname, s)
 }
