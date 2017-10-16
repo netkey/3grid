@@ -29,6 +29,8 @@ var daemond bool
 var debug_info string
 var master bool
 var workdir string
+var progname string
+var child *os.Process
 
 //gslb related
 var myname string
@@ -168,6 +170,7 @@ func main() {
 	var err error
 
 	workdir, _ = filepath.Abs(filepath.Dir(os.Args[0]))
+	progname = filepath.Base(os.Args[0])
 
 	flag.Parse()
 	read_conf()
@@ -176,9 +179,15 @@ func main() {
 
 	G.Debug = *debug
 
-	if daemond {
+	if daemond && !*worker {
 		context := daemon.Context{}
-		child, _ := context.Reborn()
+
+		context.Args = append(context.Args, progname)
+		if master {
+			context.Args = append(context.Args, "master")
+		}
+
+		child, _ = context.Reborn()
 
 		if child != nil {
 			os.Exit(0)
@@ -199,11 +208,11 @@ func main() {
 			},
 		}
 
-		child, _ := os.StartProcess("3grid", []string{os.Args[0], "-worker=1"}, attr)
+		child, _ = os.StartProcess(progname, []string{os.Args[0], "-worker=1"}, attr)
 
-		go guard_child(child)
+		go guard_child()
 
-		signal_loop(child)
+		signal_loop()
 	} else {
 		//after fork as worker, go on working
 
@@ -281,6 +290,10 @@ func main() {
 			go A.Synchronize(interval, keepalive, myname)
 		}
 
+		if G.Debug {
+			G.Outlog(G.LOG_DEBUG, fmt.Sprintf("%s worker launched", progname))
+		}
+
 		sig := make(chan os.Signal)
 		signal.Notify(sig, syscall.SIGINT, syscall.SIGTERM)
 		s := <-sig
@@ -289,7 +302,7 @@ func main() {
 }
 
 //waiting for signal, reload child if neccessary
-func signal_loop(child *os.Process) {
+func signal_loop() {
 	sig := make(chan os.Signal)
 	signal.Notify(sig, syscall.SIGINT, syscall.SIGTERM, syscall.SIGHUP)
 
@@ -307,7 +320,7 @@ func signal_loop(child *os.Process) {
 }
 
 //wait the child process to end, handle it
-func guard_child(child *os.Process) {
+func guard_child() {
 
 	for {
 		child.Wait()
@@ -322,6 +335,6 @@ func guard_child(child *os.Process) {
 			},
 		}
 
-		child, _ = os.StartProcess("3grid", []string{os.Args[0], "-worker=1"}, attr)
+		child, _ = os.StartProcess(progname, []string{os.Args[0], "-worker=1"}, attr)
 	}
 }
