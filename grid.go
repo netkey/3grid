@@ -182,15 +182,20 @@ func main() {
 
 	if daemond && !*worker {
 		context := daemon.Context{}
+
+		//child's os.Args[0]==progname, os.Args[1]=="master"
 		context.Args = append(context.Args, progname)
 		if master {
 			context.Args = append(context.Args, "master")
 		}
 
+		//chdir to make sure os.StartProcess can start
 		os.Chdir(workdir)
+
 		child, _ = context.Reborn()
 
 		if child != nil {
+			//daemonize myself
 			os.Exit(0)
 		} else {
 			defer context.Release()
@@ -198,16 +203,14 @@ func main() {
 	}
 
 	if master && !*worker {
-		//I am master, fork worker and guard it
-		child, _ = fork_process()
-
+		//I am master, go fork worker and enter signal loop
 		go guard_child()
+
 		signal_loop()
+
 	} else {
 		//after fork as worker, go on working
-
 		{
-
 			//force enable log when debug mode
 			if G.Debug && log_enable == false {
 				log_enable = true
@@ -285,8 +288,10 @@ func main() {
 		}
 
 		sig := make(chan os.Signal)
+
 		signal.Notify(sig, syscall.SIGINT, syscall.SIGTERM)
 		s := <-sig
+
 		log.Printf("%s stopping - signal (%s) received", myname, s)
 	}
 }
@@ -294,17 +299,19 @@ func main() {
 //waiting for signal, reload child if neccessary
 func signal_loop() {
 	sig := make(chan os.Signal)
-	signal.Notify(sig, syscall.SIGINT, syscall.SIGTERM, syscall.SIGHUP)
 
+	signal.Notify(sig, syscall.SIGINT, syscall.SIGTERM, syscall.SIGHUP)
 	for {
 		s := <-sig
 		switch s {
-
 		case syscall.SIGKILL, syscall.SIGINT, syscall.SIGTERM:
+			//die, let child survive
 			os.Exit(0)
-
 		case syscall.SIGHUP:
-			child.Signal(syscall.SIGTERM)
+			if child != nil {
+				//signal child to exit(reload)
+				child.Signal(syscall.SIGTERM)
+			}
 		}
 	}
 }
@@ -312,11 +319,14 @@ func signal_loop() {
 //wait the child process to end, handle it
 func guard_child() {
 	for {
-		child.Wait()
+		if child != nil {
+			child.Wait()
+		}
 		child, _ = fork_process()
 	}
 }
 
+//start child/worker process
 func fork_process() (*os.Process, error) {
 	env := os.Environ()
 	attr := &os.ProcAttr{
@@ -328,5 +338,6 @@ func fork_process() (*os.Process, error) {
 		},
 	}
 
+	//os.Args[0]==progname, os.Args[1]=="-worker=1"
 	return os.StartProcess(progname, []string{os.Args[0], "-worker=1"}, attr)
 }
