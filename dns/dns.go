@@ -25,7 +25,9 @@ type DNS_worker struct {
 	Server *dns.Server
 	Ipdb   *IP.IP_db
 	Rtdb   *RT.Route_db
-	Qsc    map[string]uint64
+
+	Qsc   map[string]uint64
+	QscDN map[string]map[string]map[string]uint64
 }
 
 func (wkr *DNS_worker) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
@@ -159,9 +161,14 @@ func (wkr *DNS_worker) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
 	//G.Outlog(G.LOG_DNS, fmt.Sprintf("ip:%s type:%s name:%s result:%+v", ip.String(), qtype, _dn, aaa))
 	G.Outlog3(G.LOG_DNS, "ip:%s type:%s name:%s result:%+v", ip.String(), qtype, _dn, aaa)
 
-	//update perf counter async
+	//update global perf counter async
 	G.GP.Chan <- wkr.Qsc
-	G.PC.Chan <- map[string]map[string]uint64{G.PERF_DOMAIN: {_dn: 1}}
+
+	//update domain perf counter async
+	if wkr.QscDN[_dn] == nil {
+		wkr.QscDN[_dn] = map[string]map[string]uint64{G.PERF_DOMAIN: {_dn: 1}}
+	}
+	G.PC.Chan <- wkr.QscDN[_dn]
 }
 
 func Working(net, port, name, secret string, num int, ipdb *IP.IP_db, rtdb *RT.Route_db) {
@@ -170,7 +177,9 @@ func Working(net, port, name, secret string, num int, ipdb *IP.IP_db, rtdb *RT.R
 	worker.Id = num
 	worker.Ipdb = ipdb
 	worker.Rtdb = rtdb
+
 	worker.Qsc = map[string]uint64{"QS": 1}
+	worker.QscDN = make(map[string]map[string]map[string]uint64)
 
 	switch name {
 	case "":

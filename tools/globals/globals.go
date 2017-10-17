@@ -51,20 +51,21 @@ func (pcs *Perfcs) Read_Perfcs(perf_type string) *map[string]string {
 
 func (pcs *Perfcs) update_pcs() error {
 	for {
-		pcm := <-pcs.Chan
-		for _type, _values := range pcm {
-			for k, v := range _values {
-				if pcs.Pcs[_type] == nil {
-					pcs.Pcs[_type] = make(map[string]*Perf_Counter)
-				}
-				if pcs.Pcs[_type][k] == nil {
-					_pc := &Perf_Counter{}
-					_pc.Init(int(pcs.Interval), false)
+		if pcm := <-pcs.Chan; pcm != nil {
+			for _type, _values := range pcm {
+				for k, v := range _values {
+					if pcs.Pcs[_type] == nil {
+						pcs.Pcs[_type] = make(map[string]*Perf_Counter)
+					}
+					if pcs.Pcs[_type][k] == nil {
+						_pc := &Perf_Counter{}
+						_pc.Init(int(pcs.Interval), false)
 
-					pcs.Pcs[_type][k] = _pc
+						pcs.Pcs[_type][k] = _pc
+					}
+					pc := pcs.Pcs[_type][k]
+					pc.Inc_Qs(v)
 				}
-				pc := pcs.Pcs[_type][k]
-				pc.Inc_Qs(v)
 			}
 		}
 	}
@@ -189,13 +190,14 @@ func (pc *Perf_Counter) Update_Load(load uint64) {
 
 func (pc *Perf_Counter) update_gp() error {
 	for {
-		gpm := <-pc.Chan
-		for k, v := range gpm {
-			switch k {
-			case "QS", "qs":
-				pc.Inc_Qs(v)
-			case "LOAD", "load":
-				pc.Update_Load(v)
+		if gpm := <-pc.Chan; gpm != nil {
+			for k, v := range gpm {
+				switch k {
+				case "QS", "qs":
+					pc.Inc_Qs(v)
+				case "LOAD", "load":
+					pc.Update_Load(v)
+				}
 			}
 		}
 	}
