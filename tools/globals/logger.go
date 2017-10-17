@@ -35,12 +35,16 @@ func Outlog(target string, line string) {
 	if Log {
 		*LogChan <- map[string]string{target: line}
 	} else {
-		log.Printf(line)
+		if Debug {
+			log.Printf(line)
+		}
 	}
 }
 
 func Outlog2(lines *map[string]string) {
-	*LogChan <- *lines
+	if Log && lines != nil {
+		*LogChan <- *lines
+	}
 }
 
 func NewLogger() (*Grid_Logger, error) {
@@ -59,6 +63,12 @@ func NewLogger() (*Grid_Logger, error) {
 	lg.Fds = make(map[string]io.Writer)
 	lg.Loggers = make(map[string]*log.Logger)
 	lg.Locks = make(map[string]*sync.RWMutex)
+
+	//if no logs/ dir, create it
+	logs_path := lg.Workdir + "/logs"
+	if _, err = os.Stat(logs_path); os.IsNotExist(err) {
+		os.Mkdir(logs_path, 0755)
+	}
 
 	for _, to := range logto {
 		lg.Files[to] = lg.Workdir + "/logs/" + to + ".log"

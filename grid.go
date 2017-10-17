@@ -16,6 +16,8 @@ import (
 	"os/signal"
 	"path/filepath"
 	"runtime"
+	"strconv"
+	"sync"
 	"syscall"
 )
 
@@ -27,10 +29,15 @@ var num_cpus int
 var port string
 var daemond bool
 var debug_info string
-var master bool
 var workdir string
 var progname string
-var child *os.Process
+
+//master/worker related
+var master bool
+var num_childs int
+var childs []*os.Process
+var child_lock *sync.RWMutex
+var show_workpath bool
 
 //gslb related
 var myname string
@@ -65,6 +72,12 @@ func read_conf() {
 		} else {
 			num_cpus = _num_cpus
 		}
+		_num_childs := viper.GetInt("server.childs")
+		if _num_childs == 0 {
+			num_childs = 1
+		} else {
+			num_childs = _num_childs
+		}
 		_port := viper.GetString("server.port")
 		if _port == "" {
 			port = "53"
@@ -88,6 +101,12 @@ func read_conf() {
 			master = false
 		} else {
 			master = true
+		}
+		_show_workpath := viper.GetBool("server.show_workpath")
+		if _show_workpath == false {
+			show_workpath = false
+		} else {
+			show_workpath = true
 		}
 		_interval := viper.GetInt("gslb.interval")
 		if _interval < 30 {
@@ -187,12 +206,15 @@ func main() {
 		context.Args = append(context.Args, progname)
 		if master {
 			context.Args = append(context.Args, "master")
+			if show_workpath {
+				context.Args = append(context.Args, "@"+workdir)
+			}
 		}
 
 		//chdir to make sure os.StartProcess can start
 		os.Chdir(workdir)
 
-		child, _ = context.Reborn()
+		child, _ := context.Reborn()
 
 		if child != nil {
 			//daemonize myself
@@ -204,7 +226,12 @@ func main() {
 
 	if master && !*worker {
 		//I am master, go fork worker and enter signal loop
-		go guard_child()
+		childs = make([]*os.Process, num_childs)
+		child_lock = new(sync.RWMutex)
+
+		for ci, chd := range childs {
+			go guard_child(ci, chd)
+		}
 
 		signal_loop()
 
@@ -308,26 +335,38 @@ func signal_loop() {
 			//die, let child survive
 			os.Exit(0)
 		case syscall.SIGHUP:
-			if child != nil {
-				//signal child to exit(reload)
-				child.Signal(syscall.SIGTERM)
+			child_lock.Lock()
+			if childs != nil {
+				log.Printf("%+v", childs)
+				//signal childs to exit(reload)
+				for _, child := range childs {
+					child.Signal(syscall.SIGTERM)
+				}
 			}
+			child_lock.Unlock()
 		}
 	}
 }
 
 //wait the child process to end, handle it
-func guard_child() {
+func guard_child(index int, child *os.Process) {
+	var _child *os.Process = child
+
 	for {
-		if child != nil {
-			child.Wait()
+		if _child != nil {
+			_child.Wait()
 		}
-		child, _ = fork_process()
+
+		_child, _ = fork_process(index)
+
+		child_lock.Lock()
+		childs[index] = _child
+		child_lock.Unlock()
 	}
 }
 
 //start child/worker process
-func fork_process() (*os.Process, error) {
+func fork_process(workerid int) (*os.Process, error) {
 	env := os.Environ()
 	attr := &os.ProcAttr{
 		Env: env,
@@ -339,5 +378,5 @@ func fork_process() (*os.Process, error) {
 	}
 
 	//os.Args[0]==progname, os.Args[1]=="-worker=1"
-	return os.StartProcess(progname, []string{os.Args[0], "-worker=1"}, attr)
+	return os.StartProcess(progname, []string{os.Args[0], "-worker=1", "id:" + strconv.Itoa(workerid)}, attr)
 }
