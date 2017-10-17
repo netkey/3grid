@@ -25,6 +25,7 @@ type DNS_worker struct {
 	Server *dns.Server
 	Ipdb   *IP.IP_db
 	Rtdb   *RT.Route_db
+	Qsc    map[string]uint64
 }
 
 func (wkr *DNS_worker) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
@@ -159,7 +160,7 @@ func (wkr *DNS_worker) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
 	G.Outlog3(G.LOG_DNS, "ip:%s type:%s name:%s result:%+v", ip.String(), qtype, _dn, aaa)
 
 	//update perf counter async
-	G.GP.Chan <- map[string]uint64{"QS": 1}
+	G.GP.Chan <- wkr.Qsc
 	G.PC.Chan <- map[string]map[string]uint64{G.PERF_DOMAIN: {_dn: 1}}
 }
 
@@ -169,6 +170,7 @@ func Working(net, port, name, secret string, num int, ipdb *IP.IP_db, rtdb *RT.R
 	worker.Id = num
 	worker.Ipdb = ipdb
 	worker.Rtdb = rtdb
+	worker.Qsc = map[string]uint64{"QS": 1}
 
 	switch name {
 	case "":
