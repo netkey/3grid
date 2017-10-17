@@ -166,6 +166,12 @@ func (wkr *DNS_worker) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
 
 	//update domain perf counter async
 	if wkr.QscDN[_dn] == nil {
+		if len(wkr.QscDN) > 1000 {
+			for dnname, _ := range wkr.QscDN {
+				delete(wkr.QscDN, dnname)
+				break
+			}
+		}
 		wkr.QscDN[_dn] = map[string]map[string]uint64{G.PERF_DOMAIN: {_dn: 1}}
 	}
 	G.PC.Chan <- wkr.QscDN[_dn]
