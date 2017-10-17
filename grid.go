@@ -17,6 +17,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"strconv"
+	"strings"
 	"sync"
 	"syscall"
 )
@@ -199,6 +200,12 @@ func main() {
 
 	G.Debug = *debug
 
+	if len(os.Args) > 1 && os.Args[1] != "" {
+		if s := os.Args[1]; strings.Contains(s, "worker:") {
+			*worker = true
+		}
+	}
+
 	if daemond && !*worker {
 		context := daemon.Context{}
 
@@ -378,5 +385,5 @@ func fork_process(workerid int) (*os.Process, error) {
 	}
 
 	//os.Args[0]==progname, os.Args[1]=="-worker=1"
-	return os.StartProcess(progname, []string{os.Args[0], "-worker=1", "id:" + strconv.Itoa(workerid)}, attr)
+	return os.StartProcess(progname, []string{os.Args[0], "worker:" + strconv.Itoa(workerid)}, attr)
 }

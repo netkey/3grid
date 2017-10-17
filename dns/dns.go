@@ -155,7 +155,7 @@ func (wkr *DNS_worker) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
 
 	w.WriteMsg(m)
 
-	if G.LOG {
+	if G.Log {
 		G.Outlog(G.LOG_DNS, fmt.Sprintf("ip:%s type:%s name:%s result:%+v", ip.String(), qtype, _dn, aaa))
 	}
 
