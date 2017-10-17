@@ -155,9 +155,8 @@ func (wkr *DNS_worker) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
 
 	w.WriteMsg(m)
 
-	if G.Log {
-		G.Outlog(G.LOG_DNS, fmt.Sprintf("ip:%s type:%s name:%s result:%+v", ip.String(), qtype, _dn, aaa))
-	}
+	//G.Outlog(G.LOG_DNS, fmt.Sprintf("ip:%s type:%s name:%s result:%+v", ip.String(), qtype, _dn, aaa))
+	G.Outlog3(G.LOG_DNS, "ip:%s type:%s name:%s result:%+v", ip.String(), qtype, _dn, aaa)
 
 	//update perf counter async
 	G.GP.Chan <- map[string]uint64{"QS": 1}

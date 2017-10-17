@@ -21,6 +21,7 @@ var Log bool
 var LogBufSize int
 var Logger *Grid_Logger
 var LogChan *chan map[string]string
+var LogChan3 *chan map[string][]interface{}
 
 type Grid_Logger struct {
 	Workdir string
@@ -28,6 +29,7 @@ type Grid_Logger struct {
 	Fds     map[string]io.Writer
 	Loggers map[string]*log.Logger
 	Chan    chan map[string]string
+	Chan3   chan map[string][]interface{}
 	Locks   map[string]*sync.RWMutex
 }
 
@@ -44,6 +46,16 @@ func Outlog(target string, line string) {
 func Outlog2(lines *map[string]string) {
 	if Log && lines != nil {
 		*LogChan <- *lines
+	}
+}
+
+func Outlog3(target string, a ...interface{}) {
+	if Log {
+		*LogChan3 <- map[string][]interface{}{target: a}
+	} else {
+		if Debug {
+			log.Printf(a[0].(string), a[1:]...)
+		}
 	}
 }
 
@@ -86,6 +98,7 @@ func NewLogger() (*Grid_Logger, error) {
 	}
 
 	lg.Chan = make(chan map[string]string, LogBufSize)
+	lg.Chan3 = make(chan map[string][]interface{}, LogBufSize)
 
 	return &lg, err
 }
@@ -96,6 +109,17 @@ func (lg *Grid_Logger) Output() {
 		for to, line := range lmap {
 			lg.Locks[to].Lock()
 			lg.Loggers[to].Output(2, line)
+			lg.Locks[to].Unlock()
+		}
+	}
+}
+
+func (lg *Grid_Logger) Output3() {
+	for {
+		lmap := <-lg.Chan3
+		for to, lines := range lmap {
+			lg.Locks[to].Lock()
+			lg.Loggers[to].Printf(lines[0].(string), lines[1:]...)
 			lg.Locks[to].Unlock()
 		}
 	}
