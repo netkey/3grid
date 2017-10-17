@@ -132,7 +132,7 @@ func (pc *Perf_Counter) Init(interval int, goit bool) {
 	pc.loadlock = new(sync.RWMutex)
 
 	if pc.goit = goit; goit {
-		pc.Chan = make(chan map[string]uint64, 100)
+		pc.Chan = make(chan map[string]uint64, 1000)
 		go pc.update_gp()
 		go pc.keeper()
 	}
