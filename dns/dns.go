@@ -43,6 +43,7 @@ func (wkr *DNS_worker) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
 		_type          string
 		_ok            bool
 	)
+	G.Outlog3(G.LOG_DNS, "query start")
 	m := new(dns.Msg)
 	m.SetReply(r)
 	m.Compress = *compress
@@ -59,6 +60,7 @@ func (wkr *DNS_worker) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
 	if _udp_addr, ok := w.RemoteAddr().(*net.UDPAddr); ok {
 		ip = _udp_addr.IP
 		ac = wkr.Ipdb.GetAreaCode(ip)
+		G.Outlog3(G.LOG_DNS, "query from ip:%s(%s), name:%s", ip.String(), ac, _dn)
 		if aaa, ttl, _type, _ok, matched_ac = wkr.Rtdb.GetAAA(_dn, ac, ip); !_ok {
 			if G.Debug {
 				G.Outlog(G.LOG_DEBUG, fmt.Sprintf("GetAAA failed ip:%s ac:%s dn:%s", ip, ac, _dn))
