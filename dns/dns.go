@@ -58,16 +58,26 @@ func (wkr *DNS_worker) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
 	}
 
 	if _udp_addr, ok := w.RemoteAddr().(*net.UDPAddr); ok {
+
 		ip = _udp_addr.IP
 		ac = wkr.Ipdb.GetAreaCode(ip)
+
 		G.Outlog3(G.LOG_DNS, "query from ip:%s(%s), name:%s", ip.String(), ac, _dn)
+
 		if aaa, ttl, _type, _ok, matched_ac = wkr.Rtdb.GetAAA(_dn, ac, ip); !_ok {
+
 			if G.Debug {
 				G.Outlog(G.LOG_DEBUG, fmt.Sprintf("GetAAA failed ip:%s ac:%s dn:%s", ip, ac, _dn))
 			}
-			return
+
+			//no return for the client will re-query 2 times more
+			//it's better to return null record to reduce re-query times
+
+			//return
 		}
+
 	} else {
+		//some error under UDP server level
 		return
 	}
 

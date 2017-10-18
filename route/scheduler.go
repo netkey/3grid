@@ -198,22 +198,22 @@ func (rt_db *Route_db) GetAAA(query_dn string, acode string, ip net.IP) ([]strin
 		G.Outlog(G.LOG_ROUTE, fmt.Sprintf("GETAAA ac:%s, matched ac:%s, rid:%d, rr:%+v", ac, _ac, rid, rr))
 	}
 
-	nr, snr := rt_db.ChooseNode(rr.Nodes, ac)
-	nid := nr.NodeId
+	cnr, snr := rt_db.ChooseNodeS(rr.Nodes, ac)
+
+	nid := cnr.NodeId
 	if nid == 0 {
+		//cache the fail rusult for a few seconds
+		rt_db.Update_Cache_Record(dn, ac, &RT_Cache_Record{TS: time.Now().Unix(), TTL: 5, AAA: aaa, TYPE: _type})
 		return aaa, ttl, _type, false, ac
 	}
 
-	if G.Debug {
-		G.Outlog(G.LOG_DEBUG, fmt.Sprintf("GETAAA choose node: %d", nid))
-	}
-
 	if snr.NodeId != 0 {
-		l1 := rt_db.ChooseServer(nr.ServerList, dr.ServerGroup)
+		l1 := rt_db.ChooseServer(cnr.ServerList, dr.ServerGroup)
 		l2 := rt_db.ChooseServer(snr.ServerList, dr.ServerGroup)
+
 		sl = append(l1, l2...)
 	} else {
-		sl = rt_db.ChooseServer(nr.ServerList, dr.ServerGroup)
+		sl = rt_db.ChooseServer(cnr.ServerList, dr.ServerGroup)
 	}
 
 	if dr.Records <= uint(len(sl)) {
@@ -241,28 +241,42 @@ func (rt_db *Route_db) Match_Local_AC(node_ac string, client_ac string) bool {
 	return strings.Contains(client_ac, node_ac)
 }
 
+func (rt_db *Route_db) ChooseNodeS(nodes map[uint]PW_List_Record, client_ac string) (Node_List_Record, Node_List_Record) {
+	var _nodes map[uint]PW_List_Record
+	var p, s Node_List_Record
+
+	_nodes = nodes
+
+	p, s = rt_db.ChooseNode(nodes, client_ac)
+
+	if p.NodeId != 0 && s.NodeId == 0 {
+		delete(_nodes, p.NodeId)
+		s, _ = rt_db.ChooseNode(_nodes, client_ac)
+	}
+
+	return p, s
+}
+
 //scheduler algorithm of chosing available nodes, based on priority & weight & costs & usage(%)
 func (rt_db *Route_db) ChooseNode(nodes map[uint]PW_List_Record, client_ac string) (Node_List_Record, Node_List_Record) {
 	var nr, cnr, snr Node_List_Record
 	//^cnr: chosen node record, isnr: secondary chosen node, nr: node record to compare
-	var nid uint = 0        //nid: chosen node id, default to 0
-	var priority uint = 100 //priority: chosen node priority, default to lowest
-	var weight uint = 0     //weight: chosen node weight, default to lowest
-	var weight_idle, _weight_idle float64
+	var nid uint = 0                      //nid: chosen node id, default to 0
+	var priority uint = 100               //priority: chosen node priority, default to lowest
+	var weight uint = 0                   //weight: chosen node weight, default to lowest
+	var weight_idle, _weight_idle float64 //weight_idle = weight*(1-usage/100)
 
 	nr, cnr, snr = Node_List_Record{}, Node_List_Record{}, Node_List_Record{}
 
 	for k, v := range nodes {
 		nr = rt_db.Read_Node_Record(k)
-		if G.Debug {
-			G.Outlog(G.LOG_SCHEDULER, fmt.Sprintf("Looking at node:%s(%d), p:%d w:%d u:%d c:%d s:%t",
-				nr.Name, nr.NodeId, v.PW[0], v.PW[1], nr.Usage, nr.Costs, nr.Status))
-		}
+
+		G.Outlog3(G.LOG_SCHEDULER, "Looking at node:%s(%d), p:%d w:%d u:%d c:%d s:%t",
+			nr.Name, nr.NodeId, v.PW[0], v.PW[1], nr.Usage, nr.Costs, nr.Status)
+
 		if nr.Status == false || nr.Usage >= Service_Deny_Percent {
 			//not available(status algorithm) to serve(cutoff algorithm)
-			if G.Debug {
-				G.Outlog(G.LOG_SCHEDULER, fmt.Sprintf("%s(%d) not available to serve", nr.Name, nr.NodeId))
-			}
+			G.Outlog3(G.LOG_SCHEDULER, "%s(%d) not available to serve", nr.Name, nr.NodeId)
 			continue
 		}
 		if nr.Status && cnr.NodeId != 0 &&
@@ -270,36 +284,32 @@ func (rt_db *Route_db) ChooseNode(nodes map[uint]PW_List_Record, client_ac strin
 			//chosen node is in cutoff state, and i am not(cutoff algorithm)
 			if rt_db.Match_Local_AC(cnr.AC, client_ac) || cnr.Usage > Service_Deny_Percent {
 				//cutoff none local client access, then local's
-				if G.Debug {
-					G.Outlog(G.LOG_SCHEDULER, fmt.Sprintf("%s(%d) is in busy, use %s(%d) instead", cnr.Name, cnr.NodeId, nr.Name, nr.NodeId))
-				}
-				snr = cnr
-				cnr, nid, priority, weight = nr, k, v.PW[0], v.PW[1]
+				G.Outlog3(G.LOG_SCHEDULER, "%s(%d) is in busy, use %s(%d) instead", cnr.Name, cnr.NodeId, nr.Name, nr.NodeId)
+
+				snr, cnr, nid, priority, weight = cnr, nr, k, v.PW[0], v.PW[1]
 			}
 			continue
 		}
 		if v.PW[0] < priority {
 			//higher priority node(priority&weight algorithm)
-			if G.Debug {
-				if priority == 100 {
-					G.Outlog(G.LOG_SCHEDULER, fmt.Sprintf("%s(%d) has made default", nr.Name, nr.NodeId))
-				} else {
-					G.Outlog(G.LOG_SCHEDULER, fmt.Sprintf("%s(%d) has higher priority", nr.Name, nr.NodeId))
-				}
+			if priority == 100 {
+				G.Outlog3(G.LOG_SCHEDULER, "%s(%d) has made default", nr.Name, nr.NodeId)
+			} else {
+				G.Outlog3(G.LOG_SCHEDULER, "%s(%d) has higher priority", nr.Name, nr.NodeId)
 			}
-			snr = cnr
-			cnr, nid, priority, weight = nr, k, v.PW[0], v.PW[1]
+
+			snr, cnr, nid, priority, weight = cnr, nr, k, v.PW[0], v.PW[1]
+
 			continue
 		}
 		if v.PW[0] == priority {
 			//equipotent priority node
 			if nr.Costs < cnr.Costs {
 				//which has less Costs (cost algorithm)
-				snr = cnr
-				cnr, nid, priority, weight = nr, k, v.PW[0], v.PW[1]
-				if G.Log {
-					G.Outlog(G.LOG_SCHEDULER, fmt.Sprintf("%s(%d) is less costs, use it", nr.Name, nr.NodeId))
-				}
+				G.Outlog3(G.LOG_SCHEDULER, "%s(%d) is less costs, use it", nr.Name, nr.NodeId)
+
+				snr, cnr, nid, priority, weight = cnr, nr, k, v.PW[0], v.PW[1]
+
 			} else if nr.Costs == cnr.Costs {
 				//same Costs
 				weight_idle = float64(float64(weight) * (1.0 - float64(cnr.Usage)/100.0))
@@ -307,11 +317,9 @@ func (rt_db *Route_db) ChooseNode(nodes map[uint]PW_List_Record, client_ac strin
 
 				if _weight_idle >= weight_idle {
 					//higher or same weight&&idle(weight&usage algorithm), means more idle
-					snr = cnr
-					cnr, nid, priority, weight = nr, k, v.PW[0], v.PW[1]
-					if G.Log {
-						G.Outlog(G.LOG_SCHEDULER, fmt.Sprintf("%s(%d) is more idle(%f>%f), use it", nr.Name, nr.NodeId, _weight_idle, weight_idle))
-					}
+					G.Outlog3(G.LOG_SCHEDULER, "%s(%d) is more idle(%f>%f), use it", nr.Name, nr.NodeId, _weight_idle, weight_idle)
+
+					snr, cnr, nid, priority, weight = cnr, nr, k, v.PW[0], v.PW[1]
 				} else {
 					//lower weight_idle and not cheaper
 				}
@@ -325,11 +333,9 @@ func (rt_db *Route_db) ChooseNode(nodes map[uint]PW_List_Record, client_ac strin
 
 			if _weight_idle >= weight_idle && nr.Costs < cnr.Costs {
 				//higher or same weight&&idle(weight&usage algorithm) and cheaper node
-				snr = cnr
-				cnr, nid, priority, weight = nr, k, v.PW[0], v.PW[1]
-				if G.Log {
-					G.Outlog(G.LOG_SCHEDULER, fmt.Sprintf("%s(%d) is more idle and less costs, use it", nr.Name))
-				}
+				G.Outlog3(G.LOG_SCHEDULER, "%s(%d) is more idle and less costs, use it", nr.Name)
+
+				snr, cnr, nid, priority, weight = cnr, nr, k, v.PW[0], v.PW[1]
 			} else {
 				//lower weight_idle or not cheaper
 			}
@@ -337,15 +343,14 @@ func (rt_db *Route_db) ChooseNode(nodes map[uint]PW_List_Record, client_ac strin
 		}
 	}
 
-	if G.Log {
-		G.Outlog(G.LOG_SCHEDULER, fmt.Sprintf("Chosen node:%s(%d), p:%d w:%d u:%d c:%d s:%t, for ac:%s. Secondary node:%s(%d), u:%d c:%d s:%t",
-			cnr.Name, cnr.NodeId, priority, weight, cnr.Usage, cnr.Costs, cnr.Status, client_ac,
-			snr.Name, snr.NodeId, snr.Usage, snr.Costs, snr.Status))
-	}
+	G.Outlog3(G.LOG_SCHEDULER, "Chosen node:%s(%d), p:%d w:%d u:%d c:%d s:%t, for ac:%s. Second node:%s(%d), u:%d c:%d s:%t",
+		cnr.Name, cnr.NodeId, priority, weight, cnr.Usage, cnr.Costs, cnr.Status, client_ac,
+		snr.Name, snr.NodeId, snr.Usage, snr.Costs, snr.Status)
 
 	if nid == 0 {
-		//no node selected
-		cnr = Node_List_Record{}
+		//no node has been selected
+		cnr, snr = Node_List_Record{}, Node_List_Record{}
+
 	} else if cnr.NodeId == snr.NodeId {
 		//first node and second node are same
 		snr = Node_List_Record{}
