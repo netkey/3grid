@@ -245,6 +245,11 @@ func main() {
 	} else {
 		//after fork as worker, go on working
 		{
+			//multi workers
+			if *worker && len(os.Args) > 1 {
+				myname = myname + os.Args[1][strings.LastIndex(os.Args[1], ":"):]
+			}
+
 			//force enable log when debug mode
 			if G.Debug && log_enable == false {
 				log_enable = true

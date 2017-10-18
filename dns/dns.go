@@ -25,9 +25,7 @@ type DNS_worker struct {
 	Server *dns.Server
 	Ipdb   *IP.IP_db
 	Rtdb   *RT.Route_db
-
-	Qsc   map[string]uint64
-	QscDN map[string]map[string]map[string]uint64
+	Qsc    map[string]uint64
 }
 
 func (wkr *DNS_worker) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
@@ -165,16 +163,7 @@ func (wkr *DNS_worker) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
 	G.GP.Chan <- wkr.Qsc
 
 	//update domain perf counter async
-	if wkr.QscDN[_dn] == nil {
-		if len(wkr.QscDN) > 1000 {
-			for dnname, _ := range wkr.QscDN {
-				delete(wkr.QscDN, dnname)
-				break
-			}
-		}
-		wkr.QscDN[_dn] = map[string]map[string]uint64{G.PERF_DOMAIN: {_dn: 1}}
-	}
-	G.PC.Chan <- wkr.QscDN[_dn]
+	G.PC.Chan <- map[string]map[string]uint64{G.PERF_DOMAIN: {_dn: 1}}
 }
 
 func Working(net, port, name, secret string, num int, ipdb *IP.IP_db, rtdb *RT.Route_db) {
@@ -185,7 +174,6 @@ func Working(net, port, name, secret string, num int, ipdb *IP.IP_db, rtdb *RT.R
 	worker.Rtdb = rtdb
 
 	worker.Qsc = map[string]uint64{"QS": 1}
-	worker.QscDN = make(map[string]map[string]map[string]uint64)
 
 	switch name {
 	case "":
