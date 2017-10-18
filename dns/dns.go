@@ -156,7 +156,7 @@ func (wkr *DNS_worker) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
 
 	w.WriteMsg(m)
 
-	//G.Outlog(G.LOG_DNS, fmt.Sprintf("ip:%s type:%s name:%s result:%+v", ip.String(), qtype, _dn, aaa))
+	//output query log
 	G.Outlog3(G.LOG_DNS, "ip:%s type:%s name:%s result:%+v", ip.String(), qtype, _dn, aaa)
 
 	//update global perf counter async

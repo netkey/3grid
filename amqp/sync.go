@@ -134,6 +134,7 @@ func Keepalive(_interval int) {
 			if err = Sendmsg("", AMQP_CMD_KA, &_param, "", &_msg1, "", *gslb_center, 0); err != nil {
 				G.Outlog(G.LOG_AMQP, fmt.Sprintf("keepalive: %s", err))
 			}
+			//G.Outlog3(G.LOG_AMQP, "GP Perf: %+v", _param)
 		}
 
 		time.Sleep(time.Duration(_interval) * time.Second)

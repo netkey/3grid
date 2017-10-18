@@ -189,17 +189,45 @@ func (pc *Perf_Counter) Update_Load(load uint64) {
 }
 
 func (pc *Perf_Counter) update_gp() error {
+	var qs, load, lc uint64
+
 	for {
-		if gpm := <-pc.Chan; gpm != nil {
-			for k, v := range gpm {
-				switch k {
-				case "QS", "qs":
-					pc.Inc_Qs(v)
-				case "LOAD", "load":
-					pc.Update_Load(v)
+		select {
+		case gpm := <-pc.Chan:
+			if gpm != nil {
+				for k, v := range gpm {
+					switch k {
+					case "QS", "qs":
+						qs += v
+						if qs > 100 {
+							pc.Inc_Qs(qs)
+							qs = 0
+						}
+					case "LOAD", "load":
+						lc++
+						load = v
+						if lc > 0 {
+							pc.Update_Load(load)
+							load = 0
+							lc = 0
+						}
+					}
 				}
 			}
+
+		case <-time.After(time.Second * 5):
+			//timeout
+			if qs > 0 {
+				pc.Inc_Qs(qs)
+				qs = 0
+			}
+			if load > 0 {
+				pc.Update_Load(load)
+				load = 0
+				lc = 0
+			}
 		}
+
 	}
 
 	return nil
