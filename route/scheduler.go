@@ -24,6 +24,7 @@ func (rt_db *Route_db) IN_Serverlist(ip net.IP) (uint, bool) {
 func (rt_db *Route_db) Match_AC_RR(ac string, rid uint) (string, Route_List_Record) {
 	var _ac string
 	var find bool = false
+	var rr Route_List_Record
 
 	if G.Debug {
 		G.Outlog(G.LOG_SCHEDULER, fmt.Sprintf("Matching ac:%s in route plan:%d", ac, rid))
@@ -31,40 +32,87 @@ func (rt_db *Route_db) Match_AC_RR(ac string, rid uint) (string, Route_List_Reco
 
 	for _ac = ac; _ac != ""; {
 
-		if rt_db.Routes[_ac] != nil {
-			if rt_db.Routes[_ac][rid].Nodes != nil {
-				//find a match
-				find = true
-				break
-			}
+		rr = rt_db.Read_Route_Record(_ac, rid)
+		/*
+			//may has read/write conflict
+						if rt_db.Routes[_ac] != nil {
+							if rt_db.Routes[_ac][rid].Nodes != nil {
+		*/
+		if rr.Nodes != nil {
+			//find a match
+			find = true
+			break
 		}
 
 		//shorter the ac, go next match
 		if li := strings.LastIndex(_ac, "."); li != -1 {
-			_ac = _ac[0:strings.LastIndex(_ac, ".")]
+			_ac = _ac[:li]
 		} else {
 			break
 		}
 
 	}
 
+	if !find {
+		_ac = "*"
+		rr = rt_db.Read_Route_Record(_ac, rid)
+		if rr.Nodes != nil {
+			find = true
+		}
+	}
+
+	if !find {
+		_ac = "*.*"
+		rr = rt_db.Read_Route_Record(_ac, rid)
+		if rr.Nodes != nil {
+			find = true
+		}
+	}
+
 	if find {
-		_rr := rt_db.Read_Route_Record(_ac, rid)
-		if G.Debug {
-			G.Outlog(G.LOG_SCHEDULER, fmt.Sprintf("AC:%s matched in route plan %d, %+v", _ac, rid, _rr))
-		}
-		return _ac, _rr
+		G.Outlog3(G.LOG_SCHEDULER, "AC:%s matched in route plan %d, %+v", _ac, rid, rr)
+		return _ac, rr
 	} else {
-		if G.Debug {
-			G.Outlog(G.LOG_SCHEDULER, fmt.Sprintf("No matched ac:%s in route plan %d", ac, rid))
-		}
+		G.Outlog3(G.LOG_SCHEDULER, "No matched ac:%s in route plan %d", ac, rid)
 		return "", Route_List_Record{}
 	}
 }
 
+//longest match the domain name
+func (rt_db *Route_db) Match_DN(query_dn string) (Domain_List_Record, bool) {
+	var dn string
+	var dr Domain_List_Record
+	var find bool = false
+
+	for dn = query_dn; dn != ""; {
+		dr = rt_db.Read_Domain_Record(dn)
+		if dr.TTL != 0 {
+			//domain name not found
+			find = true
+			break
+		}
+
+		//replace the first section in dn with *, go next match
+		if li := strings.Index(dn, "."); li != -1 {
+			dn = "*" + dn[li:]
+		} else {
+			break
+		}
+	}
+
+	if find {
+		G.Outlog3(G.LOG_SCHEDULER, "DN:%s matched, %+v", dn, dr)
+		return dr, true
+	} else {
+		G.Outlog3(G.LOG_SCHEDULER, "No matched dn:%s", dn)
+		return Domain_List_Record{}, false
+	}
+
+}
+
 //Tag: AAA
 //return A IPs based on AreaCode and DomainName
-func (rt_db *Route_db) GetAAA(dn string, acode string, ip net.IP) ([]string, uint32, string, bool, string) {
+func (rt_db *Route_db) GetAAA(query_dn string, acode string, ip net.IP) ([]string, uint32, string, bool, string) {
 	var ttl uint32 = 0
 	var rid uint = 0
 	var aaa []string
@@ -72,12 +120,13 @@ func (rt_db *Route_db) GetAAA(dn string, acode string, ip net.IP) ([]string, uin
 	var _ac string
 	var ok bool = true
 	var _type string
+	var dn string
 
 	if _nid, ok := rt_db.IN_Serverlist(ip); ok {
 		//it's my server, change the area code to its node
 		irn := rt_db.Read_Node_Record(_nid)
-		if irn.Name != "" {
-			ac = MyACPrefix + "." + irn.Name
+		if irn.AC != "" {
+			ac = MyACPrefix + "." + irn.AC
 		} else {
 			ac = acode
 		}
@@ -87,23 +136,20 @@ func (rt_db *Route_db) GetAAA(dn string, acode string, ip net.IP) ([]string, uin
 	}
 
 	_ac = ac
+	dn = query_dn
 
 	if aaa, ttl, _type, ok = rt_db.GetRTCache(dn, ac); ok {
 		//found in route cache
 		return aaa, ttl, _type, ok, _ac
 	}
 
-	dr := rt_db.Read_Domain_Record(dn)
-	if G.Debug {
-		//G.Outlog(G.LOG_DEBUG, fmt.Sprintf("GETAAA dr: %+v", dr))
-	}
-
-	if dr.TTL == 0 {
-		ok = false
-		return aaa, ttl, _type, ok, _ac
-	} else {
+	dr, ok := rt_db.Match_DN(dn)
+	if ok {
+		dn = dr.Name
 		ttl = uint32(dr.TTL)
 		_type = dr.Type
+	} else {
+		return aaa, ttl, _type, false, _ac
 	}
 
 	if dr.Type != "" {
