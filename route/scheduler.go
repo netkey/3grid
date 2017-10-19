@@ -390,9 +390,9 @@ func (rt_db *Route_db) ChooseNode(nodes map[uint]PW_List_Record, client_ac strin
 		}
 	}
 
-	G.Outlog3(G.LOG_SCHEDULER, "Chosen node:%s(%d) p:%d w:%d u:%d c:%d s:%t, for ac:%s Second node:%s(%d), u:%d c:%d s:%t",
-		cnr.Name, cnr.NodeId, priority, weight, cnr.Usage, cnr.Costs, cnr.Status, client_ac,
-		snr.Name, snr.NodeId, snr.Usage, snr.Costs, snr.Status)
+	G.Outlog3(G.LOG_SCHEDULER, "Chosen node:%s(%d) p:%d w:%d u:%d c:%d s:%t, second node:%s(%d) u:%d c:%d s:%t, for ac:%s",
+		cnr.Name, cnr.NodeId, priority, weight, cnr.Usage, cnr.Costs, cnr.Status,
+		snr.Name, snr.NodeId, snr.Usage, snr.Costs, snr.Status, client_ac)
 
 	if nid == 0 {
 		//no node has been selected
