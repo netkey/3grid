@@ -235,7 +235,7 @@ func (rt_db *Route_db) GetAAA(query_dn string, acode string, ip net.IP) ([]strin
 	G.Outlog3(G.LOG_ROUTE, "GETAAA ac:%s, matched ac:%s, rid:%d, rr:%+v", ac, _ac, rid, rr)
 
 	//choose primary and secondary node for serving
-	cnr, snr := rt_db.ChooseNodeS(rr.Nodes, ac, &dr)
+	cnr, snr := rt_db.ChooseNodeS(rr.Nodes, _ac, &dr)
 
 	nid := cnr.NodeId
 	if nid == 0 {
@@ -313,8 +313,8 @@ func (rt_db *Route_db) ChooseNode(nodes map[uint]PW_List_Record, client_ac strin
 
 		nr = rt_db.Read_Node_Record(k)
 
-		G.Outlog3(G.LOG_SCHEDULER, "Looking at node:%s(%d), p:%d w:%d u:%d c:%d s:%t",
-			nr.Name, nr.NodeId, v.PW[0], v.PW[1], nr.Usage, nr.Costs, nr.Status)
+		G.Outlog3(G.LOG_SCHEDULER, "Looking at node:%s(%d), p:%d w:%d u:%d c:%d s:%t ac:%s",
+			nr.Name, nr.NodeId, v.PW[0], v.PW[1], nr.Usage, nr.Costs, nr.Status, nr.AC)
 
 		if nr.Status == false || nr.Usage >= Service_Deny_Percent {
 			//not available(status algorithm) to serve(cutoff algorithm)
@@ -323,7 +323,7 @@ func (rt_db *Route_db) ChooseNode(nodes map[uint]PW_List_Record, client_ac strin
 		}
 		if _, fb_matched := rt_db.Match_FB(nr.AC, dr); fb_matched {
 			//node's AC match domain forbidden map's
-			G.Outlog3(G.LOG_SCHEDULER, "%s(%d) match domain forbidden map, pass", nr.Name, nr.NodeId)
+			G.Outlog3(G.LOG_SCHEDULER, "%s(%d) match domain forbidden map, pass it", nr.Name, nr.NodeId)
 			continue
 		}
 		if nr.Status && cnr.NodeId != 0 &&
@@ -390,7 +390,7 @@ func (rt_db *Route_db) ChooseNode(nodes map[uint]PW_List_Record, client_ac strin
 		}
 	}
 
-	G.Outlog3(G.LOG_SCHEDULER, "Chosen node:%s(%d), p:%d w:%d u:%d c:%d s:%t, for ac:%s. Second node:%s(%d), u:%d c:%d s:%t",
+	G.Outlog3(G.LOG_SCHEDULER, "Chosen node:%s(%d) p:%d w:%d u:%d c:%d s:%t, for ac:%s Second node:%s(%d), u:%d c:%d s:%t",
 		cnr.Name, cnr.NodeId, priority, weight, cnr.Usage, cnr.Costs, cnr.Status, client_ac,
 		snr.Name, snr.NodeId, snr.Usage, snr.Costs, snr.Status)
 
