@@ -104,17 +104,16 @@ type Node_List_Record struct {
 }
 
 type Domain_List_Record struct {
-	Name        string //domain name
-	Type        string //A CNAME NS CDN
-	Value       string //value of A/NS/CNAME
-	Priority    string //domain class
-	ServerGroup uint   //server group serving this domain
-	Records     uint   //A records return once
-	TTL         uint   //TTL of A
-	RoutePlan   []uint //RP serving this domain
-	Status      uint   //1:enable 0:disable
-	//Forbidden   string //ACs to forbid serve(audit)
-	Forbidden map[string]uint //map of ACs to forbid serve(audit)
+	Name        string          //domain name
+	Type        string          //A CNAME NS CDN
+	Value       string          //value of A/NS/CNAME
+	Priority    string          //domain class
+	ServerGroup uint            //server group serving this domain
+	Records     uint            //A records return once
+	TTL         uint            //TTL of A
+	RoutePlan   []uint          //RP serving this domain
+	Status      uint            //1:enable 0:disable
+	Forbidden   map[string]uint //map of ACs to forbid serve(audit)
 }
 
 type Route_List_Record struct {
