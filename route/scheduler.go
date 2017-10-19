@@ -28,13 +28,8 @@ func (rt_db *Route_db) Match_AC_RR(ac string, rid uint) (string, Route_List_Reco
 
 	for _ac = ac; _ac != ""; {
 		//G.Outlog3(G.LOG_SCHEDULER, "AC: matching:%s", _ac)
-
 		rr = rt_db.Read_Route_Record(_ac, rid)
-		/*
-			//may has read/write conflict
-						if rt_db.Routes[_ac] != nil {
-							if rt_db.Routes[_ac][rid].Nodes != nil {
-		*/
+
 		if rr.Nodes != nil {
 			//find a match
 			find = true
@@ -47,7 +42,6 @@ func (rt_db *Route_db) Match_AC_RR(ac string, rid uint) (string, Route_List_Reco
 		} else {
 			break
 		}
-
 	}
 
 	if !find {
@@ -83,7 +77,6 @@ func (rt_db *Route_db) Match_DN(query_dn string) (Domain_List_Record, bool) {
 
 	for dn = query_dn; dn != ""; {
 		//G.Outlog3(G.LOG_SCHEDULER, "DN: matching:%s", dn)
-
 		dr = rt_db.Read_Domain_Record(dn)
 		if dr.TTL != 0 {
 			//domain name not found
@@ -112,6 +105,42 @@ func (rt_db *Route_db) Match_DN(query_dn string) (Domain_List_Record, bool) {
 		return Domain_List_Record{}, false
 	}
 
+}
+
+func (rt_db *Route_db) Match_FB(ac string, dr *Domain_List_Record) (_ac string, _matched bool) {
+	_ac = ac
+	_matched = false
+
+	/*
+		ac cases: client_ac, node_ac
+		forbidden  CT.CN.HAN    *.CN.HAD
+		client_ac  CT.CN.HAN.HN *.CN.HAD.SH
+		node_ac    CT.CN.HAN.HN CT.CN.HAD.SH CT.CN.HAD.ZJ.JH
+	*/
+
+	if _ac != "" && dr != nil && dr.Forbidden != nil {
+		for fb, _ := range dr.Forbidden {
+			if strings.Index(ac, fb) == 0 {
+				_matched = true
+				if li := strings.LastIndex(fb, "."); li != -1 {
+					_ac = fb[:li]
+				}
+			} else {
+				if fb[:2] == "*." {
+					if li := strings.Index(ac, fb[2:]); li > 0 {
+						_matched = true
+						_ac = ac[:li-1]
+					}
+				}
+			}
+		}
+	}
+
+	if _matched {
+		G.Outlog3(G.LOG_SCHEDULER, "Match_FB mangle client ac:%s to %s", ac, _ac)
+	}
+
+	return
 }
 
 //Tag: AAA
@@ -145,10 +174,16 @@ func (rt_db *Route_db) GetAAA(query_dn string, acode string, ip net.IP) ([]strin
 
 	if aaa, ttl, _type, ok = rt_db.GetRTCache(dn, ac); ok {
 		//found in route cache
+		if aaa == nil {
+			//a fail cache result
+			ok = false
+		}
 		return aaa, ttl, _type, ok, _ac
 	}
 
+	//find domain record
 	dr, ok := rt_db.Match_DN(dn)
+
 	if ok {
 		dn = dr.Name
 		ttl = uint32(dr.TTL)
@@ -167,8 +202,12 @@ func (rt_db *Route_db) GetAAA(query_dn string, acode string, ip net.IP) ([]strin
 		return aaa, ttl, _type, ok, _ac
 	}
 
-	rr := Route_List_Record{}
+	if dr.Forbidden != nil {
+		//match client ac in domain forbidden map and mangle it
+		ac, _ = rt_db.Match_FB(ac, &dr)
+	}
 
+	rr := Route_List_Record{}
 	if dr.RoutePlan != nil {
 		//try get route_record of current plan, get next plan if no rr
 		for _, v := range dr.RoutePlan {
@@ -193,12 +232,10 @@ func (rt_db *Route_db) GetAAA(query_dn string, acode string, ip net.IP) ([]strin
 		}
 	}
 
-	if G.Log {
-		G.Outlog(G.LOG_DEBUG, fmt.Sprintf("GETAAA match_ac_rr: %+v", rr))
-		G.Outlog(G.LOG_ROUTE, fmt.Sprintf("GETAAA ac:%s, matched ac:%s, rid:%d, rr:%+v", ac, _ac, rid, rr))
-	}
+	G.Outlog3(G.LOG_ROUTE, "GETAAA ac:%s, matched ac:%s, rid:%d, rr:%+v", ac, _ac, rid, rr)
 
-	cnr, snr := rt_db.ChooseNodeS(rr.Nodes, ac)
+	//choose primary and secondary node for serving
+	cnr, snr := rt_db.ChooseNodeS(rr.Nodes, ac, &dr)
 
 	nid := cnr.NodeId
 	if nid == 0 {
@@ -208,10 +245,10 @@ func (rt_db *Route_db) GetAAA(query_dn string, acode string, ip net.IP) ([]strin
 	}
 
 	if snr.NodeId != 0 {
-		l1 := rt_db.ChooseServer(cnr.ServerList, dr.ServerGroup)
-		l2 := rt_db.ChooseServer(snr.ServerList, dr.ServerGroup)
+		cnr_sl := rt_db.ChooseServer(cnr.ServerList, dr.ServerGroup)
+		snr_sl := rt_db.ChooseServer(snr.ServerList, dr.ServerGroup)
 
-		sl = append(l1, l2...)
+		sl = append(cnr_sl, snr_sl...)
 	} else {
 		sl = rt_db.ChooseServer(cnr.ServerList, dr.ServerGroup)
 	}
@@ -241,24 +278,28 @@ func (rt_db *Route_db) Match_Local_AC(node_ac string, client_ac string) bool {
 	return strings.Contains(client_ac, node_ac)
 }
 
-func (rt_db *Route_db) ChooseNodeS(nodes map[uint]PW_List_Record, client_ac string) (Node_List_Record, Node_List_Record) {
-	var _nodes map[uint]PW_List_Record
+func (rt_db *Route_db) ChooseNodeS(nodes map[uint]PW_List_Record, client_ac string, dr *Domain_List_Record) (Node_List_Record, Node_List_Record) {
 	var p, s Node_List_Record
+	var _nodes map[uint]PW_List_Record
+	var _nrecords uint
 
 	_nodes = nodes
+	_nrecords = dr.Records
 
-	p, s = rt_db.ChooseNode(nodes, client_ac)
+	p, s = rt_db.ChooseNode(nodes, client_ac, dr)
 
 	if p.NodeId != 0 && s.NodeId == 0 {
-		delete(_nodes, p.NodeId)
-		s, _ = rt_db.ChooseNode(_nodes, client_ac)
+		if _nrecords > uint(len(p.ServerList)) {
+			delete(_nodes, p.NodeId)
+			s, _ = rt_db.ChooseNode(_nodes, client_ac, dr)
+		}
 	}
 
 	return p, s
 }
 
 //scheduler algorithm of chosing available nodes, based on priority & weight & costs & usage(%)
-func (rt_db *Route_db) ChooseNode(nodes map[uint]PW_List_Record, client_ac string) (Node_List_Record, Node_List_Record) {
+func (rt_db *Route_db) ChooseNode(nodes map[uint]PW_List_Record, client_ac string, dr *Domain_List_Record) (Node_List_Record, Node_List_Record) {
 	var nr, cnr, snr Node_List_Record
 	//^cnr: chosen node record, isnr: secondary chosen node, nr: node record to compare
 	var nid uint = 0                      //nid: chosen node id, default to 0
@@ -277,6 +318,11 @@ func (rt_db *Route_db) ChooseNode(nodes map[uint]PW_List_Record, client_ac strin
 		if nr.Status == false || nr.Usage >= Service_Deny_Percent {
 			//not available(status algorithm) to serve(cutoff algorithm)
 			G.Outlog3(G.LOG_SCHEDULER, "%s(%d) not available to serve", nr.Name, nr.NodeId)
+			continue
+		}
+		if _, fb_matched := rt_db.Match_FB(nr.AC, dr); fb_matched {
+			//node's AC match domain forbidden map's
+			G.Outlog3(G.LOG_SCHEDULER, "%s(%d) match domain forbidden map, pass", nr.Name, nr.NodeId)
 			continue
 		}
 		if nr.Status && cnr.NodeId != 0 &&

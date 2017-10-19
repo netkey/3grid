@@ -113,7 +113,8 @@ type Domain_List_Record struct {
 	TTL         uint   //TTL of A
 	RoutePlan   []uint //RP serving this domain
 	Status      uint   //1:enable 0:disable
-	Forbidden   string //ACs to forbid resolve(audit)
+	//Forbidden   string //ACs to forbid serve(audit)
+	Forbidden map[string]uint //map of ACs to forbid serve(audit)
 }
 
 type Route_List_Record struct {
@@ -388,7 +389,14 @@ func (rt_db *Route_db) Convert_Domain_Record(m map[string][]string) {
 				if len(v) > 7 {
 					x, _ = strconv.Atoi(v[7])
 					r.Status = uint(x)
-					r.Forbidden = v[8]
+
+					if v[8] != "" {
+						r.Forbidden = make(map[string]uint)
+						for _, fac := range strings.Split(v[8], ",") {
+							r.Forbidden[fac] = 1
+						}
+					}
+
 				}
 				rt_db.Update_Domain_Record(k, r)
 				if G.Debug {
