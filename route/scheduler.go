@@ -137,7 +137,7 @@ func (rt_db *Route_db) Match_FB(ac string, dr *Domain_List_Record) (_ac string, 
 	}
 
 	if _matched {
-		G.Outlog3(G.LOG_SCHEDULER, "Match_FB mangle client ac:%s to %s", ac, _ac)
+		//G.Outlog3(G.LOG_SCHEDULER, "Match_FB mangle client ac:%s to %s", ac, _ac)
 	}
 
 	return
@@ -310,6 +310,7 @@ func (rt_db *Route_db) ChooseNode(nodes map[uint]PW_List_Record, client_ac strin
 	nr, cnr, snr = Node_List_Record{}, Node_List_Record{}, Node_List_Record{}
 
 	for k, v := range nodes {
+
 		nr = rt_db.Read_Node_Record(k)
 
 		G.Outlog3(G.LOG_SCHEDULER, "Looking at node:%s(%d), p:%d w:%d u:%d c:%d s:%t",
