@@ -132,14 +132,14 @@ func (wkr *DNS_worker) RR(query_type uint16, client_ip net.IP, dn string, ttl ui
 
 func (wkr *DNS_worker) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
 	var (
-		ip             net.IP
-		ac, matched_ac string
-		dn             string
-		_dn            string
-		ttl            uint32
-		aaa            []string
-		_type          string
-		_ok            bool
+		ip             net.IP   //client ip
+		ac, matched_ac string   //client AC, actually matched AC
+		dn             string   //query domain name
+		_dn            string   //mangled dn
+		ttl            uint32   //answer ttl
+		aaa            []string //ips
+		_type          string   //query type in string
+		_ok            bool     //GetAAA status
 	)
 
 	ttl = Default_ttl
@@ -173,9 +173,8 @@ func (wkr *DNS_worker) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
 		return
 	}
 
-	//generate RR answer
+	//generate answer and send it
 	if m := wkr.RR(r.Question[0].Qtype, ip, dn, ttl, ac, matched_ac, _type, aaa, w, r); m != nil {
-		//send out answer
 		w.WriteMsg(m)
 	}
 
