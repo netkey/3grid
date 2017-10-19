@@ -28,56 +28,8 @@ type DNS_worker struct {
 	Qsc    map[string]uint64
 }
 
-func (wkr *DNS_worker) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
-	var (
-		rr             dns.RR
-		a              net.IP
-		ip             net.IP
-		ac, matched_ac string
-		t              *dns.TXT
-		qtype          string
-		dn             string
-		_dn            string
-		ttl            uint32
-		aaa            []string
-		_type          string
-		_ok            bool
-	)
-	G.Outlog3(G.LOG_DNS, "query start")
-	m := new(dns.Msg)
-	m.SetReply(r)
-	m.Compress = *compress
-
-	ttl = Default_ttl
-	dn = r.Question[0].Name //query domain name
-
-	if strings.HasSuffix(dn, ".") {
-		_dn = dn[0 : len(dn)-1]
-	} else {
-		_dn = dn
-	}
-
-	if _udp_addr, ok := w.RemoteAddr().(*net.UDPAddr); ok {
-
-		ip = _udp_addr.IP
-		ac = wkr.Ipdb.GetAreaCode(ip)
-
-		if aaa, ttl, _type, _ok, matched_ac = wkr.Rtdb.GetAAA(_dn, ac, ip); !_ok {
-
-			if G.Debug {
-				G.Outlog(G.LOG_DEBUG, fmt.Sprintf("GetAAA failed ip:%s ac:%s dn:%s", ip, ac, _dn))
-			}
-
-			//return will cause the client to re-query 2 times more
-			//it's better to answer a null record to reduce client re-query times
-
-			//return
-		}
-
-	} else {
-		//some error under UDP server level
-		return
-	}
+func (wkr *DNS_worker) RR(query_type uint16, client_ip net.IP, dn string, ttl uint32, ac, matched_ac, _type string, aaa []string, w dns.ResponseWriter, r *dns.Msg) *dns.Msg {
+	//return result based on dns query type
 
 	/*
 		ipv4 RR:
@@ -93,6 +45,11 @@ func (wkr *DNS_worker) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
 		}
 	*/
 
+	var rr dns.RR
+	var qtype string
+	var t *dns.TXT
+	var a net.IP
+
 	if G.Debug {
 		t = &dns.TXT{
 			Hdr: dns.RR_Header{Name: dn, Rrtype: dns.TypeTXT, Class: dns.ClassINET, Ttl: ttl},
@@ -100,8 +57,11 @@ func (wkr *DNS_worker) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
 		}
 	}
 
-	//return result based on dns query type
-	switch r.Question[0].Qtype {
+	m := new(dns.Msg)
+	m.SetReply(r)
+	m.Compress = *compress
+
+	switch query_type {
 	case dns.TypeA, dns.TypeAAAA:
 		qtype = "A"
 		if aaa != nil && (_type == "" || _type == "A") {
@@ -146,7 +106,7 @@ func (wkr *DNS_worker) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
 		tr := new(dns.Transfer)
 		defer close(c)
 		if err := tr.Out(w, r, c); err != nil {
-			return
+			return nil
 		}
 		soa, _ := dns.NewRR(DN + `. 0 IN SOA master.chinamaincloud.com. chinamaincloud.com. 20170310002 21600 7200 604800 3600`)
 		c <- &dns.Envelope{RR: []dns.RR{soa, t, rr, soa}}
@@ -164,10 +124,60 @@ func (wkr *DNS_worker) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
 		}
 	}
 
-	w.WriteMsg(m)
-
 	//output query log
-	G.Outlog3(G.LOG_DNS, "ip:%s type:%s name:%s result:%+v", ip.String(), qtype, _dn, aaa)
+	G.Outlog3(G.LOG_DNS, "ip:%s type:%s name:%s result:%+v", client_ip.String(), qtype, dn, aaa)
+
+	return m
+}
+
+func (wkr *DNS_worker) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
+	var (
+		ip             net.IP
+		ac, matched_ac string
+		dn             string
+		_dn            string
+		ttl            uint32
+		aaa            []string
+		_type          string
+		_ok            bool
+	)
+
+	ttl = Default_ttl
+	dn = r.Question[0].Name //query domain name
+
+	if strings.HasSuffix(dn, ".") {
+		_dn = dn[0 : len(dn)-1]
+	} else {
+		_dn = dn
+	}
+
+	if _udp_addr, ok := w.RemoteAddr().(*net.UDPAddr); ok {
+
+		ip = _udp_addr.IP
+		ac = wkr.Ipdb.GetAreaCode(ip)
+
+		if aaa, ttl, _type, _ok, matched_ac = wkr.Rtdb.GetAAA(_dn, ac, ip); !_ok {
+
+			if G.Debug {
+				G.Outlog(G.LOG_DEBUG, fmt.Sprintf("GetAAA failed ip:%s ac:%s dn:%s", ip, ac, _dn))
+			}
+
+			//return will cause the client to re-query 2 times more
+			//it's better to answer a null record to reduce client re-query times
+
+			//return
+		}
+
+	} else {
+		//some error under UDP server level
+		return
+	}
+
+	//generate RR answer
+	if m := wkr.RR(r.Question[0].Qtype, ip, dn, ttl, ac, matched_ac, _type, aaa, w, r); m != nil {
+		//send out answer
+		w.WriteMsg(m)
+	}
 
 	//update global perf counter async
 	G.GP.Chan <- wkr.Qsc
