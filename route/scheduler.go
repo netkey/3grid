@@ -146,15 +146,16 @@ func (rt_db *Route_db) Match_FB(ac string, dr *Domain_List_Record) (_ac string, 
 //Tag: AAA
 //return A IPs based on AreaCode and DomainName
 func (rt_db *Route_db) GetAAA(query_dn string, acode string, ip net.IP) ([]string, uint32, string, bool, string) {
-	var ttl uint32 = 0
-	var rid uint = 0
-	var aaa []string
-	var ac string
-	var _ac string
-	var ok bool = true
-	var _type string
-	var dn string
-	var sl []uint
+	var ttl uint32 = 0   //domain ttl
+	var rid uint = 0     //route plan id
+	var aaa []string     //server ips to return
+	var ac string        //client ac or mangled by Match_FB()
+	var _ac string       //actually ac looking in route plan
+	var client_ac string //original client ac or mangled by IN_Serverlist()
+	var ok bool = true   //GetAAA status
+	var _type string     //dn type
+	var dn string        //actually dn matched by Match_DN() to looking at
+	var sl []uint        //server list
 
 	if _nid, ok := rt_db.IN_Serverlist(ip); ok {
 		//it's my server, change the area code to its node
@@ -169,10 +170,10 @@ func (rt_db *Route_db) GetAAA(query_dn string, acode string, ip net.IP) ([]strin
 		ac = acode
 	}
 
-	_ac = ac
+	_ac, client_ac = ac, ac
 	dn = query_dn
 
-	if aaa, ttl, _type, ok = rt_db.GetRTCache(dn, ac); ok {
+	if aaa, ttl, _type, ok = rt_db.GetRTCache(query_dn, client_ac); ok {
 		//found in route cache
 		if aaa == nil {
 			//a fail cache result
@@ -240,7 +241,7 @@ func (rt_db *Route_db) GetAAA(query_dn string, acode string, ip net.IP) ([]strin
 	nid := cnr.NodeId
 	if nid == 0 {
 		//cache the fail rusult for a few seconds
-		rt_db.Update_Cache_Record(dn, ac, &RT_Cache_Record{TS: time.Now().Unix(), TTL: 5, AAA: aaa, TYPE: _type})
+		rt_db.Update_Cache_Record(query_dn, client_ac, &RT_Cache_Record{TS: time.Now().Unix(), TTL: 5, AAA: aaa, TYPE: _type})
 		return aaa, ttl, _type, false, ac
 	}
 
@@ -268,7 +269,7 @@ func (rt_db *Route_db) GetAAA(query_dn string, acode string, ip net.IP) ([]strin
 		aaa[i] = sr.ServerIp
 	}
 
-	rt_db.Update_Cache_Record(dn, ac, &RT_Cache_Record{TS: time.Now().Unix(), TTL: ttl, AAA: aaa, TYPE: _type})
+	rt_db.Update_Cache_Record(query_dn, client_ac, &RT_Cache_Record{TS: time.Now().Unix(), TTL: ttl, AAA: aaa, TYPE: _type})
 
 	return aaa, ttl, _type, true, _ac
 }
