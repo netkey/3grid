@@ -15,9 +15,10 @@ import (
 var (
 	debug    = flag.Bool("dns-debug", true, "output debug info")
 	compress = flag.Bool("compress", false, "compress replies")
+
+	DN string
 )
 
-const DN = "mmycdn.com"
 const Default_ttl = 60
 
 type DNS_worker struct {

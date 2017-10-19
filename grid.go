@@ -41,6 +41,7 @@ var child_lock *sync.RWMutex
 var show_workpath bool
 
 //gslb related
+var mydomain string
 var myname string
 var interval int
 var keepalive int
@@ -126,6 +127,12 @@ func read_conf() {
 			myname = "3grid"
 		} else {
 			myname = _myname
+		}
+		_mydomain := viper.GetString("gslb.mydomain")
+		if _mydomain == "" {
+			mydomain = "mmycdn.com"
+		} else {
+			mydomain = _mydomain
 		}
 		_acprefix := viper.GetString("gslb.acprefix")
 		if _acprefix == "" {
@@ -314,6 +321,8 @@ func main() {
 		}
 
 		{
+			D.DN = mydomain
+
 			//init dns workers
 			var name, secret string
 			for i := 0; i < num_cpus; i++ {
