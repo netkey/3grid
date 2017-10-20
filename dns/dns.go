@@ -47,9 +47,14 @@ func (wkr *DNS_worker) RR(query_type uint16, client_ip net.IP, dn string, ttl ui
 	*/
 
 	var rr dns.RR
-	var qtype string
+	var qtype uint16
 	var t *dns.TXT
 	var a net.IP
+
+	G.OutDebug("aaa:%+v", aaa)
+	if aaa == nil {
+		return nil
+	}
 
 	if G.Debug {
 		t = &dns.TXT{
@@ -62,47 +67,65 @@ func (wkr *DNS_worker) RR(query_type uint16, client_ip net.IP, dn string, ttl ui
 	m.SetReply(r)
 	m.Compress = *compress
 
-	switch query_type {
-	case dns.TypeA, dns.TypeAAAA:
-		qtype = "A"
-		if aaa != nil && (_type == "" || _type == "A") {
-			for _, aa := range aaa {
-				a = net.ParseIP(aa)
-				rr = &dns.A{
-					Hdr: dns.RR_Header{Name: dn, Rrtype: dns.TypeA, Class: dns.ClassINET, Ttl: ttl},
-					A:   a.To4(),
-				}
-				m.Answer = append(m.Answer, rr)
+	qtype = query_type
 
+	switch _type {
+	case "A", "AAAA", "":
+		qtype = dns.TypeA
+	case "CNAME":
+		qtype = dns.TypeCNAME
+	case "TXT":
+		qtype = dns.TypeTXT
+	case "SOA":
+		qtype = dns.TypeSOA
+	case "NS":
+		qtype = dns.TypeNS
+	}
+
+	switch qtype {
+	case dns.TypeA, dns.TypeAAAA:
+		for _, aa := range aaa {
+			a = net.ParseIP(aa)
+			rr = &dns.A{
+				Hdr: dns.RR_Header{Name: dn, Rrtype: dns.TypeA, Class: dns.ClassINET, Ttl: ttl},
+				A:   a.To4(),
 			}
-			if t != nil {
-				m.Extra = append(m.Extra, t)
-			}
+			m.Answer = append(m.Answer, rr)
+
+		}
+		if t != nil {
+			m.Extra = append(m.Extra, t)
 		}
 	case dns.TypeCNAME:
-		qtype = "CNAME"
-		if aaa != nil && _type == "CNAME" {
-			for _, aa := range aaa {
-				rr = &dns.CNAME{
-					Hdr:    dns.RR_Header{Name: dn, Rrtype: dns.TypeCNAME, Class: dns.ClassINET, Ttl: ttl},
-					Target: aa,
-				}
-				m.Answer = append(m.Answer, rr)
+		for _, aa := range aaa {
+			rr = &dns.CNAME{
+				Hdr:    dns.RR_Header{Name: dn, Rrtype: dns.TypeCNAME, Class: dns.ClassINET, Ttl: ttl},
+				Target: aa + ".",
+			}
+			m.Answer = append(m.Answer, rr)
 
+		}
+		if t != nil {
+			m.Extra = append(m.Extra, t)
+		}
+	case dns.TypeNS:
+		for _, aa := range aaa {
+			rr = &dns.CNAME{
+				Hdr:    dns.RR_Header{Name: dn, Rrtype: dns.TypeNS, Class: dns.ClassINET, Ttl: ttl},
+				Target: aa + ".",
 			}
-			if t != nil {
-				m.Extra = append(m.Extra, t)
-			}
+			m.Answer = append(m.Answer, rr)
+
+		}
+		if t != nil {
+			m.Extra = append(m.Extra, t)
 		}
 	case dns.TypeTXT:
-		qtype = "TXT"
 		m.Answer = append(m.Answer, t)
 	case dns.TypeSOA:
-		qtype = "SOA"
 		soa, _ := dns.NewRR(DN + `. 0 IN SOA master.chinamaincloud.com. chinamaincloud.com. 20170310002 21600 7200 604800 3600`)
 		m.Answer = append(m.Answer, soa)
 	case dns.TypeAXFR, dns.TypeIXFR:
-		qtype = "XFR"
 		c := make(chan *dns.Envelope)
 		tr := new(dns.Transfer)
 		defer close(c)
@@ -165,6 +188,8 @@ func (wkr *DNS_worker) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
 			//it's better to answer a null record to reduce client re-query times
 
 			//return
+		} else {
+			G.OutDebug("GetAAA ip:%s ac:%s dn:%s type:%s aaa:%+v", ip, ac, _dn, _type, aaa)
 		}
 
 	} else {
@@ -176,6 +201,8 @@ func (wkr *DNS_worker) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
 	if m := wkr.RR(r.Question[0].Qtype, ip, dn, ttl, ac, matched_ac, _type, aaa, w, r); m != nil {
 		w.WriteMsg(m)
 	}
+
+	G.OutDebug("Query ip:%s ac:%s dn:%s type:%s aaa:%+v", ip, ac, _dn, _type, aaa)
 
 	//update global perf counter async
 	G.GP.Chan <- wkr.Qsc

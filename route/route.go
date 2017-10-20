@@ -159,7 +159,7 @@ func (rt_db *Route_db) LoadDomaindb(_domain_records map[string][]string) error {
 
 	if _domain_records == nil {
 
-		G.OutDebug(G.LOG_DEBUG, fmt.Sprintf("Loading domain db..%s", DM_Db_file))
+		G.OutDebug("Loading domain db..%s", DM_Db_file)
 
 		jf, err = ioutil.ReadFile(DM_Db_file)
 		if err != nil {

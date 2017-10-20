@@ -77,10 +77,9 @@ func (rt_db *Route_db) Match_DN(query_dn string) (Domain_List_Record, bool) {
 	var find bool = false
 
 	for dn = query_dn; dn != ""; {
-		//G.Outlog3(G.LOG_SCHEDULER, "DN: matching:%s", dn)
+		G.Outlog3(G.LOG_SCHEDULER, "DN: matching:%s", dn)
 		dr = rt_db.Read_Domain_Record(dn)
 		if dr.TTL != 0 {
-			//domain name not found
 			find = true
 			break
 		}
