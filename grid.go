@@ -281,8 +281,8 @@ func main() {
 					if G.Debug {
 						log.SetOutput(G.Logger.Fds[G.LOG_DEBUG])
 						if debug_info != "" {
-							G.Outlog(G.LOG_DEBUG, fmt.Sprintf("%s", debug_info))
-							G.Outlog(G.LOG_GSLB, fmt.Sprintf("%s", debug_info))
+							G.Outlog3(G.LOG_GSLB, "%s", debug_info)
+							G.OutDebug("%s", debug_info)
 						}
 					}
 				}
@@ -335,16 +335,14 @@ func main() {
 			go A.Synchronize(interval, keepalive, myname)
 		}
 
-		if G.Debug {
-			G.Outlog(G.LOG_DEBUG, fmt.Sprintf("%s worker launched", progname))
-		}
+		G.OutDebug("%s worker launched", progname)
 
 		sig := make(chan os.Signal)
 
 		signal.Notify(sig, syscall.SIGINT, syscall.SIGTERM)
 		s := <-sig
 
-		log.Printf("%s stopping - signal (%s) received", myname, s)
+		G.OutDebug("%s stopping - signal (%s) received", myname, s)
 	}
 }
 

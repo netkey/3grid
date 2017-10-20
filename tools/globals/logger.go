@@ -59,6 +59,12 @@ func Outlog3(target string, a ...interface{}) {
 	}
 }
 
+func OutDebug(a ...interface{}) {
+	if Debug {
+		*LogChan3 <- map[string][]interface{}{LOG_DEBUG: a}
+	}
+}
+
 func NewLogger() (*Grid_Logger, error) {
 	var err error
 	var logto = []string{LOG_IP, LOG_DNS, LOG_ROUTE, LOG_SCHEDULER, LOG_GSLB, LOG_DEBUG, LOG_AMQP}

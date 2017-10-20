@@ -72,9 +72,7 @@ func (ip_db *IP_db) IP_db_init() {
 		go ip_db.UpdateIPCache()
 	}
 
-	if G.Debug {
-		G.Outlog(G.LOG_DEBUG, fmt.Sprintf("Loading ip db..%s", Db_file))
-	}
+	G.OutDebug("Loading ip db..%s", Db_file)
 
 }
 
@@ -106,13 +104,9 @@ func (ip_db *IP_db) GetAreaCode(ip net.IP) string {
 			//update ip cache
 			ip_db.Chan <- map[string]string{ips: cn}
 
-			if G.Debug {
-				G.Outlog(G.LOG_DEBUG, fmt.Sprintf("Area Code of %s: %s", ips, cn))
-			}
+			G.OutDebug("Area Code of %s: %s", ips, cn)
 		} else {
-			if G.Debug {
-				G.Outlog(G.LOG_DEBUG, fmt.Sprintf("IP lookup error: %s", err))
-			}
+			G.OutDebug("IP lookup error: %s", err)
 		}
 	} else {
 		cn = ipc.AC
@@ -154,9 +148,7 @@ func (ip_db *IP_db) UpdateIPCache() error {
 	for {
 		ipm := <-ip_db.Chan
 		if ipm == nil {
-			if G.Debug {
-				G.Outlog(G.LOG_DEBUG, fmt.Sprintf("Exiting ip cache update loop.."))
-			}
+			G.OutDebug("Exiting ip cache update loop..")
 			break
 		}
 		for k, v := range ipm {

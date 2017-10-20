@@ -1,10 +1,11 @@
 package grid_route
 
-import G "3grid/tools/globals"
-import "fmt"
-import "net"
-import "strings"
-import "time"
+import (
+	G "3grid/tools/globals"
+	"net"
+	"strings"
+	"time"
+)
 
 var MyACPrefix string
 var Service_Cutoff_Percent uint
@@ -226,9 +227,7 @@ func (rt_db *Route_db) GetAAA(query_dn string, acode string, ip net.IP) ([]strin
 		rid = 0 //default route plan
 		_ac, rr = rt_db.Match_AC_RR(ac, rid)
 		if rr.Nodes == nil {
-			if G.Debug {
-				G.Outlog(G.LOG_DEBUG, fmt.Sprintf("GETAAA failed, ac: %s, rid: %d", ac, rid))
-			}
+			G.OutDebug("GETAAA failed, ac: %s, rid: %d", ac, rid)
 			return aaa, ttl, _type, false, _ac
 		}
 	}

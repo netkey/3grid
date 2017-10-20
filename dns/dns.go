@@ -159,9 +159,7 @@ func (wkr *DNS_worker) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
 
 		if aaa, ttl, _type, _ok, matched_ac = wkr.Rtdb.GetAAA(_dn, ac, ip); !_ok {
 
-			if G.Debug {
-				G.Outlog(G.LOG_DEBUG, fmt.Sprintf("GetAAA failed ip:%s ac:%s dn:%s", ip, ac, _dn))
-			}
+			G.OutDebug("GetAAA failed ip:%s ac:%s dn:%s", ip, ac, _dn)
 
 			//return will cause the client to re-query 2 times more
 			//it's better to answer a null record to reduce client re-query times
