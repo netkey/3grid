@@ -33,7 +33,10 @@ func TestRR_A(t *testing.T) {
 
 	r := &dns.Msg{}
 
-	if m := worker.RR(qtype, ip, dn, ttl, ac, matched_ac, _type, aaa, nil, r); m != nil {
+	q := DNS_query{Query_Type: qtype, Client_IP: ip, DN: dn,
+		TTL: ttl, AC: ac, Matched_AC: matched_ac, Matched_Type: _type}
+
+	if m := worker.RR(aaa, &q, nil, r); m != nil {
 		t.Logf("dn:%s ac:%s matched_ac:%s m:\n%+v", dn, ac, matched_ac, m)
 	} else {
 		t.Errorf("dn:%s ac:%s matched_ac:%s m:%+v", dn, ac, matched_ac, m)
@@ -58,7 +61,10 @@ func TestRR_CNAME(t *testing.T) {
 
 	r := &dns.Msg{}
 
-	if m := worker.RR(qtype, ip, dn, ttl, ac, matched_ac, _type, aaa, nil, r); m != nil {
+	q := DNS_query{Query_Type: qtype, Client_IP: ip, DN: dn,
+		TTL: ttl, AC: ac, Matched_AC: matched_ac, Matched_Type: _type}
+
+	if m := worker.RR(aaa, &q, nil, r); m != nil {
 		t.Logf("dn:%s ac:%s matched_ac:%s m:\n%+v", dn, ac, matched_ac, m)
 	} else {
 		t.Errorf("dn:%s ac:%s matched_ac:%s m:%+v", dn, ac, matched_ac, m)

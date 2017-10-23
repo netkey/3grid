@@ -207,7 +207,7 @@ func (wkr *DNS_worker) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
 		return
 	}
 
-	q := DNS_query{Query_Type: r.Question[0].Qtype, Client_IP: ip, DN: _dn,
+	q := DNS_query{Query_Type: r.Question[0].Qtype, Client_IP: ip, DN: dn,
 		TTL: ttl, AC: ac, Matched_AC: matched_ac, Matched_Type: _type}
 
 	//generate answer and send it
