@@ -70,3 +70,18 @@ func TestRR_CNAME(t *testing.T) {
 		t.Errorf("dn:%s ac:%s matched_ac:%s m:%+v", dn, ac, matched_ac, m)
 	}
 }
+
+func TestBenchRR(t *testing.T) {
+	res := testing.Benchmark(BenchmarkRR)
+	t.Logf("RR gen_time: %f s/q", float64(res.T)/(float64(res.N)*1000000000))
+	t.Logf("RR gen_rate: %d q/s", uint64(1.0/(float64(res.T)/(float64(res.N)*1000000000))))
+}
+
+func BenchmarkRR(b *testing.B) {
+	b.RunParallel(func(pb *testing.PB) {
+		t := &testing.T{}
+		for pb.Next() {
+			TestRR_A(t)
+		}
+	})
+}

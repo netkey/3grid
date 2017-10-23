@@ -77,19 +77,17 @@ func (wkr *DNS_worker) RR(aaa []string, q *DNS_query, w dns.ResponseWriter, r *d
 	m.SetReply(r)
 	m.Compress = *compress
 
-	qtype = q.Query_Type
-
-	switch q.Matched_Type {
-	case "A", "AAAA", "":
-		qtype = dns.TypeA
-	case "CNAME":
-		qtype = dns.TypeCNAME
-	case "TXT":
-		qtype = dns.TypeTXT
-	case "SOA":
-		qtype = dns.TypeSOA
-	case "NS":
-		qtype = dns.TypeNS
+	if qtype = q.Query_Type; qtype != dns.TypeSOA {
+		switch q.Matched_Type {
+		case "A", "AAAA", "":
+			qtype = dns.TypeA
+		case "CNAME":
+			qtype = dns.TypeCNAME
+		case "TXT":
+			qtype = dns.TypeTXT
+		case "NS":
+			qtype = dns.TypeNS
+		}
 	}
 
 	switch qtype {
