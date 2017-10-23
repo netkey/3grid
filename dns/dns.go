@@ -29,7 +29,17 @@ type DNS_worker struct {
 	Qsc    map[string]uint64
 }
 
-func (wkr *DNS_worker) RR(query_type uint16, client_ip net.IP, dn string, ttl uint32, ac, matched_ac, _type string, aaa []string, w dns.ResponseWriter, r *dns.Msg) *dns.Msg {
+type DNS_query struct {
+	Query_Type   uint16 //client query type
+	Client_IP    net.IP //client ip
+	DN           string //domain name
+	TTL          uint32 //ttl
+	AC           string //client area code
+	Matched_AC   string //matched ac in db
+	Matched_Type string //mathed query type in db
+}
+
+func (wkr *DNS_worker) RR(aaa []string, q *DNS_query, w dns.ResponseWriter, r *dns.Msg) *dns.Msg {
 	//return result based on dns query type
 
 	/*
@@ -58,8 +68,8 @@ func (wkr *DNS_worker) RR(query_type uint16, client_ip net.IP, dn string, ttl ui
 
 	if G.Debug {
 		t = &dns.TXT{
-			Hdr: dns.RR_Header{Name: dn, Rrtype: dns.TypeTXT, Class: dns.ClassINET, Ttl: ttl},
-			Txt: []string{ac + ":" + matched_ac},
+			Hdr: dns.RR_Header{Name: q.DN, Rrtype: dns.TypeTXT, Class: dns.ClassINET, Ttl: q.TTL},
+			Txt: []string{q.AC + ":" + q.Matched_AC},
 		}
 	}
 
@@ -67,9 +77,9 @@ func (wkr *DNS_worker) RR(query_type uint16, client_ip net.IP, dn string, ttl ui
 	m.SetReply(r)
 	m.Compress = *compress
 
-	qtype = query_type
+	qtype = q.Query_Type
 
-	switch _type {
+	switch q.Matched_Type {
 	case "A", "AAAA", "":
 		qtype = dns.TypeA
 	case "CNAME":
@@ -87,7 +97,7 @@ func (wkr *DNS_worker) RR(query_type uint16, client_ip net.IP, dn string, ttl ui
 		for _, aa := range aaa {
 			a = net.ParseIP(aa)
 			rr = &dns.A{
-				Hdr: dns.RR_Header{Name: dn, Rrtype: dns.TypeA, Class: dns.ClassINET, Ttl: ttl},
+				Hdr: dns.RR_Header{Name: q.DN, Rrtype: dns.TypeA, Class: dns.ClassINET, Ttl: q.TTL},
 				A:   a.To4(),
 			}
 			m.Answer = append(m.Answer, rr)
@@ -99,7 +109,7 @@ func (wkr *DNS_worker) RR(query_type uint16, client_ip net.IP, dn string, ttl ui
 	case dns.TypeCNAME:
 		for _, aa := range aaa {
 			rr = &dns.CNAME{
-				Hdr:    dns.RR_Header{Name: dn, Rrtype: dns.TypeCNAME, Class: dns.ClassINET, Ttl: ttl},
+				Hdr:    dns.RR_Header{Name: q.DN, Rrtype: dns.TypeCNAME, Class: dns.ClassINET, Ttl: q.TTL},
 				Target: aa + ".",
 			}
 			m.Answer = append(m.Answer, rr)
@@ -111,7 +121,7 @@ func (wkr *DNS_worker) RR(query_type uint16, client_ip net.IP, dn string, ttl ui
 	case dns.TypeNS:
 		for _, aa := range aaa {
 			rr = &dns.CNAME{
-				Hdr:    dns.RR_Header{Name: dn, Rrtype: dns.TypeNS, Class: dns.ClassINET, Ttl: ttl},
+				Hdr:    dns.RR_Header{Name: q.DN, Rrtype: dns.TypeNS, Class: dns.ClassINET, Ttl: q.TTL},
 				Target: aa + ".",
 			}
 			m.Answer = append(m.Answer, rr)
@@ -149,7 +159,7 @@ func (wkr *DNS_worker) RR(query_type uint16, client_ip net.IP, dn string, ttl ui
 	}
 
 	//output query log
-	G.Outlog3(G.LOG_DNS, "ip:%s type:%s name:%s result:%+v", client_ip.String(), qtype, dn, aaa)
+	G.Outlog3(G.LOG_DNS, "ip:%s type:%s name:%s result:%+v", q.Client_IP.String(), qtype, q.DN, aaa)
 
 	return m
 }
@@ -197,8 +207,11 @@ func (wkr *DNS_worker) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
 		return
 	}
 
+	q := DNS_query{Query_Type: r.Question[0].Qtype, Client_IP: ip, DN: _dn,
+		TTL: ttl, AC: ac, Matched_AC: matched_ac, Matched_Type: _type}
+
 	//generate answer and send it
-	if m := wkr.RR(r.Question[0].Qtype, ip, dn, ttl, ac, matched_ac, _type, aaa, w, r); m != nil {
+	if m := wkr.RR(aaa, &q, w, r); m != nil {
 		w.WriteMsg(m)
 	}
 
