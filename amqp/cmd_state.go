@@ -3,7 +3,6 @@ package grid_amqp
 import (
 	RT "3grid/route"
 	G "3grid/tools/globals"
-	//"fmt"
 	"strconv"
 	"strings"
 )
