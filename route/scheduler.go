@@ -28,10 +28,12 @@ func (rt_db *Route_db) Match_AC_RR(ac string, rid uint) (string, Route_List_Reco
 	var rr Route_List_Record
 
 	for _ac = ac; _ac != ""; {
-		//G.Outlog3(G.LOG_SCHEDULER, "AC: matching:%s", _ac)
+
 		rr = rt_db.Read_Route_Record(_ac, rid)
 
-		if rr.Nodes != nil {
+		//G.Outlog3(G.LOG_SCHEDULER, "AC_RR matching:%s rr:%+v", _ac, rr)
+
+		if rr.Nodes != nil && len(rr.Nodes) > 0 {
 			//find a match
 			find = true
 			break
@@ -48,7 +50,7 @@ func (rt_db *Route_db) Match_AC_RR(ac string, rid uint) (string, Route_List_Reco
 	if !find {
 		_ac = "*"
 		rr = rt_db.Read_Route_Record(_ac, rid)
-		if rr.Nodes != nil {
+		if rr.Nodes != nil && len(rr.Nodes) > 0 {
 			find = true
 		}
 	}
@@ -56,7 +58,7 @@ func (rt_db *Route_db) Match_AC_RR(ac string, rid uint) (string, Route_List_Reco
 	if !find {
 		_ac = "*.*"
 		rr = rt_db.Read_Route_Record(_ac, rid)
-		if rr.Nodes != nil {
+		if rr.Nodes != nil && len(rr.Nodes) > 0 {
 			find = true
 		}
 	}
@@ -208,35 +210,58 @@ func (rt_db *Route_db) GetAAA(query_dn string, acode string, ip net.IP) ([]strin
 		ac, _ = rt_db.Match_FB(ac, &dr)
 	}
 
+	var cnr, snr Node_List_Record
+	var nid uint
+
 	rr := Route_List_Record{}
 	if dr.RoutePlan != nil {
-		//try get route_record of current plan, get next plan if no rr
-		for _, v := range dr.RoutePlan {
+		rp := append(dr.RoutePlan, 0)
+
+		//try get route_record of current plan, get next plan if no rr, finally the default plan(0)
+		for _, v := range rp {
 			rid = v
+
+			G.OutDebug("Searching route plan:%d", rid)
 
 			//find a longest matched AC of this route plan
 			_ac, rr = rt_db.Match_AC_RR(ac, rid)
-			if rr.Nodes != nil {
-				break
+			if rr.Nodes != nil && len(rr.Nodes) > 0 {
+
+				G.OutDebug("GETAAA matched, ac: %s, rid: %d, node:%+v", _ac, rid, rr.Nodes)
+
+				//choose primary and secondary node for serving
+				cnr, snr = rt_db.ChooseNodeS(rr.Nodes, _ac, &dr)
+				if nid = cnr.NodeId; nid != 0 {
+					//find one
+					break
+				} else {
+					G.OutDebug("rr:%+v is not available", rr)
+
+					//try to search upper level
+					if li := strings.LastIndex(_ac, "."); li != -1 {
+						_ac = _ac[:li]
+					}
+
+					_ac, rr = rt_db.Match_AC_RR(_ac, rid)
+					if rr.Nodes != nil && len(rr.Nodes) > 0 {
+
+						G.OutDebug("GETAAA matched, ac: %s, rid: %d, node:%+v", _ac, rid, rr.Nodes)
+
+						cnr, snr = rt_db.ChooseNodeS(rr.Nodes, _ac, &dr)
+						if nid = cnr.NodeId; nid != 0 {
+							//find one
+							break
+						} else {
+							G.OutDebug("rr:%+v is not available", rr)
+						}
+					}
+				}
 			}
 		}
 	}
 
-	if rr.Nodes == nil {
-		rid = 0 //default route plan
-		_ac, rr = rt_db.Match_AC_RR(ac, rid)
-		if rr.Nodes == nil {
-			G.OutDebug("GETAAA failed, ac: %s, rid: %d", ac, rid)
-			return aaa, ttl, _type, false, _ac
-		}
-	}
+	G.Outlog3(G.LOG_ROUTE, "GETAAA ac:%s, matched ac:%s, rid:%d, noder_p:%+v node_s:%+v", ac, _ac, rid, cnr, snr)
 
-	G.Outlog3(G.LOG_ROUTE, "GETAAA ac:%s, matched ac:%s, rid:%d, rr:%+v", ac, _ac, rid, rr)
-
-	//choose primary and secondary node for serving
-	cnr, snr := rt_db.ChooseNodeS(rr.Nodes, _ac, &dr)
-
-	nid := cnr.NodeId
 	if nid == 0 {
 		//cache the fail rusult for a few seconds
 		rt_db.Update_Cache_Record(query_dn, client_ac, &RT_Cache_Record{TS: time.Now().Unix(), TTL: 5, AAA: aaa, TYPE: _type})
@@ -279,18 +304,15 @@ func (rt_db *Route_db) Match_Local_AC(node_ac string, client_ac string) bool {
 
 func (rt_db *Route_db) ChooseNodeS(nodes map[uint]PW_List_Record, client_ac string, dr *Domain_List_Record) (Node_List_Record, Node_List_Record) {
 	var p, s Node_List_Record
-	var _nodes map[uint]PW_List_Record
 	var _nrecords uint
 
-	_nodes = nodes
 	_nrecords = dr.Records
 
-	p, s = rt_db.ChooseNode(nodes, client_ac, dr)
+	p, s = rt_db.ChooseNode(nodes, client_ac, dr, 0)
 
 	if p.NodeId != 0 && s.NodeId == 0 {
 		if _nrecords > uint(len(p.ServerList)) {
-			delete(_nodes, p.NodeId)
-			s, _ = rt_db.ChooseNode(_nodes, client_ac, dr)
+			s, _ = rt_db.ChooseNode(nodes, client_ac, dr, p.NodeId)
 		}
 	}
 
@@ -298,7 +320,7 @@ func (rt_db *Route_db) ChooseNodeS(nodes map[uint]PW_List_Record, client_ac stri
 }
 
 //scheduler algorithm of chosing available nodes, based on priority & weight & costs & usage(%)
-func (rt_db *Route_db) ChooseNode(nodes map[uint]PW_List_Record, client_ac string, dr *Domain_List_Record) (Node_List_Record, Node_List_Record) {
+func (rt_db *Route_db) ChooseNode(nodes map[uint]PW_List_Record, client_ac string, dr *Domain_List_Record, forbid uint) (Node_List_Record, Node_List_Record) {
 	var nr, cnr, snr Node_List_Record
 	//^cnr: chosen node record, isnr: secondary chosen node, nr: node record to compare
 	var nid uint = 0                      //nid: chosen node id, default to 0
@@ -309,6 +331,10 @@ func (rt_db *Route_db) ChooseNode(nodes map[uint]PW_List_Record, client_ac strin
 	nr, cnr, snr = Node_List_Record{}, Node_List_Record{}, Node_List_Record{}
 
 	for k, v := range nodes {
+
+		if k == forbid {
+			continue
+		}
 
 		nr = rt_db.Read_Node_Record(k)
 
@@ -389,9 +415,16 @@ func (rt_db *Route_db) ChooseNode(nodes map[uint]PW_List_Record, client_ac strin
 		}
 	}
 
-	G.Outlog3(G.LOG_SCHEDULER, "Chosen node:%s(%d) p:%d w:%d u:%d c:%d s:%t, second node:%s(%d) u:%d c:%d s:%t, for ac:%s",
-		cnr.Name, cnr.NodeId, priority, weight, cnr.Usage, cnr.Costs, cnr.Status,
-		snr.Name, snr.NodeId, snr.Usage, snr.Costs, snr.Status, client_ac)
+	if cnr.NodeId != 0 && snr.NodeId != 0 {
+		G.Outlog3(G.LOG_SCHEDULER, "Chosen node:%s(%d) p:%d w:%d u:%d c:%d s:%t, second node:%s(%d) u:%d c:%d s:%t, for ac:%s",
+			cnr.Name, cnr.NodeId, priority, weight, cnr.Usage, cnr.Costs, cnr.Status,
+			snr.Name, snr.NodeId, snr.Usage, snr.Costs, snr.Status, client_ac)
+	} else if cnr.NodeId != 0 && snr.NodeId == 0 {
+		G.Outlog3(G.LOG_SCHEDULER, "Chosen node:%s(%d) p:%d w:%d u:%d c:%d s:%t",
+			cnr.Name, cnr.NodeId, priority, weight, cnr.Usage, cnr.Costs, cnr.Status)
+	} else if cnr.NodeId == 0 && snr.NodeId == 0 {
+		G.Outlog3(G.LOG_SCHEDULER, "No further node being chosen")
+	}
 
 	if nid == 0 {
 		//no node has been selected

@@ -593,17 +593,18 @@ func (rt_db *Route_db) Update_Route_Record(k string, rid uint, r *Route_List_Rec
 	} else {
 		if rt_db.Routes[k] == nil {
 			rt_db.Routes[k] = make(map[uint]Route_List_Record)
-		} else if rt_db.Routes[k][rid].Nodes == nil {
+		}
+		if rt_db.Routes[k][rid].Nodes == nil {
 			//new one
 			rt_db.Routes[k][rid] = *r
 		} else {
 			//add or update new nodes
-			for nid := range r.Nodes {
-				rt_db.Routes[k][rid].Nodes[nid] = r.Nodes[nid]
+			for nid, pw := range r.Nodes {
+				rt_db.Routes[k][rid].Nodes[nid] = pw
 			}
 		}
-		rt_db.Locks["routes"].Unlock()
 	}
+	rt_db.Locks["routes"].Unlock()
 }
 
 func (rt_db *Route_db) Read_Cache_Record(dn string, ac string) RT_Cache_Record {
