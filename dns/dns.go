@@ -60,7 +60,7 @@ func (wkr *DNS_worker) RR(aaa []string, q *DNS_query, w dns.ResponseWriter, r *d
 	var t *dns.TXT
 	var a net.IP
 
-	G.OutDebug("aaa:%+v", aaa)
+	//G.OutDebug("aaa:%+v", aaa)
 	if aaa == nil {
 		return nil
 	}
