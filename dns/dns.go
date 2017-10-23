@@ -5,7 +5,6 @@ import (
 	RT "3grid/route"
 	G "3grid/tools/globals"
 	"flag"
-	"fmt"
 	"github.com/miekg/dns"
 	"net"
 	"strings"
@@ -32,7 +31,7 @@ type DNS_worker struct {
 type DNS_query struct {
 	Query_Type   uint16 //client query type
 	Client_IP    net.IP //client ip
-	DN           string //domain name
+	DN           string //query domain name
 	TTL          uint32 //ttl
 	AC           string //client area code
 	Matched_AC   string //matched ac in db
@@ -68,7 +67,8 @@ func (wkr *DNS_worker) RR(aaa []string, q *DNS_query, w dns.ResponseWriter, r *d
 
 	if G.Debug {
 		t = &dns.TXT{
-			Hdr: dns.RR_Header{Name: q.DN, Rrtype: dns.TypeTXT, Class: dns.ClassINET, Ttl: q.TTL},
+			Hdr: dns.RR_Header{Name: q.DN, Rrtype: dns.TypeTXT,
+				Class: dns.ClassINET, Ttl: q.TTL},
 			Txt: []string{q.AC + ":" + q.Matched_AC},
 		}
 	}
@@ -97,8 +97,9 @@ func (wkr *DNS_worker) RR(aaa []string, q *DNS_query, w dns.ResponseWriter, r *d
 		for _, aa := range aaa {
 			a = net.ParseIP(aa)
 			rr = &dns.A{
-				Hdr: dns.RR_Header{Name: q.DN, Rrtype: dns.TypeA, Class: dns.ClassINET, Ttl: q.TTL},
-				A:   a.To4(),
+				Hdr: dns.RR_Header{Name: q.DN, Rrtype: dns.TypeA,
+					Class: dns.ClassINET, Ttl: q.TTL},
+				A: a.To4(),
 			}
 			m.Answer = append(m.Answer, rr)
 
@@ -109,7 +110,8 @@ func (wkr *DNS_worker) RR(aaa []string, q *DNS_query, w dns.ResponseWriter, r *d
 	case dns.TypeCNAME:
 		for _, aa := range aaa {
 			rr = &dns.CNAME{
-				Hdr:    dns.RR_Header{Name: q.DN, Rrtype: dns.TypeCNAME, Class: dns.ClassINET, Ttl: q.TTL},
+				Hdr: dns.RR_Header{Name: q.DN, Rrtype: dns.TypeCNAME,
+					Class: dns.ClassINET, Ttl: q.TTL},
 				Target: aa + ".",
 			}
 			m.Answer = append(m.Answer, rr)
@@ -121,7 +123,8 @@ func (wkr *DNS_worker) RR(aaa []string, q *DNS_query, w dns.ResponseWriter, r *d
 	case dns.TypeNS:
 		for _, aa := range aaa {
 			rr = &dns.CNAME{
-				Hdr:    dns.RR_Header{Name: q.DN, Rrtype: dns.TypeNS, Class: dns.ClassINET, Ttl: q.TTL},
+				Hdr: dns.RR_Header{Name: q.DN, Rrtype: dns.TypeNS,
+					Class: dns.ClassINET, Ttl: q.TTL},
 				Target: aa + ".",
 			}
 			m.Answer = append(m.Answer, rr)
@@ -152,7 +155,8 @@ func (wkr *DNS_worker) RR(aaa []string, q *DNS_query, w dns.ResponseWriter, r *d
 
 	if r.IsTsig() != nil {
 		if w.TsigStatus() == nil {
-			m.SetTsig(r.Extra[len(r.Extra)-1].(*dns.TSIG).Hdr.Name, dns.HmacMD5, 300, time.Now().Unix())
+			m.SetTsig(r.Extra[len(r.Extra)-1].(*dns.TSIG).Hdr.Name,
+				dns.HmacMD5, 300, time.Now().Unix())
 		} else {
 			println("Status", w.TsigStatus().Error())
 		}
@@ -207,7 +211,7 @@ func (wkr *DNS_worker) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
 		return
 	}
 
-	q := DNS_query{Query_Type: r.Question[0].Qtype, Client_IP: ip, DN: dn,
+	q := DNS_query{Query_Type: r.Question[0].Qtype, Client_IP: ip, DN: r.Question[0].Name,
 		TTL: ttl, AC: ac, Matched_AC: matched_ac, Matched_Type: _type}
 
 	//generate answer and send it
@@ -238,13 +242,13 @@ func Working(net, port, name, secret string, num int, ipdb *IP.IP_db, rtdb *RT.R
 		worker.Server = &dns.Server{Addr: ":" + port, Net: net, TsigSecret: nil}
 		worker.Server.Handler = &worker
 		if err := worker.Server.ListenAndServe(); err != nil {
-			G.Outlog(G.LOG_DEBUG, fmt.Sprintf("Failed to setup the "+net+" server: %s\n", err.Error()))
+			G.OutDebug("Failed to setup the "+net+" server: %s\n", err.Error())
 		}
 	default:
 		worker.Server = &dns.Server{Addr: ":" + port, Net: net, TsigSecret: map[string]string{name: secret}}
 		worker.Server.Handler = &worker
 		if err := worker.Server.ListenAndServe(); err != nil {
-			G.Outlog(G.LOG_DEBUG, fmt.Sprintf("Failed to setup the "+net+" server: %s\n", err.Error()))
+			G.OutDebug("Failed to setup the "+net+" server: %s\n", err.Error())
 		}
 	}
 }
