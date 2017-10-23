@@ -54,6 +54,7 @@ var ip_cache_size int
 var rt_cache_size int
 var log_buf_size int
 var log_enable bool
+var state_recv bool
 
 func read_conf() {
 	viper.SupportedExts = append(viper.SupportedExts, "conf")
@@ -187,6 +188,12 @@ func read_conf() {
 			log_enable = false
 		} else {
 			log_enable = true
+		}
+		_state_recv := viper.GetBool("gslb.state_recv")
+		if _state_recv == false {
+			state_recv = false
+		} else {
+			state_recv = true
 		}
 		if *debug {
 			debug_info = fmt.Sprintf("%s running - cpus:%d port:%s daemon:%t debug:%t interval:%d keepalive:%d myname:%s", myname, num_cpus, port, daemond, *debug, interval, keepalive, myname)
@@ -331,6 +338,8 @@ func main() {
 		}
 
 		{
+			A.State_Recv = state_recv
+
 			//init amqp synchronize routine
 			go A.Synchronize(interval, keepalive, myname)
 		}

@@ -17,7 +17,9 @@ func init_db() {
 
 func TestRR_A(t *testing.T) {
 
-	init_db()
+	if worker.Rtdb != nil {
+		init_db()
+	}
 
 	qtype := dns.TypeA
 	_type := "A"
@@ -45,7 +47,9 @@ func TestRR_A(t *testing.T) {
 
 func TestRR_CNAME(t *testing.T) {
 
-	init_db()
+	if worker.Rtdb != nil {
+		init_db()
+	}
 
 	qtype := dns.TypeCNAME
 	_type := "CNAME"
@@ -71,6 +75,34 @@ func TestRR_CNAME(t *testing.T) {
 	}
 }
 
+func TRR_A(t *testing.T) {
+
+	if worker.Rtdb != nil {
+		init_db()
+	}
+
+	qtype := dns.TypeA
+	_type := "A"
+
+	aaa := []string{"1.1.1.1", "2.2.2.2", "3.3.3.3"}
+	ip := net.ParseIP("120.25.166.1")
+
+	ac := "*.CN.HAD.SH"
+	matched_ac := "*"
+
+	dn := "image227-c.poco.cn."
+	ttl := uint32(300)
+
+	r := &dns.Msg{}
+
+	q := DNS_query{Query_Type: qtype, Client_IP: ip, DN: dn,
+		TTL: ttl, AC: ac, Matched_AC: matched_ac, Matched_Type: _type}
+
+	if m := worker.RR(aaa, &q, nil, r); m != nil {
+	} else {
+	}
+}
+
 func TestBenchRR(t *testing.T) {
 	res := testing.Benchmark(BenchmarkRR)
 	t.Logf("RR gen_time: %f s/q", float64(res.T)/(float64(res.N)*1000000000))
@@ -81,7 +113,7 @@ func BenchmarkRR(b *testing.B) {
 	b.RunParallel(func(pb *testing.PB) {
 		t := &testing.T{}
 		for pb.Next() {
-			TestRR_A(t)
+			TRR_A(t)
 		}
 	})
 }

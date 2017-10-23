@@ -12,6 +12,10 @@ import (
 func (c *Cmds) State(msg *AMQP_Message) error {
 	var err error
 
+	if !State_Recv {
+		return nil
+	}
+
 	switch msg.Object {
 	case AMQP_OBJ_DOMAIN:
 
