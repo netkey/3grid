@@ -193,16 +193,14 @@ func Sendmsg(_type, _command string, _param *map[string]string, _obj string, _ms
 		}
 	}
 
-	if *debug {
-		G.Outlog(G.LOG_AMQP, fmt.Sprintf(
-			"msg to [%s] of [%s]: size [%v], msgid [%d], value: [%+v]",
-			target,
-			exchange,
-			len(jam),
-			am.ID,
-			am,
-		))
-	}
+	G.OutDebug(
+		"msg to [%s] of [%s]: size [%v], msgid [%d], value: [%+v]",
+		target,
+		exchange,
+		len(jam),
+		am.ID,
+		am,
+	)
 
 	return nil
 }
@@ -240,14 +238,13 @@ func Transmsg(_msg []byte, _am *AMQP_Message) error {
 		}
 	}
 
-	if *debug {
-		G.Outlog(G.LOG_AMQP, fmt.Sprintf(
-			"msg from [%s]: size [%v], msgid [%d], msg: [%+v] ",
-			_am.Sender,
-			len(_msg),
-			_am.ID,
-			_am,
-		))
-	}
+	G.OutDebug(
+		"msg from [%s]: size [%v], msgid [%d], msg: [%+v] ",
+		_am.Sender,
+		len(_msg),
+		_am.ID,
+		_am,
+	)
+
 	return nil
 }

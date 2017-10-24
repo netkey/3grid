@@ -2,7 +2,7 @@ package grid_amqp
 
 import (
 	RT "3grid/route"
-	G "3grid/tools/globals"
+	//G "3grid/tools/globals"
 	"strconv"
 	"strings"
 )
@@ -22,15 +22,11 @@ func (c *Cmds) State(msg *AMQP_Message) error {
 			RT.Rtdb.Convert_Domain_Record(map[string][]string{k: strings.Split(v, ",")})
 		}
 
-		if G.Debug {
-			//G.Outlog(G.LOG_DEBUG, fmt.Sprintf("Updating domain status: %+v", *msg.Params))
-		}
+		//G.OutDebug("Updating domain status: %+v", *msg.Params)
 
 	case AMQP_OBJ_CMDB:
 
-		if G.Debug {
-			//G.Outlog(G.LOG_DEBUG, fmt.Sprintf("Updating node/server: %+v", *msg.Params))
-		}
+		//G.OutDebug(Updating node/server: %+v", *msg.Params)
 
 		for k, v := range *msg.Params {
 			if strings.Contains(k, ".") {
@@ -39,9 +35,7 @@ func (c *Cmds) State(msg *AMQP_Message) error {
 				nid := RT.Rtdb.Ips[k].NodeId
 				r := append(strings.Split(v, ","), strconv.Itoa(int(nid)))
 				m := map[string][]string{strconv.Itoa(int(sid)): r}
-				if G.Debug {
-					//G.Outlog(G.LOG_DEBUG, fmt.Sprintf("Server id: %d, %+v", sid, m))
-				}
+				//G.OutDebug("Server id: %d, %+v", sid, m)
 				RT.Rtdb.Convert_Server_Record(m)
 			} else {
 				//it's a node
@@ -52,9 +46,7 @@ func (c *Cmds) State(msg *AMQP_Message) error {
 					server_list = server_list + strconv.Itoa(int(sid)) + ","
 				}
 				r := append(strings.Split(v, ","), server_list)
-				if G.Debug {
-					//G.Outlog(G.LOG_DEBUG, fmt.Sprintf("node id: %s, %+v", k, RT.Rtdb.Nodes[nid].ServerList))
-				}
+				//G.OutDebug("node id: %s, %+v", k, RT.Rtdb.Nodes[nid].ServerList)
 				RT.Rtdb.Convert_Node_Record(map[string][]string{k: r})
 			}
 		}
