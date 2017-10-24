@@ -125,7 +125,7 @@ func (wkr *DNS_worker) RR(aaa []string, q *DNS_query, w dns.ResponseWriter, r *d
 			rr = &dns.CNAME{
 				Hdr: dns.RR_Header{Name: q.DN, Rrtype: dns.TypeNS,
 					Class: dns.ClassINET, Ttl: q.TTL},
-				Target: aa + ".",
+				Target: aa + ".", //NS must has tailing "."
 			}
 			m.Answer = append(m.Answer, rr)
 
