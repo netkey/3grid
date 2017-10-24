@@ -246,11 +246,16 @@ func (rt_db *Route_db) LoadCMdb(_cmdb_records map[string]map[string][]string) er
 
 		if G.Debug {
 			keys := reflect.ValueOf(rt_db.Nodes).MapKeys()
-			G.Outlog(G.LOG_DEBUG, fmt.Sprintf("nodes data sample: %+v", rt_db.Nodes[uint(keys[0].Uint())]))
+			G.Outlog(G.LOG_DEBUG, fmt.Sprintf("nodes data sample: %+v",
+				rt_db.Nodes[uint(keys[0].Uint())]))
+
 			keys = reflect.ValueOf(rt_db.Servers).MapKeys()
-			G.Outlog(G.LOG_DEBUG, fmt.Sprintf("servers data sample: %+v", rt_db.Servers[uint(keys[0].Uint())]))
+			G.Outlog(G.LOG_DEBUG, fmt.Sprintf("servers data sample: %+v",
+				rt_db.Servers[uint(keys[0].Uint())]))
+
 			keys = reflect.ValueOf(rt_db.Ips).MapKeys()
-			G.Outlog(G.LOG_DEBUG, fmt.Sprintf("ips data sample: %+v", rt_db.Ips[keys[0].String()]))
+			G.Outlog(G.LOG_DEBUG, fmt.Sprintf("ips data sample: %+v",
+				rt_db.Ips[keys[0].String()]))
 		}
 	}
 
@@ -308,7 +313,8 @@ func (rt_db *Route_db) LoadRoutedb(_rtdb_records map[string]map[string]map[strin
 
 		if G.Debug {
 			keys := reflect.ValueOf(rt_db.Routes).MapKeys()
-			G.Outlog(G.LOG_DEBUG, fmt.Sprintf("routes data sample: %s %+v", keys[0].String(), rt_db.Routes[keys[0].String()]))
+			G.Outlog(G.LOG_DEBUG, fmt.Sprintf("routes data sample: %s %+v",
+				keys[0].String(), rt_db.Routes[keys[0].String()]))
 		}
 	}
 
@@ -613,7 +619,8 @@ func (rt_db *Route_db) Read_Cache_Record(dn string, ac string) RT_Cache_Record {
 	rt_db.Locks["cache"].RLock()
 	if rt_db.Cache[ac] != nil {
 		if rt_db.Cache[ac][dn].TTL != 0 {
-			if int64(rt_db.Cache[ac][dn].TTL)+rt_db.Cache[ac][dn].TS >= time.Now().Unix() {
+			if int64(rt_db.Cache[ac][dn].TTL)+rt_db.Cache[ac][dn].TS >=
+				time.Now().Unix() {
 				//cache not expired
 				r = rt_db.Cache[ac][dn]
 			}

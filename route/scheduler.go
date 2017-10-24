@@ -65,9 +65,11 @@ func (rt_db *Route_db) Match_AC_RR(ac string, rid uint) (string, Route_List_Reco
 
 	if find {
 		G.Outlog3(G.LOG_SCHEDULER, "AC:%s matched in route plan %d, %+v", _ac, rid, rr)
+
 		return _ac, rr
 	} else {
 		G.Outlog3(G.LOG_SCHEDULER, "No matched ac:%s in route plan %d", ac, rid)
+
 		return "", Route_List_Record{}
 	}
 }
@@ -79,7 +81,9 @@ func (rt_db *Route_db) Match_DN(query_dn string) (Domain_List_Record, bool) {
 	var find bool = false
 
 	for dn = query_dn; dn != ""; {
-		G.Outlog3(G.LOG_SCHEDULER, "DN: matching:%s", dn)
+
+		//G.Outlog3(G.LOG_SCHEDULER, "DN: matching:%s", dn)
+
 		dr = rt_db.Read_Domain_Record(dn)
 		if dr.TTL != 0 {
 			find = true
@@ -101,9 +105,11 @@ func (rt_db *Route_db) Match_DN(query_dn string) (Domain_List_Record, bool) {
 
 	if find {
 		G.Outlog3(G.LOG_SCHEDULER, "DN:%s matched for %s, %+v", dn, query_dn, dr)
+
 		return dr, true
 	} else {
 		G.Outlog3(G.LOG_SCHEDULER, "DN:No matched for %s", query_dn)
+
 		return Domain_List_Record{}, false
 	}
 
@@ -139,7 +145,7 @@ func (rt_db *Route_db) Match_FB(ac string, dr *Domain_List_Record) (_ac string, 
 	}
 
 	if _matched {
-		//G.Outlog3(G.LOG_SCHEDULER, "Match_FB mangle client ac:%s to %s", ac, _ac)
+		G.Outlog3(G.LOG_SCHEDULER, "Match_FB mangle client ac:%s to %s", ac, _ac)
 	}
 
 	return
@@ -197,11 +203,20 @@ func (rt_db *Route_db) GetAAA(query_dn string, acode string, ip net.IP) ([]strin
 
 	if dr.Type != "" {
 		//not a CDN serving domain name, typically A CNAME NS
+		var spli int
+		var s []string
 		aaa = []string{}
-		s := strings.Split(dr.Value, ",")
+
+		if spli = strings.Index(dr.Value, ","); spli != -1 {
+			s = strings.Split(dr.Value, ",")
+		} else if spli = strings.Index(dr.Value, "|"); spli != -1 {
+			s = strings.Split(dr.Value, "|")
+		}
+
 		for _, x := range s {
 			aaa = append(aaa, x)
 		}
+
 		return aaa, ttl, _type, ok, _ac
 	}
 
@@ -260,11 +275,14 @@ func (rt_db *Route_db) GetAAA(query_dn string, acode string, ip net.IP) ([]strin
 		}
 	}
 
-	G.Outlog3(G.LOG_ROUTE, "GETAAA ac:%s, matched ac:%s, rid:%d, noder_p:%+v node_s:%+v", ac, _ac, rid, cnr, snr)
+	G.Outlog3(G.LOG_ROUTE, "GETAAA ac:%s, matched ac:%s, rid:%d, noder_p:%+v node_s:%+v",
+		ac, _ac, rid, cnr, snr)
 
 	if nid == 0 {
 		//cache the fail rusult for a few seconds
-		rt_db.Update_Cache_Record(query_dn, client_ac, &RT_Cache_Record{TS: time.Now().Unix(), TTL: 5, AAA: aaa, TYPE: _type})
+		rt_db.Update_Cache_Record(query_dn, client_ac,
+			&RT_Cache_Record{TS: time.Now().Unix(), TTL: 5, AAA: aaa, TYPE: _type})
+
 		return aaa, ttl, _type, false, ac
 	}
 
@@ -292,7 +310,8 @@ func (rt_db *Route_db) GetAAA(query_dn string, acode string, ip net.IP) ([]strin
 		aaa[i] = sr.ServerIp
 	}
 
-	rt_db.Update_Cache_Record(query_dn, client_ac, &RT_Cache_Record{TS: time.Now().Unix(), TTL: ttl, AAA: aaa, TYPE: _type})
+	rt_db.Update_Cache_Record(query_dn, client_ac,
+		&RT_Cache_Record{TS: time.Now().Unix(), TTL: ttl, AAA: aaa, TYPE: _type})
 
 	return aaa, ttl, _type, true, _ac
 }
@@ -356,7 +375,8 @@ func (rt_db *Route_db) ChooseNode(nodes map[uint]PW_List_Record, client_ac strin
 			//chosen node is in cutoff state, and i am not(cutoff algorithm)
 			if rt_db.Match_Local_AC(cnr.AC, client_ac) || cnr.Usage > Service_Deny_Percent {
 				//cutoff none local client access, then local's
-				G.Outlog3(G.LOG_SCHEDULER, "%s(%d) is in busy, use %s(%d) instead", cnr.Name, cnr.NodeId, nr.Name, nr.NodeId)
+				G.Outlog3(G.LOG_SCHEDULER, "%s(%d) is in busy, use %s(%d) instead",
+					cnr.Name, cnr.NodeId, nr.Name, nr.NodeId)
 
 				snr, cnr, nid, priority, weight = cnr, nr, k, v.PW[0], v.PW[1]
 			}
@@ -371,7 +391,6 @@ func (rt_db *Route_db) ChooseNode(nodes map[uint]PW_List_Record, client_ac strin
 			}
 
 			snr, cnr, nid, priority, weight = cnr, nr, k, v.PW[0], v.PW[1]
-
 			continue
 		}
 		if v.PW[0] == priority {
@@ -389,7 +408,8 @@ func (rt_db *Route_db) ChooseNode(nodes map[uint]PW_List_Record, client_ac strin
 
 				if _weight_idle >= weight_idle {
 					//higher or same weight&&idle(weight&usage algorithm), means more idle
-					G.Outlog3(G.LOG_SCHEDULER, "%s(%d) is more idle(%f>%f), use it", nr.Name, nr.NodeId, _weight_idle, weight_idle)
+					G.Outlog3(G.LOG_SCHEDULER, "%s(%d) is more idle(%f>%f), use it",
+						nr.Name, nr.NodeId, _weight_idle, weight_idle)
 
 					snr, cnr, nid, priority, weight = cnr, nr, k, v.PW[0], v.PW[1]
 				} else {
@@ -416,7 +436,8 @@ func (rt_db *Route_db) ChooseNode(nodes map[uint]PW_List_Record, client_ac strin
 	}
 
 	if cnr.NodeId != 0 && snr.NodeId != 0 {
-		G.Outlog3(G.LOG_SCHEDULER, "Chosen node:%s(%d) p:%d w:%d u:%d c:%d s:%t, second node:%s(%d) u:%d c:%d s:%t, for ac:%s",
+		G.Outlog3(G.LOG_SCHEDULER,
+			"Chosen node:%s(%d) p:%d w:%d u:%d c:%d s:%t, second node:%s(%d) u:%d c:%d s:%t, for ac:%s",
 			cnr.Name, cnr.NodeId, priority, weight, cnr.Usage, cnr.Costs, cnr.Status,
 			snr.Name, snr.NodeId, snr.Usage, snr.Costs, snr.Status, client_ac)
 	} else if cnr.NodeId != 0 && snr.NodeId == 0 {
@@ -453,12 +474,15 @@ func (rt_db *Route_db) ChooseServer(servers []uint, servergroup uint) []uint {
 			continue
 		}
 
-		weight_idle = float64(float64(rt_db.Servers[sid].Weight) * (1.0 - float64(rt_db.Servers[sid].Usage)/100.0))
+		weight_idle = float64(float64(rt_db.Servers[sid].Weight) *
+			(1.0 - float64(rt_db.Servers[sid].Usage)/100.0))
+
 		sorted = false
 
 		for i, _sid := range server_list {
 			//sort by weight&&idle, weight*(1-usage/100)
-			_weight_idle = float64(rt_db.Servers[_sid].Weight * (1 - rt_db.Servers[_sid].Usage/100))
+			_weight_idle = float64(rt_db.Servers[_sid].Weight *
+				(1 - rt_db.Servers[_sid].Usage/100))
 
 			if _weight_idle < weight_idle {
 				if i == 0 {
