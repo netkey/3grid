@@ -55,12 +55,13 @@ func (wkr *DNS_worker) RR(aaa []string, q *DNS_query, w dns.ResponseWriter, r *d
 		}
 	*/
 
-	var rr dns.RR
-	var qtype uint16
-	var t *dns.TXT
-	var a net.IP
+	var (
+		rr    dns.RR
+		qtype uint16
+		t     *dns.TXT
+		a     net.IP
+	)
 
-	//G.OutDebug("aaa:%+v", aaa)
 	if aaa == nil {
 		return nil
 	}
@@ -73,7 +74,7 @@ func (wkr *DNS_worker) RR(aaa []string, q *DNS_query, w dns.ResponseWriter, r *d
 		}
 	}
 
-	m := new(dns.Msg)
+	m := dns.Msg{}
 	m.SetReply(r)
 	m.Compress = *compress
 
@@ -110,7 +111,7 @@ func (wkr *DNS_worker) RR(aaa []string, q *DNS_query, w dns.ResponseWriter, r *d
 			rr = &dns.CNAME{
 				Hdr: dns.RR_Header{Name: q.DN, Rrtype: dns.TypeCNAME,
 					Class: dns.ClassINET, Ttl: q.TTL},
-				Target: aa + ".",
+				Target: aa + ".", //CNAME must has tailing "."
 			}
 			m.Answer = append(m.Answer, rr)
 
@@ -148,7 +149,6 @@ func (wkr *DNS_worker) RR(aaa []string, q *DNS_query, w dns.ResponseWriter, r *d
 		// w.Hijack()
 		// w.Close() // Client closes connection
 		//return
-	default:
 	}
 
 	if r.IsTsig() != nil {
@@ -163,7 +163,7 @@ func (wkr *DNS_worker) RR(aaa []string, q *DNS_query, w dns.ResponseWriter, r *d
 	//output query log
 	G.Outlog3(G.LOG_DNS, "ip:%s type:%s name:%s result:%+v", q.Client_IP.String(), qtype, q.DN, aaa)
 
-	return m
+	return &m
 }
 
 func (wkr *DNS_worker) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {

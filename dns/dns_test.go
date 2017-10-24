@@ -6,18 +6,24 @@ import (
 	"testing"
 )
 
-var worker DNS_worker
+var (
+	worker DNS_worker
+	q      *DNS_query
+	r      *dns.Msg
+	aaaa   = []string{"1.1.1.1", "2.2.2.2", "3.3.3.3"}
+)
 
 func init_db() {
 
 	worker = DNS_worker{}
+	worker.Id = 1
 	worker.Qsc = map[string]uint64{"QS": 1}
 
 }
 
 func TestRR_A(t *testing.T) {
 
-	if worker.Rtdb != nil {
+	if worker.Id == 0 {
 		init_db()
 	}
 
@@ -33,12 +39,12 @@ func TestRR_A(t *testing.T) {
 	dn := "image227-c.poco.cn."
 	ttl := uint32(300)
 
-	r := &dns.Msg{}
+	_r := &dns.Msg{}
 
-	q := DNS_query{Query_Type: qtype, Client_IP: ip, DN: dn,
+	_q := &DNS_query{Query_Type: qtype, Client_IP: ip, DN: dn,
 		TTL: ttl, AC: ac, Matched_AC: matched_ac, Matched_Type: _type}
 
-	if m := worker.RR(aaa, &q, nil, r); m != nil {
+	if m := worker.RR(aaa, _q, nil, _r); m != nil {
 		t.Logf("dn:%s ac:%s matched_ac:%s m:\n%+v", dn, ac, matched_ac, m)
 	} else {
 		t.Errorf("dn:%s ac:%s matched_ac:%s m:%+v", dn, ac, matched_ac, m)
@@ -47,7 +53,7 @@ func TestRR_A(t *testing.T) {
 
 func TestRR_CNAME(t *testing.T) {
 
-	if worker.Rtdb != nil {
+	if worker.Id == 0 {
 		init_db()
 	}
 
@@ -77,29 +83,29 @@ func TestRR_CNAME(t *testing.T) {
 
 func TRR_A(t *testing.T) {
 
-	if worker.Rtdb != nil {
+	if worker.Id == 0 {
 		init_db()
 	}
 
-	qtype := dns.TypeA
-	_type := "A"
+	if q == nil {
+		qtype := dns.TypeA
+		_type := "A"
 
-	aaa := []string{"1.1.1.1", "2.2.2.2", "3.3.3.3"}
-	ip := net.ParseIP("120.25.166.1")
+		ip := net.ParseIP("120.25.166.1")
 
-	ac := "*.CN.HAD.SH"
-	matched_ac := "*"
+		ac := "*.CN.HAD.SH"
+		matched_ac := "*"
 
-	dn := "image227-c.poco.cn."
-	ttl := uint32(300)
+		dn := "image227-c.poco.cn."
+		ttl := uint32(300)
 
-	r := &dns.Msg{}
+		r = &dns.Msg{}
 
-	q := DNS_query{Query_Type: qtype, Client_IP: ip, DN: dn,
-		TTL: ttl, AC: ac, Matched_AC: matched_ac, Matched_Type: _type}
+		q = &DNS_query{Query_Type: qtype, Client_IP: ip, DN: dn,
+			TTL: ttl, AC: ac, Matched_AC: matched_ac, Matched_Type: _type}
+	}
 
-	if m := worker.RR(aaa, &q, nil, r); m != nil {
-	} else {
+	if m := worker.RR(aaaa, q, nil, r); m != nil {
 	}
 }
 
