@@ -7,7 +7,6 @@ import (
 	"flag"
 	"github.com/miekg/dns"
 	"net"
-	"strconv"
 	"strings"
 	"time"
 )
@@ -190,13 +189,13 @@ func (wkr *DNS_worker) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
 
 	if _udp_addr, ok := w.RemoteAddr().(*net.UDPAddr); ok {
 
-		if r.Extra != nil && r.Extra[0].(*dns.OPT).Option[0].(*dns.EDNS0_LOCAL).String() == "1979:0x0707" &&
-			r.Extra[0].(*dns.OPT).Option[1].(*dns.EDNS0_LOCAL).String() ==
-				strconv.Itoa(dns.EDNS0LOCALSTART)+":0x0601" {
-			//it's an edns0 request
-			ip = getEdnsSubNet(r)
-		} else {
+		if r.Extra == nil {
 			ip = _udp_addr.IP
+		} else {
+			//maybe an edns0 request, try to get client ip
+			if ip = getEdnsSubNet(r); ip == nil {
+				ip = _udp_addr.IP
+			}
 		}
 
 		ac = wkr.Ipdb.GetAreaCode(ip)
