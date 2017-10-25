@@ -153,7 +153,7 @@ func (rt_db *Route_db) Match_FB(ac string, dr *Domain_List_Record) (_ac string, 
 
 //Tag: AAA
 //return A IPs based on AreaCode and DomainName
-func (rt_db *Route_db) GetAAA(query_dn string, acode string, ip net.IP) ([]string, uint32, string, bool, string) {
+func (rt_db *Route_db) GetAAA(query_dn string, acode string, ip net.IP) ([]string, uint32, string, bool, string, uint) {
 	var ttl uint32 = 0   //domain ttl
 	var rid uint = 0     //route plan id
 	var aaa []string     //server ips to return
@@ -187,7 +187,7 @@ func (rt_db *Route_db) GetAAA(query_dn string, acode string, ip net.IP) ([]strin
 			//a fail cache result
 			ok = false
 		}
-		return aaa, ttl, _type, ok, _ac
+		return aaa, ttl, _type, ok, _ac, rid
 	}
 
 	//find domain record
@@ -198,7 +198,7 @@ func (rt_db *Route_db) GetAAA(query_dn string, acode string, ip net.IP) ([]strin
 		ttl = uint32(dr.TTL)
 		_type = dr.Type
 	} else {
-		return aaa, ttl, _type, false, _ac
+		return aaa, ttl, _type, false, _ac, rid
 	}
 
 	if dr.Type != "" {
@@ -217,7 +217,7 @@ func (rt_db *Route_db) GetAAA(query_dn string, acode string, ip net.IP) ([]strin
 			aaa = append(aaa, x)
 		}
 
-		return aaa, ttl, _type, ok, _ac
+		return aaa, ttl, _type, ok, _ac, rid
 	}
 
 	if dr.Forbidden != nil {
@@ -283,7 +283,7 @@ func (rt_db *Route_db) GetAAA(query_dn string, acode string, ip net.IP) ([]strin
 		rt_db.Update_Cache_Record(query_dn, client_ac,
 			&RT_Cache_Record{TS: time.Now().Unix(), TTL: 5, AAA: aaa, TYPE: _type})
 
-		return aaa, ttl, _type, false, ac
+		return aaa, ttl, _type, false, ac, rid
 	}
 
 	if snr.NodeId != 0 {
@@ -313,7 +313,7 @@ func (rt_db *Route_db) GetAAA(query_dn string, acode string, ip net.IP) ([]strin
 	rt_db.Update_Cache_Record(query_dn, client_ac,
 		&RT_Cache_Record{TS: time.Now().Unix(), TTL: ttl, AAA: aaa, TYPE: _type})
 
-	return aaa, ttl, _type, true, _ac
+	return aaa, ttl, _type, true, _ac, rid
 }
 
 //check if a node covered the client ac
