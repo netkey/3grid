@@ -129,6 +129,7 @@ type RT_Cache_Record struct {
 	TTL  uint32
 	AAA  []string
 	TYPE string
+	RID  uint
 }
 
 func (rt_db *Route_db) RT_db_init() {
@@ -631,15 +632,15 @@ func (rt_db *Route_db) Read_Cache_Record(dn string, ac string) RT_Cache_Record {
 	return r
 }
 
-func (rt_db *Route_db) GetRTCache(dn string, ac string) ([]string, uint32, string, bool) {
+func (rt_db *Route_db) GetRTCache(dn string, ac string) ([]string, uint32, string, uint, bool) {
 	var r RT_Cache_Record
 
 	r = rt_db.Read_Cache_Record(dn, ac)
 
 	if r.TTL != 0 {
-		return r.AAA, r.TTL, r.TYPE, true
+		return r.AAA, r.TTL, r.TYPE, r.RID, true
 	} else {
-		return nil, 0, "", false
+		return nil, 0, "", r.RID, false
 	}
 }
 

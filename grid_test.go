@@ -112,7 +112,7 @@ func TestGrid(t *testing.T) {
 
 			//resolve in grid
 			_ip := net.ParseIP(ip)
-			ac := IP.Ipdb.GetAreaCode(net.ParseIP(ip))
+			ac := IP.Ipdb.GetAreaCode(_ip)
 			aaa, _, _, _, _ac, rid := RT.Rtdb.GetAAA(dn, ac, _ip)
 			if aaa == nil {
 				aaa = []string{"0"}
@@ -120,7 +120,7 @@ func TestGrid(t *testing.T) {
 			a_ac := IP.Ipdb.GetAreaCode(net.ParseIP(aaa[0]))
 
 			if same := check_ips(sss, aaa); same != true {
-				t.Errorf("ip:%s(%s:%s) dn:%s sss:%+v(%s) aaa:%v(%s) rid:%d", ip, ac, _ac, dn, sss[0], s_ac, aaa[0], a_ac, rid)
+				t.Errorf("ip:%s(%s) dn:%s sss:%+v(%s) aaa:%v(%s) rid:%d(%s)", ip, ac, dn, sss[0], s_ac, aaa[0], a_ac, rid, _ac)
 			}
 		}
 	}

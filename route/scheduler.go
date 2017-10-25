@@ -181,7 +181,7 @@ func (rt_db *Route_db) GetAAA(query_dn string, acode string, ip net.IP) ([]strin
 	_ac, client_ac = ac, ac
 	dn = query_dn
 
-	if aaa, ttl, _type, ok = rt_db.GetRTCache(query_dn, client_ac); ok {
+	if aaa, ttl, _type, rid, ok = rt_db.GetRTCache(query_dn, client_ac); ok {
 		//found in route cache
 		if aaa == nil {
 			//a fail cache result
@@ -281,7 +281,7 @@ func (rt_db *Route_db) GetAAA(query_dn string, acode string, ip net.IP) ([]strin
 	if nid == 0 {
 		//cache the fail rusult for a few seconds
 		rt_db.Update_Cache_Record(query_dn, client_ac,
-			&RT_Cache_Record{TS: time.Now().Unix(), TTL: 5, AAA: aaa, TYPE: _type})
+			&RT_Cache_Record{TS: time.Now().Unix(), TTL: 5, AAA: aaa, TYPE: _type, RID: rid})
 
 		return aaa, ttl, _type, false, ac, rid
 	}
@@ -311,7 +311,7 @@ func (rt_db *Route_db) GetAAA(query_dn string, acode string, ip net.IP) ([]strin
 	}
 
 	rt_db.Update_Cache_Record(query_dn, client_ac,
-		&RT_Cache_Record{TS: time.Now().Unix(), TTL: ttl, AAA: aaa, TYPE: _type})
+		&RT_Cache_Record{TS: time.Now().Unix(), TTL: ttl, AAA: aaa, TYPE: _type, RID: rid})
 
 	return aaa, ttl, _type, true, _ac, rid
 }
