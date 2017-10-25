@@ -7,18 +7,16 @@ import (
 )
 
 var (
-	worker DNS_worker
-	q      *DNS_query
-	r      *dns.Msg
-	aaaa   = []string{"1.1.1.1", "2.2.2.2", "3.3.3.3"}
+	worker    DNS_worker
+	q         *DNS_query
+	r, edns_r *dns.Msg
+	aaaa      = []string{"1.1.1.1", "2.2.2.2", "3.3.3.3"}
 )
 
 func init_db() {
-
 	worker = DNS_worker{}
 	worker.Id = 1
 	worker.Qsc = map[string]uint64{"QS": 1}
-
 }
 
 func TestRR_A(t *testing.T) {
@@ -120,6 +118,85 @@ func BenchmarkRR(b *testing.B) {
 		t := &testing.T{}
 		for pb.Next() {
 			TRR_A(t)
+		}
+	})
+}
+
+func TestEDNS0(t *testing.T) {
+	if worker.Id == 0 {
+		init_db()
+	}
+
+	if edns_r == nil {
+		o := new(dns.OPT)
+		o.Hdr.Name = "."
+		o.Hdr.Rrtype = dns.TypeOPT
+		e := new(dns.EDNS0_SUBNET)
+		e.Code = dns.EDNS0SUBNET
+		e.Family = 1         // 1 for IPv4 source address, 2 for IPv6
+		e.SourceNetmask = 32 // 32 for IPV4, 128 for IPv6
+		e.SourceScope = 0
+		e.Address = net.ParseIP("127.0.0.1").To4() // for IPv4
+		// e.Address = net.ParseIP("2001:7b8:32a::2")	// for IPV6
+		o.Option = append(o.Option, e)
+
+		er := dns.Msg{}
+
+		er.SetQuestion("mmycdn.com.", dns.TypeSOA)
+		er.Extra = append(er.Extra, o)
+
+		edns_r = &er
+	}
+
+	ip := getEdnsSubNet(edns_r)
+
+	if ip != nil {
+		t.Logf("getEdnsSubNet: %s", ip.String())
+	} else {
+		t.Errorf("getEdnsSubNet failed")
+	}
+}
+
+func TEDNS0(t *testing.T) {
+	if worker.Id == 0 {
+		init_db()
+	}
+
+	if edns_r == nil {
+		o := new(dns.OPT)
+		o.Hdr.Name = "."
+		o.Hdr.Rrtype = dns.TypeOPT
+		e := new(dns.EDNS0_SUBNET)
+		e.Code = dns.EDNS0SUBNET
+		e.Family = 1         // 1 for IPv4 source address, 2 for IPv6
+		e.SourceNetmask = 32 // 32 for IPV4, 128 for IPv6
+		e.SourceScope = 0
+		e.Address = net.ParseIP("127.0.0.1").To4() // for IPv4
+		// e.Address = net.ParseIP("2001:7b8:32a::2")	// for IPV6
+		o.Option = append(o.Option, e)
+
+		er := dns.Msg{}
+
+		er.SetQuestion("mmycdn.com.", dns.TypeSOA)
+		er.Extra = append(er.Extra, o)
+
+		edns_r = &er
+	}
+
+	if ip := getEdnsSubNet(edns_r); ip != nil {
+	}
+}
+
+func TestBenchEDNS0(t *testing.T) {
+	res := testing.Benchmark(BenchmarkEDNS0)
+	t.Logf("EDNS0 gen_rate: %d q/s", uint64(1.0/(float64(res.T)/(float64(res.N)*1000000000))))
+}
+
+func BenchmarkEDNS0(b *testing.B) {
+	b.RunParallel(func(pb *testing.PB) {
+		t := &testing.T{}
+		for pb.Next() {
+			TEDNS0(t)
 		}
 	})
 }

@@ -192,7 +192,7 @@ func (wkr *DNS_worker) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
 		if r.Extra == nil {
 			ip = _udp_addr.IP
 		} else {
-			//maybe an edns0 request, try to get client ip
+			//maybe an edns0 request, try to get client ip(subnet)
 			if ip = getEdnsSubNet(r); ip == nil {
 				ip = _udp_addr.IP
 			}
@@ -260,7 +260,6 @@ func Working(net, port, name, secret string, num int, ipdb *IP.IP_db, rtdb *RT.R
 }
 
 func getEdnsSubNet(r *dns.Msg) (ip net.IP) {
-
 	for _, extra := range r.Extra {
 		for _, o := range extra.(*dns.OPT).Option {
 			switch e := o.(type) {
