@@ -187,6 +187,8 @@ func (wkr *DNS_worker) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
 		_dn = dn
 	}
 
+	_dn = strings.ToLower(_dn)
+
 	if _udp_addr, ok := w.RemoteAddr().(*net.UDPAddr); ok {
 
 		if r.Extra == nil {
