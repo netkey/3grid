@@ -56,7 +56,7 @@ func (c *Cmds) Delete(msg *AMQP_Message) (err error) {
 	}()
 	db_type := msg.Object
 	switch db_type {
-	case "Domain":
+	case AMQP_OBJ_DOMAIN:
 		for k1, v1 := range *msg.Msg1 {
 			for k2, v2 := range v1 {
 				for k3, _ := range v2 {
@@ -64,13 +64,13 @@ func (c *Cmds) Delete(msg *AMQP_Message) (err error) {
 				}
 			}
 		}
-	case "Cmdb":
+	case AMQP_OBJ_CMDB:
 		for k1, v1 := range *msg.Msg1 {
 			for k2, _ := range v1 {
 				(*msg.Msg1)[k1][k2] = nil
 			}
 		}
-	case "Routedb":
+	case AMQP_OBJ_ROUTE:
 		for k, _ := range *msg.Msg1 {
 			(*msg.Msg1)[k] = nil
 		}
