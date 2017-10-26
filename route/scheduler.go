@@ -1,6 +1,7 @@
 package grid_route
 
 import (
+	IP "3grid/ip"
 	G "3grid/tools/globals"
 	"net"
 	"strings"
@@ -320,8 +321,57 @@ func (rt_db *Route_db) GetAAA(query_dn string, acode string, ip net.IP) ([]strin
 }
 
 //check if a node covered the client ac
-func (rt_db *Route_db) Match_Local_AC(node_ac string, client_ac string) bool {
-	return strings.Contains(client_ac, node_ac)
+func (rt_db *Route_db) Match_Local_AC(nr *Node_List_Record, client_ac string, check_nearby bool) bool {
+	/*  node_ac   MMY.CN-CT-JX-NC-C1
+	    _node_ac  MMY.CN.CT.JX.NC.C1
+	    client_ac CTC.CN.JX.NC
+	*/
+	var node_ac string
+	var _node_ac string
+	var match bool = false
+
+	node_ac = nr.AC
+
+	if strings.Contains(node_ac, "-") {
+		//convert MMY.CN-CT-JX-NC-C1 type AC to MMY.CN.CT.JX.NC.C1
+		_node_ac = strings.Replace(node_ac, "-", ".", -1)
+	}
+
+	_node_ac = strings.Replace(_node_ac, "MMY.", "", -1)
+	_node_ac = strings.Replace(_node_ac, ".C1", "", -1)
+
+	//CN.CT.JX.NC
+	_node_ac = strings.Replace(_node_ac, "CN.CT", "CTC.CN", -1)
+	_node_ac = strings.Replace(_node_ac, "CN.CHU", "CUC.CN", -1)
+	_node_ac = strings.Replace(_node_ac, "CN.CMCC", "CMCC.CN", -1)
+
+	//CTC.CN.JX.NC
+	match = strings.Contains(client_ac, _node_ac)
+
+	if !match && check_nearby {
+		if li := strings.LastIndex(_node_ac, "."); li != -1 {
+			match = strings.Contains(client_ac, _node_ac[:li-1])
+		}
+
+		if !match {
+			//look at the normal AC
+			if nr.AC2 != "" {
+				_node_ac = nr.AC2
+			} else {
+				if nr.ServerList != nil && len(nr.ServerList) > 0 {
+					sr := rt_db.Read_Server_Record(nr.ServerList[0])
+					_node_ac = IP.Ipdb.GetAreaCode(net.ParseIP(sr.ServerIp))
+					nr.AC2 = _node_ac
+				}
+			}
+
+			if li := strings.LastIndex(_node_ac, "."); li != -1 {
+				match = strings.Contains(client_ac, _node_ac[:li-1])
+			}
+		}
+	}
+
+	return match
 }
 
 func (rt_db *Route_db) ChooseNodeS(nodes map[uint]PW_List_Record, client_ac string, dr *Domain_List_Record) (Node_List_Record, Node_List_Record) {
@@ -363,7 +413,8 @@ func (rt_db *Route_db) ChooseNode(nodes map[uint]PW_List_Record, client_ac strin
 		G.Outlog3(G.LOG_SCHEDULER, "Looking at node:%s(%d), p:%d w:%d u:%d c:%d s:%t ac:%s",
 			nr.Name, nr.NodeId, v.PW[0], v.PW[1], nr.Usage, nr.Costs, nr.Status, nr.AC)
 
-		if nr.Status == false || nr.Usage >= Service_Deny_Percent {
+		if nr.Status == false || nr.Usage >= Service_Deny_Percent ||
+			nr.Priority == 0 || v.PW[0] == 0 { //priority==0 means node disabled
 			//not available(status algorithm) to serve(cutoff algorithm)
 			G.Outlog3(G.LOG_SCHEDULER, "%s(%d) not available to serve", nr.Name, nr.NodeId)
 			continue
@@ -376,7 +427,7 @@ func (rt_db *Route_db) ChooseNode(nodes map[uint]PW_List_Record, client_ac strin
 		if nr.Status && cnr.NodeId != 0 &&
 			(nr.Usage < Service_Cutoff_Percent) && (cnr.Usage > Service_Cutoff_Percent) {
 			//chosen node is in cutoff state, and i am not(cutoff algorithm)
-			if rt_db.Match_Local_AC(cnr.AC, client_ac) || cnr.Usage > Service_Deny_Percent {
+			if !rt_db.Match_Local_AC(&cnr, client_ac, false) || cnr.Usage > Service_Deny_Percent {
 				//cutoff none local client access, then local's
 				G.Outlog3(G.LOG_SCHEDULER, "%s(%d) is in busy, use %s(%d) instead",
 					cnr.Name, cnr.NodeId, nr.Name, nr.NodeId)
@@ -409,15 +460,24 @@ func (rt_db *Route_db) ChooseNode(nodes map[uint]PW_List_Record, client_ac strin
 				weight_idle = float64(float64(weight) * (1.0 - float64(cnr.Usage)/100.0))
 				_weight_idle = float64(float64(v.PW[1]) * (1.0 - float64(nr.Usage)/100.0))
 
-				if _weight_idle >= weight_idle {
-					//higher or same weight&&idle(weight&usage algorithm), means more idle
+				if _weight_idle > weight_idle {
+					//higher weight&&idle(weight&usage algorithm), means more idle
 					G.Outlog3(G.LOG_SCHEDULER, "%s(%d) is more idle(%f>%f), use it",
 						nr.Name, nr.NodeId, _weight_idle, weight_idle)
 
 					snr, cnr, nid, priority, weight = cnr, nr, k, v.PW[0], v.PW[1]
 				} else {
-					//lower weight_idle and not cheaper
+					//lower or same weight_idle and not cheaper
+					//if client and node are in same major area, use it first
+					if rt_db.Match_Local_AC(&cnr, client_ac, true) {
+						G.Outlog3(G.LOG_SCHEDULER, "%s(%d) is nearby client(%s), use it",
+							nr.Name, nr.NodeId, client_ac)
+
+						snr, cnr, nid, priority, weight = cnr, nr, k, v.PW[0], v.PW[1]
+					}
 				}
+			} else if nr.Costs > cnr.Costs {
+				//higher Costs
 			}
 			continue
 		}

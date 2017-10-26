@@ -93,6 +93,7 @@ type Node_List_Record struct {
 	NodeId       uint   //node id
 	Name         string //node name
 	AC           string //node AreaCode
+	AC2          string //node AreaCode (normal)
 	NodeCapacity uint64 //bandwidth
 	Usage        uint   //percentage
 	Status       bool   //1:ok 0:fail
