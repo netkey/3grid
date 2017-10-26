@@ -33,7 +33,7 @@ func TestGetAAA(t *testing.T) {
 	dn := "image227-c.poco.cn.mmycdn.com"
 
 	//aaa, ttl, _type, ok, _ac := Rtdb.GetAAA(dn, ac, ip)
-	aaa, ttl, _type, ok, _ac, _ := Rtdb.GetAAA(dn, ac, ip)
+	aaa, ttl, _type, ok, _ac, _, _ := Rtdb.GetAAA(dn, ac, ip)
 
 	if _type == "" {
 		_type = "CDN"
@@ -46,6 +46,30 @@ func TestGetAAA(t *testing.T) {
 	}
 }
 
+func TestGetAAA2(t *testing.T) {
+
+	if Rtdb == nil {
+		init_db()
+	}
+
+	ip := net.ParseIP("120.25.166.1")
+	ac := "*.CN.HAD.SH"
+	dn := "image227-c.poco.cn.mmy.ats"
+
+	//aaa, ttl, _type, ok, _ac := Rtdb.GetAAA(dn, ac, ip)
+	aaa, ttl, _type, ok, _ac, rid, _dn := Rtdb.GetAAA(dn, ac, ip)
+
+	if _type == "" {
+		_type = "CDN"
+	}
+
+	if ok {
+		t.Logf("dn:%s matched_dn:%s ac:%s matched_ac:%s ip:%+v ttl:%d type:%s rid:%d", dn, _dn, ac, _ac, aaa, ttl, _type, rid)
+	} else {
+		t.Errorf("dn:%s matched_dn:%s ac:%s matched_ac:%s ip:%+v ttl:%d type:%s rid:%d", dn, _dn, ac, _ac, aaa, ttl, _type, rid)
+	}
+}
+
 func TGetAAA(t *testing.T) {
 
 	if Rtdb == nil {
@@ -54,10 +78,10 @@ func TGetAAA(t *testing.T) {
 
 	ip := net.ParseIP("120.25.166.1")
 	ac := "*.CN.HAD.SH"
-	dn := "image227-c.poco.cn"
+	dn := "image227-c.poco.cn.mmycdn.com"
 
 	//aaa, ttl, _type, ok, _ac := Rtdb.GetAAA(dn, ac, ip)
-	aaa, ttl, _type, ok, _ac, _ := Rtdb.GetAAA(dn, ac, ip)
+	aaa, ttl, _type, ok, _ac, _, _ := Rtdb.GetAAA(dn, ac, ip)
 
 	if _type == "" {
 		_type = "CDN"

@@ -34,7 +34,7 @@ func TestRR_A(t *testing.T) {
 	ac := "*.CN.HAD.SH"
 	matched_ac := "*"
 
-	dn := "image227-c.poco.cn."
+	dn := "image227-c.poco.cn.mmycdn.com."
 	ttl := uint32(300)
 
 	_r := &dns.Msg{}
@@ -94,7 +94,7 @@ func TRR_A(t *testing.T) {
 		ac := "*.CN.HAD.SH"
 		matched_ac := "*"
 
-		dn := "image227-c.poco.cn."
+		dn := "image227-c.poco.cn.mmycdn.com."
 		ttl := uint32(300)
 
 		r = &dns.Msg{}

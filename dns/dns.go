@@ -202,7 +202,7 @@ func (wkr *DNS_worker) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
 
 		ac = wkr.Ipdb.GetAreaCode(ip)
 
-		if aaa, ttl, _type, _ok, matched_ac, _ = wkr.Rtdb.GetAAA(_dn, ac, ip); !_ok {
+		if aaa, ttl, _type, _ok, matched_ac, _, _ = wkr.Rtdb.GetAAA(_dn, ac, ip); !_ok {
 
 			G.OutDebug("GetAAA failed ip:%s ac:%s dn:%s", ip, ac, _dn)
 

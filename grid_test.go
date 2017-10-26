@@ -124,7 +124,7 @@ func TestGrid(t *testing.T) {
 			}
 
 			ac := IP.Ipdb.GetAreaCode(_ip)
-			aaa, _, _, ok, _ac, rid := RT.Rtdb.GetAAA(dn, ac, _ip)
+			aaa, _, _, ok, _ac, rid, _ := RT.Rtdb.GetAAA(dn, ac, _ip)
 			if !ok {
 				t.Errorf("Error GetAAA: ip:%s(%s) dn:%s aaa:%v(%s) rid:%d", _ip, ac, dn, aaa, _ac, rid)
 			}
