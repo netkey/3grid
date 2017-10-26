@@ -148,6 +148,8 @@ func TestGrid(t *testing.T) {
 							if ac[:li1-1] != a_ac[:li2-1] {
 								//not in same major area
 								match = false
+							} else {
+								match = true
 							}
 						} else {
 							match = false
@@ -158,10 +160,8 @@ func TestGrid(t *testing.T) {
 
 					if rid == 8 && (match_ac == "*" || match_ac[:2] == "*.") &&
 						a_ac == "CTC.CN.HAD.ZJ" {
-
 						match = true
 					}
-
 				} else {
 					match = true
 				}
