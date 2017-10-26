@@ -52,8 +52,8 @@ func TestGetAAA2(t *testing.T) {
 		init_db()
 	}
 
-	ip := net.ParseIP("120.25.166.1")
-	ac := "*.CN.HAD.SH"
+	ip := net.ParseIP("116.55.232.248")
+	ac := "CTC.CN.XIN.YN"
 	dn := "image227-c.poco.cn.mmy.ats"
 
 	//aaa, ttl, _type, ok, _ac := Rtdb.GetAAA(dn, ac, ip)
@@ -61,6 +61,10 @@ func TestGetAAA2(t *testing.T) {
 
 	if _type == "" {
 		_type = "CDN"
+	}
+
+	if aaa != nil && aaa[0] == "127.0.0.1" {
+		ok = false
 	}
 
 	if ok {
