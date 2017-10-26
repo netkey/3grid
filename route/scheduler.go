@@ -164,8 +164,9 @@ func (rt_db *Route_db) GetAAA(query_dn string, acode string, ip net.IP) ([]strin
 	var _type string     //dn type
 	var dn string        //actually dn matched by Match_DN() to looking at
 	var sl []uint        //server list
+	var _nid uint        //edge server's node id
 
-	if _nid, ok := rt_db.IN_Serverlist(ip); ok {
+	if _nid, ok = rt_db.IN_Serverlist(ip); ok {
 		//it's my server, change the area code to its node
 		irn := rt_db.Read_Node_Record(_nid)
 		if irn.AC != "" {
@@ -178,6 +179,7 @@ func (rt_db *Route_db) GetAAA(query_dn string, acode string, ip net.IP) ([]strin
 		ac = acode
 	}
 
+	ok = true
 	_ac, client_ac = ac, ac
 	dn = query_dn
 
@@ -284,7 +286,7 @@ func (rt_db *Route_db) GetAAA(query_dn string, acode string, ip net.IP) ([]strin
 		rt_db.Update_Cache_Record(query_dn, client_ac,
 			&RT_Cache_Record{TS: time.Now().Unix(), TTL: 5, AAA: aaa, TYPE: _type, RID: rid})
 
-		return aaa, ttl, _type, false, ac, rid, dn
+		return aaa, ttl, _type, false, _ac, rid, dn
 	}
 
 	if snr.NodeId != 0 {

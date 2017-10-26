@@ -98,6 +98,8 @@ func TestGrid(t *testing.T) {
 		init_db()
 	}
 
+	//t.Logf("num:%d  %+v", len(RT.Rtdb.Ips), RT.Rtdb.Ips)
+
 	if file, err := os.Open(testfile); err == nil {
 		defer file.Close()
 
@@ -124,9 +126,10 @@ func TestGrid(t *testing.T) {
 			}
 
 			ac := IP.Ipdb.GetAreaCode(_ip)
-			aaa, _, _, ok, _ac, rid, _ := RT.Rtdb.GetAAA(dn, ac, _ip)
+			aaa, _, _, ok, match_ac, rid, _ := RT.Rtdb.GetAAA(dn, ac, _ip)
 			if !ok {
-				t.Errorf("Error GetAAA: ip:%s(%s) dn:%s aaa:%v(%s) rid:%d", _ip, ac, dn, aaa, _ac, rid)
+				t.Errorf("Error GetAAA: ip:%s(%s) dn:%s aaa:%v(%s) rid:%d",
+					_ip, ac, dn, aaa, match_ac, rid)
 			}
 
 			if aaa == nil {
@@ -134,23 +137,42 @@ func TestGrid(t *testing.T) {
 			}
 			a_ac := IP.Ipdb.GetAreaCode(net.ParseIP(aaa[0]))
 
+			match := false
 			//compare results
 			if same := check_ips(sss, aaa); same != true {
 				if ac != a_ac {
 					//client and aaa node not in same area code
+
 					if li1 := strings.LastIndex(ac, "."); li1 != -1 {
 						if li2 := strings.LastIndex(a_ac, "."); li2 != -1 {
 							if ac[:li1-1] != a_ac[:li2-1] {
-								//not in same major centre
-								t.Errorf("ip:%s(%s) dn:%s sss:%+v(%s) aaa:%v(%s) rid:%d(%s)", ip, ac, dn, sss[0], s_ac, aaa[0], a_ac, rid, _ac)
+								//not in same major area
+								match = false
 							}
 						} else {
-							t.Errorf("ip:%s(%s) dn:%s sss:%+v(%s) aaa:%v(%s) rid:%d(%s)", ip, ac, dn, sss[0], s_ac, aaa[0], a_ac, rid, _ac)
+							match = false
 						}
 					} else {
-						t.Errorf("ip:%s(%s) dn:%s sss:%+v(%s) aaa:%v(%s) rid:%d(%s)", ip, ac, dn, sss[0], s_ac, aaa[0], a_ac, rid, _ac)
+						match = false
 					}
+
+					if rid == 8 && (match_ac == "*" || match_ac[:2] == "*.") && a_ac == "CTC.CN.HAD.ZJ" {
+						match = true
+					}
+
+				} else {
+					match = true
 				}
+			} else {
+				match = true
+			}
+
+			if match {
+				//t.Logf("Correct: ip:%s(%s) dn:%s sss:%+v(%s) aaa:%v(%s) rid:%d(%s)",
+				//ip, ac, dn, sss[0], s_ac, aaa[0], a_ac, rid, _ac)
+			} else {
+				t.Errorf("ip:%s(%s) sss:%+v(%s) aaa:%v(%s) rid:%d(%s)",
+					ip, ac, sss[0], s_ac, aaa[0], a_ac, rid, match_ac)
 			}
 		}
 	}
