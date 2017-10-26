@@ -388,7 +388,13 @@ func (rt_db *Route_db) Convert_Domain_Record(m map[string][]string) {
 					}
 
 				}
-				rt_db.Update_Domain_Record(k, r)
+
+				//for CDN client query name is r.Value, for regular is k
+				if r.Type == "" {
+					rt_db.Update_Domain_Record(r.Value, r)
+				} else {
+					rt_db.Update_Domain_Record(k, r)
+				}
 			}
 		} else {
 			rt_db.Update_Domain_Record(k, nil)

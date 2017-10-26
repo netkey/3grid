@@ -30,10 +30,10 @@ func TestGetAAA(t *testing.T) {
 
 	ip := net.ParseIP("120.25.166.1")
 	ac := "*.CN.HAD.SH"
-	dn := "image227-c.poco.cn"
+	dn := "image227-c.poco.cn.mmycdn.com"
 
 	//aaa, ttl, _type, ok, _ac := Rtdb.GetAAA(dn, ac, ip)
-	aaa, ttl, _type, ok, _ac := Rtdb.GetAAA(dn, ac, ip)
+	aaa, ttl, _type, ok, _ac, _ := Rtdb.GetAAA(dn, ac, ip)
 
 	if _type == "" {
 		_type = "CDN"
@@ -57,7 +57,7 @@ func TGetAAA(t *testing.T) {
 	dn := "image227-c.poco.cn"
 
 	//aaa, ttl, _type, ok, _ac := Rtdb.GetAAA(dn, ac, ip)
-	aaa, ttl, _type, ok, _ac := Rtdb.GetAAA(dn, ac, ip)
+	aaa, ttl, _type, ok, _ac, _ := Rtdb.GetAAA(dn, ac, ip)
 
 	if _type == "" {
 		_type = "CDN"

@@ -67,12 +67,16 @@ func check_ips(sss, aaa []string) (same bool) {
 	if sss != nil && sss[0] != "" {
 		if li := strings.LastIndex(sss[0], "."); li != -1 {
 			s = sss[0][0 : li-1]
+		} else {
+			s = sss[0]
 		}
 	}
 
 	if aaa != nil && aaa[0] != "" {
 		if li := strings.LastIndex(aaa[0], "."); li != -1 {
 			a = aaa[0][0 : li-1]
+		} else {
+			a = aaa[0]
 		}
 	}
 
@@ -88,6 +92,7 @@ func check_ips(sss, aaa []string) (same bool) {
 func TestGrid(t *testing.T) {
 	var testfile string = "logs/slb1/test_cdn.log"
 	var line string
+	var _ip net.IP
 
 	if IP.Ipdb == nil {
 		init_db()
@@ -103,24 +108,49 @@ func TestGrid(t *testing.T) {
 			//get line from slb log
 			a := strings.Split(line, "|")
 			ip := a[0]
-			dn := strings.ToLower(a[1])
-			sss := sp_sort(a[2])
+			ip_edns := a[1]
+			dn := strings.ToLower(a[2])
+			sss := sp_sort(a[3])
 			if sss == nil {
 				sss = []string{"0"}
 			}
 			s_ac := IP.Ipdb.GetAreaCode(net.ParseIP(sss[0]))
 
 			//resolve in grid
-			_ip := net.ParseIP(ip)
+			if ip_edns == "0.0.0.0" {
+				_ip = net.ParseIP(ip)
+			} else {
+				_ip = net.ParseIP(ip_edns)
+			}
+
 			ac := IP.Ipdb.GetAreaCode(_ip)
-			aaa, _, _, _, _ac, rid := RT.Rtdb.GetAAA(dn, ac, _ip)
+			aaa, _, _, ok, _ac, rid := RT.Rtdb.GetAAA(dn, ac, _ip)
+			if !ok {
+				t.Errorf("Error GetAAA: ip:%s(%s) dn:%s aaa:%v(%s) rid:%d", _ip, ac, dn, aaa, _ac, rid)
+			}
+
 			if aaa == nil {
 				aaa = []string{"0"}
 			}
 			a_ac := IP.Ipdb.GetAreaCode(net.ParseIP(aaa[0]))
 
+			//compare results
 			if same := check_ips(sss, aaa); same != true {
-				t.Errorf("ip:%s(%s) dn:%s sss:%+v(%s) aaa:%v(%s) rid:%d(%s)", ip, ac, dn, sss[0], s_ac, aaa[0], a_ac, rid, _ac)
+				if ac != a_ac {
+					//client and aaa node not in same area code
+					if li1 := strings.LastIndex(ac, "."); li1 != -1 {
+						if li2 := strings.LastIndex(a_ac, "."); li2 != -1 {
+							if ac[:li1-1] != a_ac[:li2-1] {
+								//not in same major centre
+								t.Errorf("ip:%s(%s) dn:%s sss:%+v(%s) aaa:%v(%s) rid:%d(%s)", ip, ac, dn, sss[0], s_ac, aaa[0], a_ac, rid, _ac)
+							}
+						} else {
+							t.Errorf("ip:%s(%s) dn:%s sss:%+v(%s) aaa:%v(%s) rid:%d(%s)", ip, ac, dn, sss[0], s_ac, aaa[0], a_ac, rid, _ac)
+						}
+					} else {
+						t.Errorf("ip:%s(%s) dn:%s sss:%+v(%s) aaa:%v(%s) rid:%d(%s)", ip, ac, dn, sss[0], s_ac, aaa[0], a_ac, rid, _ac)
+					}
+				}
 			}
 		}
 	}

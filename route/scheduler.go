@@ -194,7 +194,6 @@ func (rt_db *Route_db) GetAAA(query_dn string, acode string, ip net.IP) ([]strin
 	dr, ok := rt_db.Match_DN(dn)
 
 	if ok {
-		dn = dr.Name
 		ttl = uint32(dr.TTL)
 		_type = dr.Type
 	} else {
@@ -218,6 +217,8 @@ func (rt_db *Route_db) GetAAA(query_dn string, acode string, ip net.IP) ([]strin
 		}
 
 		return aaa, ttl, _type, ok, _ac, rid
+	} else {
+		dn = dr.Value
 	}
 
 	if dr.Forbidden != nil {

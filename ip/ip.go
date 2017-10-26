@@ -2,7 +2,6 @@ package grid_ip
 
 import (
 	G "3grid/tools/globals"
-	"fmt"
 	"github.com/oschwald/geoip2-golang"
 	"net"
 	//"strconv"
@@ -94,6 +93,12 @@ func (ip_db *IP_db) GetAreaCode(ip net.IP) string {
 				cn = re.Country.Names["en"]
 			}
 
+			{
+				//mangle it
+				if len(cn) > 4 && cn[:4] == "CHU." {
+					cn = "CUC" + cn[3:]
+				}
+			}
 			/*
 				ipc.AC = "AC:" + cn + "|CC:" + re.Country.IsoCode + "|Coordinates:" +
 				strconv.FormatFloat(re.Location.Latitude, 'f', 4, 64) + "," +
@@ -112,9 +117,7 @@ func (ip_db *IP_db) GetAreaCode(ip net.IP) string {
 		cn = ipc.AC
 	}
 
-	if G.Log {
-		G.Outlog(G.LOG_IP, fmt.Sprintf("ip:%s ac:%s", ips, cn))
-	}
+	G.Outlog3(G.LOG_IP, "ip:%s ac:%s", ips, cn)
 
 	return cn
 }
