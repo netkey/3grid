@@ -1,11 +1,17 @@
 package grid_route
 
 import (
+	IP "3grid/ip"
 	"net"
 	"testing"
 )
 
 func init_db() {
+
+	IP.Db_file = "../db/ip.db"
+	ipdb := IP.IP_db{}
+	IP.Ipdb = &ipdb
+	IP.Ipdb.IP_db_init()
 
 	RT_Db_file = "../db/route.db"
 	CM_Db_file = "../db/cmdb.db"
@@ -33,7 +39,7 @@ func TestGetAAA(t *testing.T) {
 	dn := "image227-c.poco.cn.mmycdn.com"
 
 	//aaa, ttl, _type, ok, _ac := Rtdb.GetAAA(dn, ac, ip)
-	aaa, ttl, _type, ok, _ac, _, _ := Rtdb.GetAAA(dn, ac, ip)
+	aaa, ttl, _type, ok, _ac, _, _ := Rtdb.GetAAA(dn, ac, ip, 0)
 
 	if _type == "" {
 		_type = "CDN"
@@ -57,7 +63,7 @@ func TestGetAAA2(t *testing.T) {
 	dn := "image227-c.poco.cn.mmy.ats"
 
 	//aaa, ttl, _type, ok, _ac := Rtdb.GetAAA(dn, ac, ip)
-	aaa, ttl, _type, ok, _ac, rid, _dn := Rtdb.GetAAA(dn, ac, ip)
+	aaa, ttl, _type, ok, _ac, rid, _dn := Rtdb.GetAAA(dn, ac, ip, 0)
 
 	if _type == "" {
 		_type = "CDN"
@@ -85,7 +91,7 @@ func TGetAAA(t *testing.T) {
 	dn := "image227-c.poco.cn.mmycdn.com"
 
 	//aaa, ttl, _type, ok, _ac := Rtdb.GetAAA(dn, ac, ip)
-	aaa, ttl, _type, ok, _ac, _, _ := Rtdb.GetAAA(dn, ac, ip)
+	aaa, ttl, _type, ok, _ac, _, _ := Rtdb.GetAAA(dn, ac, ip, 0)
 
 	if _type == "" {
 		_type = "CDN"

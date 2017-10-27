@@ -32,7 +32,6 @@ func init_db(t *testing.T) {
 	RT.RT_Cache_TTL = 10
 	RT.RT_Cache_Size = 1000
 
-	t.Logf("IP & Route db inited")
 }
 
 func init_log(t *testing.T) {
@@ -50,8 +49,6 @@ func init_log(t *testing.T) {
 		go G.Logger.Output()
 		go G.Logger.Output3()
 		go G.Logger.Checklogs()
-
-		t.Logf("Logger inited")
 
 	} else {
 		t.Errorf("Error init logger")
@@ -153,7 +150,7 @@ func TestGrid(t *testing.T) {
 			}
 
 			ac := IP.Ipdb.GetAreaCode(_ip)
-			aaa, _, _, ok, match_ac, rid, _ := RT.Rtdb.GetAAA(dn, ac, _ip)
+			aaa, _, _, ok, match_ac, rid, _ := RT.Rtdb.GetAAA(dn, ac, _ip, 0)
 			if !ok {
 				t.Errorf("Error GetAAA: ip:%s(%s) dn:%s aaa:%v(%s) rid:%d",
 					_ip, ac, dn, aaa, match_ac, rid)
