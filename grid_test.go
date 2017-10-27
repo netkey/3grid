@@ -39,10 +39,13 @@ func init_log(t *testing.T) {
 	var err error
 
 	G.Debug = false
+	G.Test = true
 	G.Log = true
 	G.LogBufSize = 1000
 
-	if G.Logger, err = G.NewLogger(); err == nil {
+	dir := "/dev/shm"
+
+	if G.Logger, err = G.NewLogger(&dir); err == nil {
 		G.LogChan = &G.Logger.Chan
 		G.LogChan3 = &G.Logger.Chan3
 
@@ -200,8 +203,9 @@ func TestGrid(t *testing.T) {
 				G.Outlog3(G.LOG_TEST, "ip:%s(%s) sss:%+v(%s) aaa:%v(%s) rid:%d(%s)",
 					ip, ac, sss[0], s_ac, aaa[0], a_ac, rid, match_ac)
 
-				t.Errorf("ip:%s(%s) sss:%+v(%s) aaa:%v(%s) rid:%d(%s)",
-					ip, ac, sss[0], s_ac, aaa[0], a_ac, rid, match_ac)
+				//t.Errorf("ip:%s(%s) sss:%+v(%s) aaa:%v(%s) rid:%d(%s)",
+				//ip, ac, sss[0], s_ac, aaa[0], a_ac, rid, match_ac)
+				t.Fail()
 			}
 		}
 	}

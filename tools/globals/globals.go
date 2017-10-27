@@ -10,6 +10,7 @@ import (
 )
 
 var Debug bool //global debug flag
+var Test bool  //global test flag
 
 var GP Perf_Counter //global perf counter
 var PC Perfcs       //specific perf counter

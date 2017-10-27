@@ -66,16 +66,21 @@ func OutDebug(a ...interface{}) {
 	}
 }
 
-func NewLogger() (*Grid_Logger, error) {
+func NewLogger(path *string) (*Grid_Logger, error) {
 	var err error
 	var logto = []string{LOG_IP, LOG_DNS, LOG_ROUTE, LOG_SCHEDULER, LOG_GSLB, LOG_DEBUG, LOG_AMQP, LOG_TEST}
 	var lg = Grid_Logger{}
+	var O_FLAGS int
 
-	if lg.Workdir, err = filepath.Abs(filepath.Dir(os.Args[0])); err != nil {
-		if Debug {
-			log.Printf("Error getting workdir: %s", err)
+	if path == nil {
+		if lg.Workdir, err = filepath.Abs(filepath.Dir(os.Args[0])); err != nil {
+			if Debug {
+				log.Printf("Error getting workdir: %s", err)
+			}
+			return nil, err
 		}
-		return nil, err
+	} else {
+		lg.Workdir = *path
 	}
 
 	lg.Files = make(map[string]string)
@@ -92,8 +97,13 @@ func NewLogger() (*Grid_Logger, error) {
 	for _, to := range logto {
 		lg.Files[to] = lg.Workdir + "/logs/" + to + ".log"
 
-		if lg.Fds[to], err = os.OpenFile(lg.Files[to],
-			os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0644); err != nil {
+		if Test {
+			O_FLAGS = os.O_TRUNC | os.O_WRONLY | os.O_CREATE
+		} else {
+			O_FLAGS = os.O_APPEND | os.O_WRONLY | os.O_CREATE
+		}
+
+		if lg.Fds[to], err = os.OpenFile(lg.Files[to], O_FLAGS, 0644); err != nil {
 			if Debug {
 				log.Printf("Error open log file %s: %s", err)
 			}

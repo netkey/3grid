@@ -287,7 +287,7 @@ func main() {
 			if log_enable {
 				G.Log = true
 				G.LogBufSize = log_buf_size
-				if G.Logger, err = G.NewLogger(); err != nil {
+				if G.Logger, err = G.NewLogger(nil); err != nil {
 					if G.Debug {
 						log.Printf("Error making logger: %s", err)
 					}
