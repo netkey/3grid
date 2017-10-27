@@ -7,6 +7,7 @@ import (
 	"flag"
 	"github.com/miekg/dns"
 	"net"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -15,7 +16,8 @@ var (
 	debug    = flag.Bool("dns-debug", true, "output debug info")
 	compress = flag.Bool("compress", false, "compress replies")
 
-	DN string
+	DN         string
+	DN_Spliter string
 )
 
 const Default_ttl = 60
@@ -36,6 +38,8 @@ type DNS_query struct {
 	AC           string //client area code
 	Matched_AC   string //matched ac in db
 	Matched_Type string //mathed query type in db
+	Debug        bool   //debug query, more info
+	RID          uint   //route plan id, for debug
 }
 
 func (wkr *DNS_worker) RR(aaa []string, q *DNS_query, w dns.ResponseWriter, r *dns.Msg) *dns.Msg {
@@ -66,11 +70,11 @@ func (wkr *DNS_worker) RR(aaa []string, q *DNS_query, w dns.ResponseWriter, r *d
 		return nil
 	}
 
-	if G.Debug {
+	if G.Debug || q.Debug {
 		t = &dns.TXT{
 			Hdr: dns.RR_Header{Name: q.DN, Rrtype: dns.TypeTXT,
 				Class: dns.ClassINET, Ttl: q.TTL},
-			Txt: []string{q.AC + ":" + q.Matched_AC},
+			Txt: []string{q.AC + ":" + q.Matched_AC + ":" + strconv.Itoa(int(q.RID))},
 		}
 	}
 
@@ -161,7 +165,7 @@ func (wkr *DNS_worker) RR(aaa []string, q *DNS_query, w dns.ResponseWriter, r *d
 	}
 
 	//output query log
-	G.Outlog3(G.LOG_DNS, "ip:%s type:%s name:%s result:%+v", q.Client_IP.String(), qtype, q.DN, aaa)
+	G.Outlog3(G.LOG_DNS, "ip:%s type:%d name:%s result:%+v", q.Client_IP, qtype, q.DN, aaa)
 
 	return &m
 }
@@ -176,7 +180,11 @@ func (wkr *DNS_worker) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
 		aaa            []string //ips
 		_type          string   //query type in string
 		_ok            bool     //GetAAA status
+		debug          bool     //debug query
+		rid            uint     //route plan id
 	)
+
+	debug = false
 
 	ttl = Default_ttl
 	dn = r.Question[0].Name //query domain name
@@ -200,9 +208,19 @@ func (wkr *DNS_worker) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
 			}
 		}
 
+		if strings.Contains(_dn, DN_Spliter) {
+			//if domain name contains debug ip, set it
+			spl := strings.Split(_dn, DN_Spliter)
+			ip = net.ParseIP(spl[0])
+			_dn = spl[1]
+			debug = true
+		}
+
+		G.Outlog3(G.LOG_DNS, "Serving DNS query: %s %s", _dn, ip.String())
+
 		ac = wkr.Ipdb.GetAreaCode(ip)
 
-		if aaa, ttl, _type, _ok, matched_ac, _, _ = wkr.Rtdb.GetAAA(_dn, ac, ip); !_ok {
+		if aaa, ttl, _type, _ok, matched_ac, rid, _ = wkr.Rtdb.GetAAA(_dn, ac, ip); !_ok {
 
 			G.OutDebug("GetAAA failed ip:%s ac:%s dn:%s", ip, ac, _dn)
 
@@ -219,15 +237,14 @@ func (wkr *DNS_worker) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
 		return
 	}
 
-	q := DNS_query{Query_Type: r.Question[0].Qtype, Client_IP: ip, DN: r.Question[0].Name,
-		TTL: ttl, AC: ac, Matched_AC: matched_ac, Matched_Type: _type}
+	//q := DNS_query{Query_Type: r.Question[0].Qtype, Client_IP: ip, DN: r.Question[0].Name,
+	q := DNS_query{Query_Type: r.Question[0].Qtype, Client_IP: ip, DN: _dn + ".",
+		TTL: ttl, AC: ac, Matched_AC: matched_ac, Matched_Type: _type, Debug: debug, RID: rid}
 
 	//generate answer and send it
 	if m := wkr.RR(aaa, &q, w, r); m != nil {
 		w.WriteMsg(m)
 	}
-
-	G.OutDebug("Query ip:%s ac:%s dn:%s type:%s aaa:%+v", ip, ac, _dn, _type, aaa)
 
 	//update global perf counter async
 	G.GP.Chan <- wkr.Qsc

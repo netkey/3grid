@@ -55,6 +55,7 @@ var rt_cache_size int
 var log_buf_size int
 var log_enable bool
 var state_recv bool
+var dn_spliter string
 
 func read_conf() {
 	viper.SupportedExts = append(viper.SupportedExts, "conf")
@@ -134,6 +135,12 @@ func read_conf() {
 			mydomain = "mmycdn.com"
 		} else {
 			mydomain = _mydomain
+		}
+		_dn_spliter := viper.GetString("gslb.domain_spliter")
+		if _dn_spliter == "" {
+			dn_spliter = "#.#"
+		} else {
+			dn_spliter = _dn_spliter
 		}
 		_acprefix := viper.GetString("gslb.acprefix")
 		if _acprefix == "" {
@@ -329,6 +336,7 @@ func main() {
 
 		{
 			D.DN = mydomain
+			D.DN_Spliter = dn_spliter
 
 			//init dns workers
 			var name, secret string
