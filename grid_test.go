@@ -116,7 +116,7 @@ func check_ips(sss, aaa []string) (same bool) {
 }
 
 func TestGrid(t *testing.T) {
-	var testfile string = "logs/slb1/test_cdn.log"
+	var testfile string = "logs/slb1/test.log"
 	var line string
 	var _ip net.IP
 
@@ -136,6 +136,9 @@ func TestGrid(t *testing.T) {
 
 			//get line from slb log
 			a := strings.Split(line, "|")
+			if len(a) < 4 {
+				continue
+			}
 			ip := a[0]
 			ip_edns := a[1]
 			dn := strings.ToLower(a[2])
@@ -155,11 +158,14 @@ func TestGrid(t *testing.T) {
 			ac := IP.Ipdb.GetAreaCode(_ip)
 			aaa, _, _, ok, match_ac, rid, _ := RT.Rtdb.GetAAA(dn, ac, _ip, 0)
 			if !ok {
-				t.Errorf("Error GetAAA: ip:%s(%s) dn:%s aaa:%v(%s) rid:%d",
-					_ip, ac, dn, aaa, match_ac, rid)
+				G.Outlog3(G.LOG_TEST, "dn:%s ip:%s(%s) sss:%+v(%s) aaa:%+v rid:%d(%s)",
+					dn, ip, ac, sss, s_ac, aaa, rid, match_ac)
+				//t.Errorf("Error GetAAA: ip:%s(%s) dn:%s aaa:%v(%s) rid:%d",
+				//	_ip, ac, dn, aaa, match_ac, rid)
+				t.Fail()
 			}
 
-			if aaa == nil {
+			if aaa == nil || len(aaa) < 1 {
 				aaa = []string{"0"}
 			}
 			a_ac := IP.Ipdb.GetAreaCode(net.ParseIP(aaa[0]))
@@ -200,8 +206,8 @@ func TestGrid(t *testing.T) {
 				//t.Logf("Correct: ip:%s(%s) dn:%s sss:%+v(%s) aaa:%v(%s) rid:%d(%s)",
 				//ip, ac, dn, sss[0], s_ac, aaa[0], a_ac, rid, _ac)
 			} else {
-				G.Outlog3(G.LOG_TEST, "ip:%s(%s) sss:%+v(%s) aaa:%v(%s) rid:%d(%s)",
-					ip, ac, sss[0], s_ac, aaa[0], a_ac, rid, match_ac)
+				G.Outlog3(G.LOG_TEST, "dn:%s ip:%s(%s) sss:%+v(%s) aaa:%v(%s) rid:%d(%s)",
+					dn, ip, ac, sss[0], s_ac, aaa[0], a_ac, rid, match_ac)
 
 				//t.Errorf("ip:%s(%s) sss:%+v(%s) aaa:%v(%s) rid:%d(%s)",
 				//ip, ac, sss[0], s_ac, aaa[0], a_ac, rid, match_ac)
