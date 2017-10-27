@@ -1,4 +1,4 @@
-# grid
+# GRID
 A Global Route IP Director(Daemon), aka GSLB.
 
 模块	功能	完成情况	预计时间
