@@ -3,6 +3,7 @@ package main
 import (
 	IP "3grid/ip"
 	RT "3grid/route"
+	G "3grid/tools/globals"
 	"bufio"
 	"net"
 	"os"
@@ -10,7 +11,7 @@ import (
 	"testing"
 )
 
-func init_db() {
+func init_db(t *testing.T) {
 
 	IP.Db_file = "db/ip.db"
 	ipdb := IP.IP_db{}
@@ -30,6 +31,31 @@ func init_db() {
 	RT.Service_Deny_Percent = 95
 	RT.RT_Cache_TTL = 10
 	RT.RT_Cache_Size = 1000
+
+	t.Logf("IP & Route db inited")
+}
+
+func init_log(t *testing.T) {
+
+	var err error
+
+	G.Debug = false
+	G.Log = true
+	G.LogBufSize = 1000
+
+	if G.Logger, err = G.NewLogger(); err == nil {
+		G.LogChan = &G.Logger.Chan
+		G.LogChan3 = &G.Logger.Chan3
+
+		go G.Logger.Output()
+		go G.Logger.Output3()
+		go G.Logger.Checklogs()
+
+		t.Logf("Logger inited")
+
+	} else {
+		t.Errorf("Error init logger")
+	}
 
 }
 
@@ -95,7 +121,8 @@ func TestGrid(t *testing.T) {
 	var _ip net.IP
 
 	if IP.Ipdb == nil {
-		init_db()
+		init_db(t)
+		init_log(t)
 	}
 
 	//t.Logf("num:%d  %+v", len(RT.Rtdb.Ips), RT.Rtdb.Ips)
@@ -173,6 +200,9 @@ func TestGrid(t *testing.T) {
 				//t.Logf("Correct: ip:%s(%s) dn:%s sss:%+v(%s) aaa:%v(%s) rid:%d(%s)",
 				//ip, ac, dn, sss[0], s_ac, aaa[0], a_ac, rid, _ac)
 			} else {
+				G.Outlog3(G.LOG_TEST, "ip:%s(%s) sss:%+v(%s) aaa:%v(%s) rid:%d(%s)",
+					ip, ac, sss[0], s_ac, aaa[0], a_ac, rid, match_ac)
+
 				t.Errorf("ip:%s(%s) sss:%+v(%s) aaa:%v(%s) rid:%d(%s)",
 					ip, ac, sss[0], s_ac, aaa[0], a_ac, rid, match_ac)
 			}
