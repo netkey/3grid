@@ -14,9 +14,13 @@ var Service_Deny_Percent uint
 
 //check if the ip is in my server list
 func (rt_db *Route_db) IN_Serverlist(ip net.IP) (uint, bool) {
-	ir := rt_db.Read_IP_Record(ip.String())
-	if ir.NodeId != 0 {
-		return ir.NodeId, true
+	if ip != nil {
+		ir := rt_db.Read_IP_Record(ip.String())
+		if ir.NodeId != 0 {
+			return ir.NodeId, true
+		} else {
+			return 0, false
+		}
 	} else {
 		return 0, false
 	}
@@ -154,7 +158,9 @@ func (rt_db *Route_db) Match_FB(ac string, dr *Domain_List_Record) (_ac string, 
 
 //Tag: AAA
 //return A IPs based on AreaCode and DomainName
-func (rt_db *Route_db) GetAAA(query_dn string, acode string, ip net.IP) ([]string, uint32, string, bool, string, uint, string) {
+func (rt_db *Route_db) GetAAA(query_dn string, acode string, ip net.IP,
+	debug int) ([]string, uint32, string, bool, string, uint, string) {
+
 	var ttl uint32 = 0   //domain ttl
 	var rid uint = 0     //route plan id
 	var aaa []string     //server ips to return
@@ -167,16 +173,22 @@ func (rt_db *Route_db) GetAAA(query_dn string, acode string, ip net.IP) ([]strin
 	var sl []uint        //server list
 	var _nid uint        //edge server's node id
 
-	if _nid, ok = rt_db.IN_Serverlist(ip); ok {
-		//it's my server, change the area code to its node
-		irn := rt_db.Read_Node_Record(_nid)
-		if irn.AC != "" {
-			ac = MyACPrefix + "." + irn.AC
+	if debug != 2 {
+		//not in ac debug mode
+		if _nid, ok = rt_db.IN_Serverlist(ip); ok {
+			//it's my server, change the area code to its node
+			irn := rt_db.Read_Node_Record(_nid)
+			if irn.AC != "" {
+				ac = MyACPrefix + "." + irn.AC
+			} else {
+				ac = acode
+			}
 		} else {
+			//change the area code to what existing in db
 			ac = acode
 		}
 	} else {
-		//change the area code to what existing in db
+		//debug mode, set ac directly
 		ac = acode
 	}
 

@@ -16,8 +16,9 @@ var (
 	debug    = flag.Bool("dns-debug", true, "output debug info")
 	compress = flag.Bool("compress", false, "compress replies")
 
-	DN         string
-	DN_Spliter string
+	DN            string
+	IP_DN_Spliter string
+	AC_DN_Spliter string
 )
 
 const Default_ttl = 60
@@ -38,7 +39,7 @@ type DNS_query struct {
 	AC           string //client area code
 	Matched_AC   string //matched ac in db
 	Matched_Type string //mathed query type in db
-	Debug        bool   //debug query, more info
+	Debug        int    //debug query, more info, 0:no-debug 1:ip-debug 2:ac-debug
 	RID          uint   //route plan id, for debug
 }
 
@@ -70,7 +71,7 @@ func (wkr *DNS_worker) RR(aaa []string, q *DNS_query, w dns.ResponseWriter, r *d
 		return nil
 	}
 
-	if G.Debug || q.Debug {
+	if G.Debug || q.Debug > 0 {
 		t = &dns.TXT{
 			Hdr: dns.RR_Header{Name: q.DN, Rrtype: dns.TypeTXT,
 				Class: dns.ClassINET, Ttl: q.TTL},
@@ -180,11 +181,11 @@ func (wkr *DNS_worker) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
 		aaa            []string //ips
 		_type          string   //query type in string
 		_ok            bool     //GetAAA status
-		debug          bool     //debug query
+		debug          int      //debug query
 		rid            uint     //route plan id
 	)
 
-	debug = false
+	debug = 0
 
 	ttl = Default_ttl
 	dn = r.Question[0].Name //query domain name
@@ -208,19 +209,27 @@ func (wkr *DNS_worker) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
 			}
 		}
 
-		if strings.Contains(_dn, DN_Spliter) {
+		if strings.Contains(_dn, IP_DN_Spliter) {
 			//if domain name contains debug ip, set it
-			spl := strings.Split(_dn, DN_Spliter)
+			spl := strings.Split(_dn, IP_DN_Spliter)
 			ip = net.ParseIP(spl[0])
 			_dn = spl[1]
-			debug = true
+			debug = 1
+		}
+
+		if strings.Contains(_dn, AC_DN_Spliter) {
+			//if domain name contains debug ac, set it
+			spl := strings.Split(_dn, AC_DN_Spliter)
+			ac = strings.ToUpper(spl[0])
+			_dn = spl[1]
+			debug = 2
+		} else {
+			ac = wkr.Ipdb.GetAreaCode(ip)
 		}
 
 		G.Outlog3(G.LOG_DNS, "Serving DNS query: %s %s", _dn, ip.String())
 
-		ac = wkr.Ipdb.GetAreaCode(ip)
-
-		if aaa, ttl, _type, _ok, matched_ac, rid, _ = wkr.Rtdb.GetAAA(_dn, ac, ip); !_ok {
+		if aaa, ttl, _type, _ok, matched_ac, rid, _ = wkr.Rtdb.GetAAA(_dn, ac, ip, debug); !_ok {
 
 			G.OutDebug("GetAAA failed ip:%s ac:%s dn:%s", ip, ac, _dn)
 
