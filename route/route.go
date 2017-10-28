@@ -605,9 +605,27 @@ func (rt_db *Route_db) Read_Route_Record_All_JSON() []byte {
 
 	var routes_json []byte
 	var err error
+	var mnodes map[string]PW_List_Record
+	var mroutes = make(map[string]map[string]map[string]map[string]PW_List_Record)
 
 	rt_db.Locks["routes"].RLock()
-	if routes_json, err = json.Marshal(rt_db.Routes); err != nil {
+
+	for k, v := range rt_db.Routes {
+		if mroutes[k] == nil {
+			mroutes[k] = make(map[string]map[string]map[string]PW_List_Record)
+		}
+		for x, y := range v {
+			xs := strconv.Itoa(int(x))
+			mnodes = make(map[string]PW_List_Record)
+			for z, r := range y.Nodes {
+				zs := strconv.Itoa(int(z))
+				mnodes[zs] = r
+			}
+			mroutes[k][xs]["Nodes"] = mnodes
+		}
+	}
+
+	if routes_json, err = json.Marshal(mroutes); err != nil {
 		G.Outlog3(G.LOG_ROUTE, "Error marshaling routes data: %s", err)
 		return nil
 	}

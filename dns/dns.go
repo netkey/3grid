@@ -221,6 +221,9 @@ func (wkr *DNS_worker) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
 			//if domain name contains debug ac, set it
 			spl := strings.Split(_dn, AC_DN_Spliter)
 			ac = strings.ToUpper(spl[0])
+			if strings.HasSuffix(ac, "\\") {
+				ac = ac[0 : len(ac)-1]
+			}
 			_dn = spl[1]
 			debug = 2
 		} else {
