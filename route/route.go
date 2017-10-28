@@ -600,6 +600,22 @@ func (rt_db *Route_db) Read_Route_Record(k string, rid uint) Route_List_Record {
 	return r
 }
 
+//Tag: JJJ
+func (rt_db *Route_db) Read_Route_Record_All_JSON() []byte {
+
+	var routes_json []byte
+	var err error
+
+	rt_db.Locks["routes"].RLock()
+	if routes_json, err = json.Marshal(rt_db.Routes); err != nil {
+		G.Outlog3(G.LOG_ROUTE, "Error marshaling routes data: %s", err)
+		return nil
+	}
+	rt_db.Locks["routes"].RUnlock()
+
+	return routes_json
+}
+
 func (rt_db *Route_db) Update_Route_Record(k string, rid uint, r *Route_List_Record) {
 	rt_db.Locks["routes"].Lock()
 	if r == nil && rid == 0 {

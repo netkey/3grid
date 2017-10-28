@@ -16,6 +16,8 @@ const (
 	AMQP_CMD_ADD     = "Add"     //Add data
 	AMQP_CMD_DEL     = "Del"     //Delete data
 	AMQP_CMD_UPDATE  = "Update"  //Update data
+	AMQP_CMD_GET     = "Get"     //Get data
+	AMQP_CMD_DATA    = "Data"    //Data requested by Get command
 	AMQP_CMD_ACK     = "Ack"     //Confirm msg
 	AMQP_PARAM_ZIP   = "Gzip"    //Whether msg is zipped
 	AMQP_PARAM_ACK   = "Ack"     //Whether msg is being required to confirm
