@@ -616,6 +616,9 @@ func (rt_db *Route_db) Read_Route_Record_All_JSON() []byte {
 		}
 		for x, y := range v {
 			xs := strconv.Itoa(int(x))
+			if mroutes[k][xs] == nil {
+				mroutes[k][xs] = make(map[string]map[string]PW_List_Record)
+			}
 			mnodes = make(map[string]PW_List_Record)
 			for z, r := range y.Nodes {
 				zs := strconv.Itoa(int(z))
