@@ -248,3 +248,66 @@ func Transmsg(_msg []byte, _am *AMQP_Message) error {
 
 	return nil
 }
+
+func Sendmsg2(_type, _command string, _param *map[string]string, _obj string, _msg1 *map[string]map[string]map[string][]string, _msg2 string, _replyto string, _replyid uint) error {
+	var err error
+	var jam []byte
+	var target, exchange string
+	var _mid uint
+
+	if _replyid != 0 {
+		_mid = _replyid
+	} else {
+		_mid = msgid.AutoID()
+	}
+
+	am := AMQP_Message{
+		ID:      _mid,
+		Sender:  "",
+		Command: _command,
+		Params:  _param,
+		Object:  _obj,
+		Msg1:    _msg1,
+		Msg2:    _msg2,
+		Gzip:    false,
+		Ack:     false,
+	}
+
+	switch _type {
+	case "broadcast":
+		target = AMQP_B.rkey
+		exchange = AMQP_B.exc
+		am.Sender = AMQP_B.myname
+		if jam, err = json.Marshal(am); err != nil {
+			return err
+		}
+		if err = AMQP_B.Publish(jam); err != nil {
+			return err
+		}
+	default:
+		if _replyto == "" {
+			target = AMQP_D.rkey
+		} else {
+			target = _replyto
+		}
+		exchange = AMQP_D.exc
+		am.Sender = AMQP_D.myname
+		if jam, err = json.Marshal(am); err != nil {
+			return err
+		}
+		if err = AMQP_D.Publish(jam, target); err != nil {
+			return err
+		}
+	}
+
+	G.OutDebug(
+		"msg to [%s] of [%s]: size [%v], msgid [%d], value: [%+v]",
+		target,
+		exchange,
+		len(jam),
+		am.ID,
+		am,
+	)
+
+	return nil
+}
