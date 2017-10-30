@@ -131,6 +131,7 @@ type RT_Cache_Record struct {
 	AAA  []string
 	TYPE string
 	RID  uint
+	MAC  string
 }
 
 func (rt_db *Route_db) RT_db_init() {
@@ -605,34 +606,39 @@ func (rt_db *Route_db) Read_Route_Record_All_JSON() []byte {
 
 	var routes_json []byte
 	var err error
-	var mnodes map[string]PW_List_Record
-	var mroutes = make(map[string]map[string]map[string]map[string]PW_List_Record)
+	var mnodes map[string][]string
+	var mroutes = make(map[string]map[string]map[string][]string)
 
 	rt_db.Locks["routes"].RLock()
+	defer rt_db.Locks["routes"].RUnlock()
 
-	for k, v := range rt_db.Routes {
-		if mroutes[k] == nil {
-			mroutes[k] = make(map[string]map[string]map[string]PW_List_Record)
-		}
-		for x, y := range v {
-			xs := strconv.Itoa(int(x))
-			if mroutes[k][xs] == nil {
-				mroutes[k][xs] = make(map[string]map[string]PW_List_Record)
+	//Routes:map[string]map[uint]Route_List_Record
+	for ac, rrs := range rt_db.Routes {
+		for rid, rr := range rrs {
+			rid_s := strconv.Itoa(int(rid))
+			if mroutes[rid_s] == nil {
+				mroutes[rid_s] = make(map[string]map[string][]string)
 			}
-			mnodes = make(map[string]PW_List_Record)
-			for z, r := range y.Nodes {
-				zs := strconv.Itoa(int(z))
-				mnodes[zs] = r
+			if mroutes[rid_s][ac] == nil {
+				mroutes[rid_s][ac] = make(map[string][]string)
 			}
-			mroutes[k][xs]["Nodes"] = mnodes
+			mnodes = make(map[string][]string)
+			for nid, pw := range rr.Nodes {
+				nid_s := strconv.Itoa(int(nid))
+				pw0_s := strconv.Itoa(int(pw.PW[0]))
+				pw1_s := strconv.Itoa(int(pw.PW[1]))
+				mnodes[nid_s] = []string{pw0_s, pw1_s}
+			}
+			mroutes[rid_s][ac] = mnodes
 		}
 	}
 
 	if routes_json, err = json.Marshal(mroutes); err != nil {
 		G.Outlog3(G.LOG_ROUTE, "Error marshaling routes data: %s", err)
 		return nil
+	} else {
+		G.Outlog3(G.LOG_ROUTE, "Routes data: %+v", mroutes)
 	}
-	rt_db.Locks["routes"].RUnlock()
 
 	return routes_json
 }
@@ -676,15 +682,15 @@ func (rt_db *Route_db) Read_Cache_Record(dn string, ac string) RT_Cache_Record {
 	return r
 }
 
-func (rt_db *Route_db) GetRTCache(dn string, ac string) ([]string, uint32, string, uint, bool) {
+func (rt_db *Route_db) GetRTCache(dn string, ac string) ([]string, uint32, string, uint, string, bool) {
 	var r RT_Cache_Record
 
 	r = rt_db.Read_Cache_Record(dn, ac)
 
 	if r.TTL != 0 {
-		return r.AAA, r.TTL, r.TYPE, r.RID, true
+		return r.AAA, r.TTL, r.TYPE, r.RID, r.MAC, true
 	} else {
-		return nil, 0, "", r.RID, false
+		return nil, 0, "", 0, "", false
 	}
 }
 

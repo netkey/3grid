@@ -192,7 +192,8 @@ func TestGrid(t *testing.T) {
 					}
 
 					if rid == 8 && (match_ac == "*" || match_ac[:2] == "*.") &&
-						a_ac == "CTC.CN.HAD.ZJ" {
+						(a_ac == "CTC.CN.HAD.ZJ" || a_ac == "CTC.CN.HAN.GD" ||
+							a_ac == "CUC.CN.HAB.SD") {
 						match = true
 					}
 				} else {

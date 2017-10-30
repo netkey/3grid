@@ -31,6 +31,8 @@ var (
 	gslb_center  = flag.String("gslb-center", "gslb-center", "AMQP routing key of gslb backends")
 )
 
+var myname string
+
 var AMQP_B *AMQP_Broadcaster
 var AMQP_D *AMQP_Director
 
@@ -45,9 +47,31 @@ func (a *AutoInc) AutoID() uint {
 	return a.id
 }
 
+func AMQP_D_RECONNECT() {
+	_myname := myname
+
+	keyd := _myname + "-d"
+	queue_d = &keyd
+	routingKey_d = &_myname
+
+	AMQP_D, _ = NewAMQPDirector(*amqp_uri, *exchange, *exchangeType, *queue_d, *routingKey_d, _myname)
+}
+
+func AMQP_B_RECONNECT() {
+	_myname := myname
+
+	keyb := _myname + "-d"
+	queue_b = &keyb
+	routingKey_b = &_myname
+
+	AMQP_B, _ = NewAMQPBroadcaster(*amqp_uri, *broadcast, "fanout", *queue_b, *routingKey_b, _myname)
+}
+
 func Synchronize(_interval, _ka_interval int, _myname string) {
 	//function to synchronize ip & route db
 	var err error
+
+	myname = _myname
 
 	keyb := _myname + "-b"
 	keyd := _myname + "-d"

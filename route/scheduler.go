@@ -172,11 +172,13 @@ func (rt_db *Route_db) GetAAA(query_dn string, acode string, ip net.IP,
 	var dn string        //actually dn matched by Match_DN() to looking at
 	var sl []uint        //server list
 	var _nid uint        //edge server's node id
+	var client_is_myserver bool
 
 	if debug != 2 {
 		//not in ac debug mode
 		if _nid, ok = rt_db.IN_Serverlist(ip); ok {
 			//it's my server, change the area code to its node
+			client_is_myserver = true
 			irn := rt_db.Read_Node_Record(_nid)
 			if irn.AC != "" {
 				ac = MyACPrefix + "." + irn.AC
@@ -196,7 +198,9 @@ func (rt_db *Route_db) GetAAA(query_dn string, acode string, ip net.IP,
 	_ac, client_ac = ac, ac
 	dn = query_dn
 
-	if aaa, ttl, _type, rid, ok = rt_db.GetRTCache(query_dn, client_ac); ok {
+	G.Outlog3(G.LOG_SCHEDULER, "Geting AAA for dn:%s client_ip:%s ac:%s", query_dn, ip.String(), _ac)
+
+	if aaa, ttl, _type, rid, _ac, ok = rt_db.GetRTCache(query_dn, client_ac); ok {
 		//found in route cache
 		if aaa == nil {
 			//a fail cache result
@@ -261,7 +265,12 @@ func (rt_db *Route_db) GetAAA(query_dn string, acode string, ip net.IP,
 				G.OutDebug("GETAAA matched, ac: %s, rid: %d, node:%+v", _ac, rid, rr.Nodes)
 
 				//choose primary and secondary node for serving
-				cnr, snr = rt_db.ChooseNodeS(rr.Nodes, _ac, &dr)
+				if client_is_myserver {
+					cnr, snr = rt_db.ChooseNodeS(rr.Nodes, _ac, acode, &dr)
+				} else {
+					cnr, snr = rt_db.ChooseNodeS(rr.Nodes, _ac, client_ac, &dr)
+				}
+
 				if nid = cnr.NodeId; nid != 0 {
 					//find one
 					break
@@ -278,7 +287,12 @@ func (rt_db *Route_db) GetAAA(query_dn string, acode string, ip net.IP,
 
 						G.OutDebug("GETAAA matched, ac: %s, rid: %d, node:%+v", _ac, rid, rr.Nodes)
 
-						cnr, snr = rt_db.ChooseNodeS(rr.Nodes, _ac, &dr)
+						if client_is_myserver {
+							cnr, snr = rt_db.ChooseNodeS(rr.Nodes, _ac, acode, &dr)
+						} else {
+							cnr, snr = rt_db.ChooseNodeS(rr.Nodes, _ac, client_ac, &dr)
+						}
+
 						if nid = cnr.NodeId; nid != 0 {
 							//find one
 							break
@@ -297,7 +311,7 @@ func (rt_db *Route_db) GetAAA(query_dn string, acode string, ip net.IP,
 	if nid == 0 {
 		//cache the fail rusult for a few seconds
 		rt_db.Update_Cache_Record(query_dn, client_ac,
-			&RT_Cache_Record{TS: time.Now().Unix(), TTL: 5, AAA: aaa, TYPE: _type, RID: rid})
+			&RT_Cache_Record{TS: time.Now().Unix(), TTL: 5, AAA: aaa, TYPE: _type, RID: rid, MAC: _ac})
 
 		return aaa, ttl, _type, false, _ac, rid, dn
 	}
@@ -327,16 +341,16 @@ func (rt_db *Route_db) GetAAA(query_dn string, acode string, ip net.IP,
 	}
 
 	rt_db.Update_Cache_Record(query_dn, client_ac,
-		&RT_Cache_Record{TS: time.Now().Unix(), TTL: ttl, AAA: aaa, TYPE: _type, RID: rid})
+		&RT_Cache_Record{TS: time.Now().Unix(), TTL: ttl, AAA: aaa, TYPE: _type, RID: rid, MAC: _ac})
 
 	return aaa, ttl, _type, true, _ac, rid, dn
 }
 
 //check if a node covered the client ac
-func (rt_db *Route_db) Match_Local_AC(nr *Node_List_Record, client_ac string, check_nearby bool) bool {
+func (rt_db *Route_db) Match_Local_AC(nr *Node_List_Record, client_ac string, check_nearby bool) (bool, string) {
 	/*  node_ac   MMY.CN-CT-JX-NC-C1
 	    _node_ac  MMY.CN.CT.JX.NC.C1
-	    client_ac CTC.CN.JX.NC
+	    client_ac CTC.CN.JX.NC / MMY.CN.CT.JX.NC.C1
 	*/
 	var node_ac string
 	var _node_ac string
@@ -358,11 +372,14 @@ func (rt_db *Route_db) Match_Local_AC(nr *Node_List_Record, client_ac string, ch
 	_node_ac = strings.Replace(_node_ac, "CN.CMCC", "CMCC.CN", -1)
 
 	//CTC.CN.JX.NC
+	//G.Outlog3(G.LOG_SCHEDULER, "Match-Local-AC: matching client_ac:%s and node_ac:%s", client_ac, _node_ac)
 	match = strings.Contains(client_ac, _node_ac)
 
 	if !match && check_nearby {
 		if li := strings.LastIndex(_node_ac, "."); li != -1 {
-			match = strings.Contains(client_ac, _node_ac[:li-1])
+			//G.Outlog3(G.LOG_SCHEDULER, "Match-Local-AC2: matching client_ac:%s and node_ac:%s", client_ac, _node_ac[:li])
+			match = strings.Contains(client_ac, _node_ac[:li])
+			_node_ac = _node_ac[:li]
 		}
 
 		if !match {
@@ -373,30 +390,35 @@ func (rt_db *Route_db) Match_Local_AC(nr *Node_List_Record, client_ac string, ch
 				if nr.ServerList != nil && len(nr.ServerList) > 0 {
 					sr := rt_db.Read_Server_Record(nr.ServerList[0])
 					_node_ac = IP.Ipdb.GetAreaCode(net.ParseIP(sr.ServerIp))
+					G.Outlog3(G.LOG_SCHEDULER, "Match-Local-AC3: from ip db get _node_ac:%s",
+						_node_ac)
 					nr.AC2 = _node_ac
+					rt_db.Update_Node_Record(nr.NodeId, nr)
 				}
 			}
 
 			if li := strings.LastIndex(_node_ac, "."); li != -1 {
-				match = strings.Contains(client_ac, _node_ac[:li-1])
+				//G.Outlog3(G.LOG_SCHEDULER, "Match-Local-AC3: matching client_ac:%s and node_ac:%s", client_ac, _node_ac[:li])
+				match = strings.Contains(client_ac, _node_ac[:li])
+				_node_ac = _node_ac[:li]
 			}
 		}
 	}
 
-	return match
+	return match, _node_ac
 }
 
-func (rt_db *Route_db) ChooseNodeS(nodes map[uint]PW_List_Record, client_ac string, dr *Domain_List_Record) (Node_List_Record, Node_List_Record) {
+func (rt_db *Route_db) ChooseNodeS(nodes map[uint]PW_List_Record, matched_ac, client_ac string, dr *Domain_List_Record) (Node_List_Record, Node_List_Record) {
 	var p, s Node_List_Record
 	var _nrecords uint
 
 	_nrecords = dr.Records
 
-	p, s = rt_db.ChooseNode(nodes, client_ac, dr, 0)
+	p, s = rt_db.ChooseNode(nodes, matched_ac, client_ac, dr, 0)
 
 	if p.NodeId != 0 && s.NodeId == 0 {
 		if _nrecords > uint(len(p.ServerList)) {
-			s, _ = rt_db.ChooseNode(nodes, client_ac, dr, p.NodeId)
+			s, _ = rt_db.ChooseNode(nodes, matched_ac, client_ac, dr, p.NodeId)
 		}
 	}
 
@@ -404,7 +426,7 @@ func (rt_db *Route_db) ChooseNodeS(nodes map[uint]PW_List_Record, client_ac stri
 }
 
 //scheduler algorithm of chosing available nodes, based on priority & weight & costs & usage(%)
-func (rt_db *Route_db) ChooseNode(nodes map[uint]PW_List_Record, client_ac string, dr *Domain_List_Record, forbid uint) (Node_List_Record, Node_List_Record) {
+func (rt_db *Route_db) ChooseNode(nodes map[uint]PW_List_Record, matched_ac, client_ac string, dr *Domain_List_Record, forbid uint) (Node_List_Record, Node_List_Record) {
 	var nr, cnr, snr Node_List_Record
 	//^cnr: chosen node record, isnr: secondary chosen node, nr: node record to compare
 	var nid uint = 0                      //nid: chosen node id, default to 0
@@ -439,7 +461,8 @@ func (rt_db *Route_db) ChooseNode(nodes map[uint]PW_List_Record, client_ac strin
 		if nr.Status && cnr.NodeId != 0 &&
 			(nr.Usage < Service_Cutoff_Percent) && (cnr.Usage > Service_Cutoff_Percent) {
 			//chosen node is in cutoff state, and i am not(cutoff algorithm)
-			if !rt_db.Match_Local_AC(&cnr, client_ac, false) || cnr.Usage > Service_Deny_Percent {
+			mlac, _ := rt_db.Match_Local_AC(&cnr, client_ac, false)
+			if !mlac || cnr.Usage > Service_Deny_Percent {
 				//cutoff none local client access, then local's
 				G.Outlog3(G.LOG_SCHEDULER, "%s(%d) is in busy, use %s(%d) instead",
 					cnr.Name, cnr.NodeId, nr.Name, nr.NodeId)
@@ -481,9 +504,10 @@ func (rt_db *Route_db) ChooseNode(nodes map[uint]PW_List_Record, client_ac strin
 				} else {
 					//lower or same weight_idle and not cheaper
 					//if client and node are in same major area, use it first
-					if rt_db.Match_Local_AC(&cnr, client_ac, true) {
-						G.Outlog3(G.LOG_SCHEDULER, "%s(%d) is nearby client(%s), use it",
-							nr.Name, nr.NodeId, client_ac)
+
+					if mlac, ac2 := rt_db.Match_Local_AC(&nr, client_ac, true); mlac {
+						G.Outlog3(G.LOG_SCHEDULER, "%s(%d)(%s) is nearby client(%s), use it",
+							nr.Name, nr.NodeId, ac2, client_ac)
 
 						snr, cnr, nid, priority, weight = cnr, nr, k, v.PW[0], v.PW[1]
 					}

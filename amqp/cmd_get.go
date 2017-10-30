@@ -16,8 +16,9 @@ func (c *Cmds) Get(msg *AMQP_Message) error {
 	case AMQP_OBJ_DOMAIN:
 	case AMQP_OBJ_CMDB:
 	case AMQP_OBJ_ROUTE:
-		G.Outlog3(G.LOG_AMQP, "Routes data: %+v", _msg1)
-		if err = json.Unmarshal(RT.Rtdb.Read_Route_Record_All_JSON(), _msg1); err != nil {
+		routes_json := RT.Rtdb.Read_Route_Record_All_JSON()
+
+		if err = json.Unmarshal(routes_json, &_msg1); err != nil {
 			G.Outlog3(G.LOG_AMQP, "Error unmarshal routes data: %s", err)
 		}
 

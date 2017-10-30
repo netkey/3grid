@@ -72,7 +72,8 @@ func NewAMQPBroadcaster(amqpURI, exchange, exchangeType, queueName, routingKey, 
 	}
 
 	go func() {
-		G.Outlog(G.LOG_AMQP, fmt.Sprintf("closing: %s", <-c.conn.NotifyClose(make(chan *amqp.Error))))
+		G.Outlog(G.LOG_AMQP, fmt.Sprintf("closing: %s, re-dialing..", <-c.conn.NotifyClose(make(chan *amqp.Error))))
+		AMQP_B_RECONNECT()
 	}()
 
 	G.Outlog(G.LOG_AMQP, fmt.Sprintf("got Connection, getting Channel"))
@@ -247,7 +248,8 @@ func NewAMQPDirector(amqpURI, exchange, exchangeType, queueName, routingKey, myn
 	}
 
 	go func() {
-		G.Outlog(G.LOG_AMQP, fmt.Sprintf("closing: %s", <-c.conn.NotifyClose(make(chan *amqp.Error))))
+		G.Outlog(G.LOG_AMQP, fmt.Sprintf("closing: %s, re-dialing..", <-c.conn.NotifyClose(make(chan *amqp.Error))))
+		AMQP_D_RECONNECT()
 	}()
 
 	G.Outlog(G.LOG_AMQP, fmt.Sprintf("got Connection, getting Channel"))
