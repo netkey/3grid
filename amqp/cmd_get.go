@@ -15,6 +15,17 @@ func (c *Cmds) Get(msg *AMQP_Message) error {
 	switch msg.Object {
 	case AMQP_OBJ_DOMAIN:
 	case AMQP_OBJ_CMDB:
+		cmdb_json := RT.Rtdb.Read_Cmdb_Record_All_JSON()
+
+		if err = json.Unmarshal(cmdb_json, &_msg1); err != nil {
+			G.Outlog3(G.LOG_AMQP, "Error unmarshal cmdb data: %s", err)
+		}
+
+		if err = Sendmsg2("", AMQP_CMD_DATA, &_param, AMQP_OBJ_CMDB,
+			&_msg1, "", *gslb_center, msg.ID); err != nil {
+			G.Outlog3(G.LOG_AMQP, "Error send cmdb data: %s", err)
+		}
+
 	case AMQP_OBJ_ROUTE:
 		routes_json := RT.Rtdb.Read_Route_Record_All_JSON()
 

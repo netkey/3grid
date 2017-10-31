@@ -602,7 +602,7 @@ func (rt_db *Route_db) Read_Route_Record(k string, rid uint) Route_List_Record {
 }
 
 //Tag: CCC
-func (rt_db *Route_db) Read_CMDB_Record_All_JSON() []byte {
+func (rt_db *Route_db) Read_Cmdb_Record_All_JSON() []byte {
 
 	var cmdb_json []byte
 	var err error
