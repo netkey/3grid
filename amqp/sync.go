@@ -32,6 +32,7 @@ var (
 )
 
 var myname string
+var ka_interval int
 
 var AMQP_B *AMQP_Broadcaster
 var AMQP_D *AMQP_Director
@@ -48,23 +49,41 @@ func (a *AutoInc) AutoID() uint {
 }
 
 func AMQP_D_RECONNECT() {
+	var err error
 	_myname := myname
+	_ka_interval := ka_interval
 
 	keyd := _myname + "-d"
 	queue_d = &keyd
 	routingKey_d = &_myname
 
-	AMQP_D, _ = NewAMQPDirector(*amqp_uri, *exchange, *exchangeType, *queue_d, *routingKey_d, _myname)
+	for {
+		AMQP_D, err = NewAMQPDirector(*amqp_uri, *exchange, *exchangeType, *queue_d, *routingKey_d, _myname)
+		if err != nil {
+			time.Sleep(time.Duration(_ka_interval) * time.Second)
+		} else {
+			break
+		}
+	}
 }
 
 func AMQP_B_RECONNECT() {
+	var err error
 	_myname := myname
+	_ka_interval := ka_interval
 
 	keyb := _myname + "-d"
 	queue_b = &keyb
 	routingKey_b = &_myname
 
-	AMQP_B, _ = NewAMQPBroadcaster(*amqp_uri, *broadcast, "fanout", *queue_b, *routingKey_b, _myname)
+	for {
+		AMQP_B, err = NewAMQPBroadcaster(*amqp_uri, *broadcast, "fanout", *queue_b, *routingKey_b, _myname)
+		if err != nil {
+			time.Sleep(time.Duration(_ka_interval) * time.Second)
+		} else {
+			break
+		}
+	}
 }
 
 func Synchronize(_interval, _ka_interval int, _myname string) {
@@ -72,6 +91,7 @@ func Synchronize(_interval, _ka_interval int, _myname string) {
 	var err error
 
 	myname = _myname
+	ka_interval = _ka_interval
 
 	keyb := _myname + "-b"
 	keyd := _myname + "-d"
