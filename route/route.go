@@ -641,6 +641,13 @@ func (rt_db *Route_db) Read_Cmdb_Record_All_JSON() []byte {
 
 		mcmdb["Cmdb"][nid_s]["0"] = mnode
 
+		/* node record sample:
+		"69": {"0": ["CN-CMCC-ZJ-HZ-C1", "1", "10", "0", "0", "1", "10000", "A", "CN-CMCC-ZJ-HZ-C1"],
+		"252": ["112.17.39.163", "0", "1", "1", "1"],
+		"253": ["112.17.39.164", "0", "1", "1", "1"],
+		"70": ["112.17.39.162", "0", "1", "1", "1"]}
+		*/
+
 		for _, sid := range nr.ServerList {
 			sid_s := strconv.Itoa(int(sid))
 			sr := rt_db.Read_Server_Record(sid)
