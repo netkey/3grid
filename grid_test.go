@@ -156,7 +156,7 @@ func TestGrid(t *testing.T) {
 			}
 
 			ac := IP.Ipdb.GetAreaCode(_ip)
-			aaa, _, _, ok, match_ac, rid, _ := RT.Rtdb.GetAAA(dn, ac, _ip, 0)
+			aaa, _, _, ok, match_ac, rid, _ := RT.Rtdb.GetAAA(dn, ac, _ip, 3) //despite node status check
 			if !ok {
 				G.Outlog3(G.LOG_TEST, "dn:%s ip:%s(%s) sss:%+v(%s) aaa:%+v rid:%d(%s)",
 					dn, ip, ac, sss, s_ac, aaa, rid, match_ac)

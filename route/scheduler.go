@@ -173,6 +173,11 @@ func (rt_db *Route_db) GetAAA(query_dn string, acode string, ip net.IP,
 	var sl []uint        //server list
 	var _nid uint        //edge server's node id
 	var client_is_myserver bool
+	var status_check bool = true
+
+	if debug == 3 {
+		status_check = false
+	}
 
 	if debug != 2 {
 		//not in ac debug mode
@@ -266,9 +271,9 @@ func (rt_db *Route_db) GetAAA(query_dn string, acode string, ip net.IP,
 
 				//choose primary and secondary node for serving
 				if client_is_myserver {
-					cnr, snr = rt_db.ChooseNodeS(rr.Nodes, _ac, acode, &dr)
+					cnr, snr = rt_db.ChooseNodeS(rr.Nodes, _ac, acode, &dr, status_check)
 				} else {
-					cnr, snr = rt_db.ChooseNodeS(rr.Nodes, _ac, client_ac, &dr)
+					cnr, snr = rt_db.ChooseNodeS(rr.Nodes, _ac, client_ac, &dr, status_check)
 				}
 
 				if nid = cnr.NodeId; nid != 0 {
@@ -288,9 +293,9 @@ func (rt_db *Route_db) GetAAA(query_dn string, acode string, ip net.IP,
 						G.OutDebug("GETAAA matched, ac: %s, rid: %d, node:%+v", _ac, rid, rr.Nodes)
 
 						if client_is_myserver {
-							cnr, snr = rt_db.ChooseNodeS(rr.Nodes, _ac, acode, &dr)
+							cnr, snr = rt_db.ChooseNodeS(rr.Nodes, _ac, acode, &dr, status_check)
 						} else {
-							cnr, snr = rt_db.ChooseNodeS(rr.Nodes, _ac, client_ac, &dr)
+							cnr, snr = rt_db.ChooseNodeS(rr.Nodes, _ac, client_ac, &dr, status_check)
 						}
 
 						if nid = cnr.NodeId; nid != 0 {
@@ -408,17 +413,17 @@ func (rt_db *Route_db) Match_Local_AC(nr *Node_List_Record, client_ac string, ch
 	return match, _node_ac
 }
 
-func (rt_db *Route_db) ChooseNodeS(nodes map[uint]PW_List_Record, matched_ac, client_ac string, dr *Domain_List_Record) (Node_List_Record, Node_List_Record) {
+func (rt_db *Route_db) ChooseNodeS(nodes map[uint]PW_List_Record, matched_ac, client_ac string, dr *Domain_List_Record, status_check bool) (Node_List_Record, Node_List_Record) {
 	var p, s Node_List_Record
 	var _nrecords uint
 
 	_nrecords = dr.Records
 
-	p, s = rt_db.ChooseNode(nodes, matched_ac, client_ac, dr, 0)
+	p, s = rt_db.ChooseNode(nodes, matched_ac, client_ac, dr, 0, status_check)
 
 	if p.NodeId != 0 && s.NodeId == 0 {
 		if _nrecords > uint(len(p.ServerList)) {
-			s, _ = rt_db.ChooseNode(nodes, matched_ac, client_ac, dr, p.NodeId)
+			s, _ = rt_db.ChooseNode(nodes, matched_ac, client_ac, dr, p.NodeId, status_check)
 		}
 	}
 
@@ -426,7 +431,7 @@ func (rt_db *Route_db) ChooseNodeS(nodes map[uint]PW_List_Record, matched_ac, cl
 }
 
 //scheduler algorithm of chosing available nodes, based on priority & weight & costs & usage(%)
-func (rt_db *Route_db) ChooseNode(nodes map[uint]PW_List_Record, matched_ac, client_ac string, dr *Domain_List_Record, forbid uint) (Node_List_Record, Node_List_Record) {
+func (rt_db *Route_db) ChooseNode(nodes map[uint]PW_List_Record, matched_ac, client_ac string, dr *Domain_List_Record, forbid uint, status_check bool) (Node_List_Record, Node_List_Record) {
 	var nr, cnr, snr Node_List_Record
 	//^cnr: chosen node record, isnr: secondary chosen node, nr: node record to compare
 	var nid uint = 0                      //nid: chosen node id, default to 0
@@ -447,7 +452,7 @@ func (rt_db *Route_db) ChooseNode(nodes map[uint]PW_List_Record, matched_ac, cli
 		G.Outlog3(G.LOG_SCHEDULER, "Looking at node:%s(%d), p:%d w:%d u:%d c:%d s:%t ac:%s",
 			nr.Name, nr.NodeId, v.PW[0], v.PW[1], nr.Usage, nr.Costs, nr.Status, nr.AC)
 
-		if nr.Status == false || nr.Usage >= Service_Deny_Percent ||
+		if (nr.Status == false && status_check) || nr.Usage >= Service_Deny_Percent ||
 			nr.Priority == 0 || v.PW[0] == 0 { //priority==0 means node disabled
 			//not available(status algorithm) to serve(cutoff algorithm)
 			G.Outlog3(G.LOG_SCHEDULER, "%s(%d) not available to serve", nr.Name, nr.NodeId)
