@@ -161,19 +161,25 @@ func (rt_db *Route_db) Match_FB(ac string, dr *Domain_List_Record) (_ac string, 
 func (rt_db *Route_db) GetAAA(query_dn string, acode string, ip net.IP,
 	debug int) ([]string, uint32, string, bool, string, uint, string) {
 
-	var ttl uint32 = 0   //domain ttl
-	var rid uint = 0     //route plan id
-	var aaa []string     //server ips to return
-	var ac string        //client ac or mangled by Match_FB()
-	var _ac string       //actually ac looking in route plan
-	var client_ac string //original client ac or mangled by IN_Serverlist()
-	var ok bool = true   //GetAAA status
-	var _type string     //dn type
-	var dn string        //actually dn matched by Match_DN() to looking at
-	var sl []uint        //server list
-	var _nid uint        //edge server's node id
-	var client_is_myserver bool
-	var status_check bool = true
+	var ttl uint32 = 0           //domain ttl
+	var rid uint = 0             //route plan id
+	var aaa []string             //server ips to return
+	var ac string                //client ac or mangled by Match_FB()
+	var _ac string               //actually ac looking in route plan
+	var client_ac string         //original client ac or mangled by IN_Serverlist()
+	var ok bool = true           //GetAAA status
+	var _type string             //dn type
+	var dn string                //actually dn matched by Match_DN() to looking at
+	var sl []uint                //server list
+	var _nid uint                //edge server's node id
+	var client_is_myserver bool  //querying client is my server
+	var status_check bool = true //wheather do node status check
+
+	/* debug = 0: normal mode(debug off)
+	   1: ip debug query mode
+	   2: ac debug query mode
+	   3: despite node status check
+	*/
 
 	if debug == 3 {
 		status_check = false
