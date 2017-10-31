@@ -53,6 +53,14 @@ func (rt_db *Route_db) Match_AC_RR(ac string, rid uint) (string, Route_List_Reco
 	}
 
 	if !find {
+		_ac = _ac + ".*"
+		rr = rt_db.Read_Route_Record(_ac, rid)
+		if rr.Nodes != nil && len(rr.Nodes) > 0 {
+			find = true
+		}
+	}
+
+	if !find {
 		_ac = "*"
 		rr = rt_db.Read_Route_Record(_ac, rid)
 		if rr.Nodes != nil && len(rr.Nodes) > 0 {

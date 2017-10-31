@@ -601,6 +601,75 @@ func (rt_db *Route_db) Read_Route_Record(k string, rid uint) Route_List_Record {
 	return r
 }
 
+//Tag: CCC
+func (rt_db *Route_db) Read_CMDB_Record_All_JSON() []byte {
+
+	var cmdb_json []byte
+	var err error
+	var mnode []string
+	var mserver []string
+	var mcmdb = make(map[string]map[string]map[string][]string)
+	var sstatus string
+
+	rt_db.Locks["nodes"].RLock()
+	defer rt_db.Locks["nodes"].RUnlock()
+
+	if mcmdb["Cmdb"] == nil {
+		mcmdb["Cmdb"] = make(map[string]map[string][]string)
+	}
+
+	for nid, nr := range rt_db.Nodes {
+		nid_s := strconv.Itoa(int(nid))
+		if mcmdb["Cmdb"][nid_s] == nil {
+			mcmdb["Cmdb"][nid_s] = make(map[string][]string)
+		}
+		mnode = []string{}
+		mnode = append(mnode, nr.Name)
+		mnode = append(mnode, strconv.Itoa(int(nr.Priority)))
+		mnode = append(mnode, strconv.Itoa(int(nr.Weight)))
+		mnode = append(mnode, strconv.Itoa(int(nr.Costs)))
+		mnode = append(mnode, strconv.Itoa(int(nr.Usage)))
+		if nr.Status {
+			sstatus = "1"
+		} else {
+			sstatus = "0"
+		}
+		mnode = append(mnode, sstatus)
+		mnode = append(mnode, strconv.Itoa(int(nr.NodeCapacity)))
+		mnode = append(mnode, nr.Type)
+		mnode = append(mnode, nr.AC)
+
+		mcmdb["Cmdb"][nid_s]["0"] = mnode
+
+		for _, sid := range nr.ServerList {
+			sid_s := strconv.Itoa(int(sid))
+			sr := rt_db.Read_Server_Record(sid)
+			mserver = []string{}
+			mserver = append(mserver, sr.ServerIp)
+			mserver = append(mserver, strconv.Itoa(int(sr.ServerCapacity)))
+			mserver = append(mserver, strconv.Itoa(int(sr.ServerGroup)))
+			mserver = append(mserver, strconv.Itoa(int(sr.Weight)))
+			if sr.Status {
+				sstatus = "1"
+			} else {
+				sstatus = "0"
+			}
+			mserver = append(mserver, sstatus)
+			mcmdb["Cmdb"][nid_s][sid_s] = mserver
+		}
+
+	}
+
+	if cmdb_json, err = json.Marshal(mcmdb); err != nil {
+		G.Outlog3(G.LOG_ROUTE, "Error marshaling cmdb data: %s", err)
+		return nil
+	} else {
+		G.Outlog3(G.LOG_ROUTE, "Cmdb data: %+v", mcmdb)
+	}
+
+	return cmdb_json
+}
+
 //Tag: JJJ
 func (rt_db *Route_db) Read_Route_Record_All_JSON() []byte {
 
