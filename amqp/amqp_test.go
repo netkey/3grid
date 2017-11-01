@@ -75,7 +75,7 @@ func TestUpdateCmdb(t *testing.T) {
 
 }
 
-func TestUpdateRtdb(t *testing.T) {
+func TestUpdateRoutedb(t *testing.T) {
 	var _param map[string]string
 	var _msg1 map[string]map[string]map[string][]string
 	var _msg2 string
@@ -113,6 +113,101 @@ func TestUpdateRtdb(t *testing.T) {
 		}
 	} else {
 		t.Errorf("Error updating route: %+v", _msg1)
+	}
+
+}
+
+func TestDeleteRoutedb(t *testing.T) {
+	var _param map[string]string
+	var _msg1 map[string]map[string]map[string][]string
+	var _msg2 string
+	var c = new(Cmds)
+
+	if IP.Ipdb == nil {
+		init_db()
+	}
+
+	_param = map[string]string{}
+	_msg2 = ""
+
+	//{"1": {"*.*": {"65": ["2", "100"]}, "CMCC.CN.XIN.SC": {"81": ["1", "100"]}}}
+	_msg1 = map[string]map[string]map[string][]string{"1": {"*.*": {"65": {"5", "123"}}, "CMCC.CN.XIN.SC": {"81": {"10", "1000"}}}}
+
+	am := AMQP_Message{
+		ID:      1,
+		Sender:  "gslb-center",
+		Command: "Delete",
+		Params:  &_param,
+		Object:  "Routedb",
+		Msg1:    &_msg1,
+		Msg2:    _msg2,
+		Gzip:    false,
+		Ack:     false,
+	}
+
+	c.Delete(&am)
+
+	time.Sleep(time.Duration(1) * time.Second)
+
+	if rr := RT.Rtdb.Read_Route_Record("*.*", 1); rr.Nodes == nil {
+		t.Logf("Route deleted: %+v", rr)
+	} else {
+		t.Errorf("Error delete route: %+v", _msg1)
+	}
+
+}
+
+func TestDeleteCmdb(t *testing.T) {
+	var _param map[string]string
+	var _msg1 map[string]map[string]map[string][]string
+	var _msg2 string
+	var c = new(Cmds)
+
+	if IP.Ipdb == nil {
+		init_db()
+	}
+
+	_param = map[string]string{}
+	_msg2 = ""
+
+	//"122": {"0": ["CN-CRC-GD-GZ-C1", " 1", "10", "0", "0", "1", "1700", "A", "CN-CRC-GD-GZ-C1"]}
+	_msg1 = map[string]map[string]map[string][]string{"Cmdb": {"122": {"0": {"CN-CRC-GD-GZ-C1", " 1", "10", "0", "50", "0", "1234", "A", "CN-CRC-GD-GZ-C1"}, "267": {"122.72.12.19", "0", "1", "1", "1"}, "92": {"122.72.12.18", "0", "1", "1", "1"}}}}
+
+	am := AMQP_Message{
+		ID:      1,
+		Sender:  "gslb-center",
+		Command: "Delete",
+		Params:  &_param,
+		Object:  "Cmdb",
+		Msg1:    &_msg1,
+		Msg2:    _msg2,
+		Gzip:    false,
+		Ack:     false,
+	}
+
+	c.Delete(&am)
+
+	time.Sleep(time.Duration(1) * time.Second)
+	nr := RT.Rtdb.Read_Node_Record(122)
+
+	if nr.NodeId == 0 {
+		t.Logf("Node deleted: %d", 122)
+	} else {
+		t.Errorf("Error deleting node: %d %+v", 122, nr)
+	}
+
+	sr := RT.Rtdb.Read_Server_Record(267)
+	if sr.ServerId == 0 {
+		t.Logf("Server deleted: %d", 267)
+	} else {
+		t.Errorf("Error deleting server: %d %+v", 267, sr)
+	}
+
+	sr2 := RT.Rtdb.Read_IP_Record("122.72.12.18")
+	if sr2.ServerId == 0 {
+		t.Logf("Server deleted: %d", 92)
+	} else {
+		t.Errorf("Error deleting server: %d %+v", 92, sr2)
 	}
 
 }

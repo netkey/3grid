@@ -453,6 +453,9 @@ func (rt_db *Route_db) Convert_Server_Record(m map[string][]string) {
 			} else {
 				rt_db.Update_Server_Record(r.ServerId, nil)
 			}
+		} else {
+			x, _ = strconv.Atoi(k)
+			rt_db.Update_Server_Record(uint(x), nil)
 		}
 	}
 }
@@ -536,6 +539,9 @@ func (rt_db *Route_db) Convert_Node_Record(m map[string][]string) {
 			} else {
 				rt_db.Update_Node_Record(r.NodeId, nil)
 			}
+		} else {
+			x, _ = strconv.Atoi(k)
+			rt_db.Update_Node_Record(uint(x), nil)
 		}
 	}
 }
@@ -586,7 +592,9 @@ func (rt_db *Route_db) Convert_Route_Record(m map[string][]string) {
 				rt_db.Update_Route_Record(k, rid, r)
 			}
 		} else {
-			rt_db.Update_Route_Record(k, 0, nil)
+			x, _ = strconv.Atoi(k)
+			rid = uint(x)
+			rt_db.Update_Route_Record("", rid, nil)
 		}
 	}
 }
@@ -721,8 +729,18 @@ func (rt_db *Route_db) Read_Route_Record_All_JSON() []byte {
 
 func (rt_db *Route_db) Update_Route_Record(k string, rid uint, r *Route_List_Record) {
 	rt_db.Locks["routes"].Lock()
-	if r == nil && rid == 0 {
-		delete(rt_db.Routes, k)
+	if r == nil {
+		if rid == 0 && k != "" {
+			delete(rt_db.Routes, k)
+		} else if k == "" && rid != 0 {
+			for ac, _ := range rt_db.Routes {
+				delete(rt_db.Routes[ac], rid)
+			}
+		} else if k != "" && rid != 0 {
+			if rt_db.Routes[k] != nil {
+				delete(rt_db.Routes[k], rid)
+			}
+		}
 	} else {
 		if rt_db.Routes[k] == nil {
 			rt_db.Routes[k] = make(map[uint]Route_List_Record)
