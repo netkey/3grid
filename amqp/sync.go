@@ -20,7 +20,7 @@ import (
 
 var (
 	debug        = flag.Bool("amqp-debug", true, "output debug info")
-	amqp_uri     = flag.String("amqp-uri", "amqp://gslb:gslb@gslb-amqp.chinamaincloud.com:5672//gslb", "URI")
+	amqp_uri     = flag.String("amqp-uri", "", "URI")
 	exchange     = flag.String("exchange", "gslb-exchange", "Durable, non-auto-deleted AMQP exchange name")
 	exchangeType = flag.String("exchange-type", "direct", "Exchange type - direct|fanout|topic|x-custom")
 	broadcast    = flag.String("broadcast", "gslb-broadcast", "Durable, non-auto-deleted AMQP exchange name")
@@ -30,6 +30,8 @@ var (
 	routingKey_d = flag.String("key-d", "gslb-key-d", "AMQP routing key of direct exchange")
 	gslb_center  = flag.String("gslb-center", "gslb-center", "AMQP routing key of gslb backends")
 )
+
+var AMQP_URI string
 
 var myname string
 var ka_interval int
@@ -58,7 +60,7 @@ func AMQP_D_RECONNECT() {
 	routingKey_d = &_myname
 
 	for {
-		AMQP_D, err = NewAMQPDirector(*amqp_uri, *exchange, *exchangeType, *queue_d, *routingKey_d, _myname)
+		AMQP_D, err = NewAMQPDirector(AMQP_URI, *exchange, *exchangeType, *queue_d, *routingKey_d, _myname)
 		if err != nil {
 			time.Sleep(time.Duration(_ka_interval) * time.Second)
 		} else {
@@ -77,7 +79,7 @@ func AMQP_B_RECONNECT() {
 	routingKey_b = &_myname
 
 	for {
-		AMQP_B, err = NewAMQPBroadcaster(*amqp_uri, *broadcast, "fanout", *queue_b, *routingKey_b, _myname)
+		AMQP_B, err = NewAMQPBroadcaster(AMQP_URI, *broadcast, "fanout", *queue_b, *routingKey_b, _myname)
 		if err != nil {
 			time.Sleep(time.Duration(_ka_interval) * time.Second)
 		} else {
@@ -99,11 +101,11 @@ func Synchronize(_interval, _ka_interval int, _myname string) {
 	queue_d = &keyd
 	routingKey_b, routingKey_d = &_myname, &_myname
 
-	AMQP_D, err = NewAMQPDirector(*amqp_uri, *exchange, *exchangeType, *queue_d, *routingKey_d, _myname)
+	AMQP_D, err = NewAMQPDirector(AMQP_URI, *exchange, *exchangeType, *queue_d, *routingKey_d, _myname)
 	if err != nil {
 		log.Fatalf("%s", err)
 	} else {
-		AMQP_B, err = NewAMQPBroadcaster(*amqp_uri, *broadcast, "fanout", *queue_b, *routingKey_b, _myname)
+		AMQP_B, err = NewAMQPBroadcaster(AMQP_URI, *broadcast, "fanout", *queue_b, *routingKey_b, _myname)
 		if err != nil {
 			log.Fatalf("%s", err)
 		} else {

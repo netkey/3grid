@@ -4,5 +4,5 @@ import (
 	"testing"
 )
 
-func TestAMQP(t *testing.T) {
+func TestUpdate(t *testing.T) {
 }
