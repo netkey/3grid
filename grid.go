@@ -32,6 +32,7 @@ var daemond bool
 var debug_info string
 var workdir string
 var progname string
+var bufsize int
 
 //master/worker related
 var master bool
@@ -77,6 +78,12 @@ func read_conf() {
 			num_cpus = runtime.NumCPU()
 		} else {
 			num_cpus = _num_cpus
+		}
+		_bufsize := viper.GetInt("server.bufsize")
+		if _bufsize == 0 {
+			bufsize = 0 //use system default
+		} else {
+			bufsize = _bufsize
 		}
 		_num_childs := viper.GetInt("server.childs")
 		if _num_childs == 0 {
@@ -349,6 +356,7 @@ func main() {
 		}
 
 		{
+			D.Bufsize = bufsize
 			D.DN = mydomain
 			D.IP_DN_Spliter = ip_dn_spliter
 			D.AC_DN_Spliter = ac_dn_spliter

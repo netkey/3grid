@@ -9,6 +9,7 @@ import (
 	"net"
 	"strconv"
 	"strings"
+	"syscall"
 	"time"
 )
 
@@ -16,6 +17,7 @@ var (
 	debug    = flag.Bool("dns-debug", true, "output debug info")
 	compress = flag.Bool("compress", false, "compress replies")
 
+	Bufsize       int
 	DN            string
 	IP_DN_Spliter string
 	AC_DN_Spliter string
@@ -265,7 +267,7 @@ func (wkr *DNS_worker) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
 	G.PC.Chan <- map[string]map[string]uint64{G.PERF_DOMAIN: {_dn: 1}}
 }
 
-func Working(net, port, name, secret string, num int, ipdb *IP.IP_db, rtdb *RT.Route_db) {
+func Working(nets, port, name, secret string, num int, ipdb *IP.IP_db, rtdb *RT.Route_db) {
 
 	worker := DNS_worker{}
 	worker.Id = num
@@ -276,16 +278,49 @@ func Working(net, port, name, secret string, num int, ipdb *IP.IP_db, rtdb *RT.R
 
 	switch name {
 	case "":
-		worker.Server = &dns.Server{Addr: ":" + port, Net: net, TsigSecret: nil}
+		worker.Server = &dns.Server{Addr: ":" + port, Net: nets, TsigSecret: nil}
 		worker.Server.Handler = &worker
+
+		go func() {
+			time.Sleep(time.Duration(1) * time.Second)
+			pck_conn := worker.Server.PacketConn
+			udp_conn := pck_conn.(*net.UDPConn)
+			if Bufsize > 0 {
+				udp_conn.SetReadBuffer(Bufsize)
+				udp_conn.SetWriteBuffer(Bufsize)
+			}
+			fd, _ := udp_conn.File()
+			value, _ := syscall.GetsockoptInt(int(fd.Fd()), syscall.SOL_SOCKET, syscall.SO_SNDBUF)
+			G.OutDebug("Worker %d UDP socket SNDBUF size:%d", worker.Id, value)
+			value, _ = syscall.GetsockoptInt(int(fd.Fd()), syscall.SOL_SOCKET, syscall.SO_RCVBUF)
+			G.OutDebug("Worker %d UDP socket RCVBUF size:%d", worker.Id, value)
+		}()
+
 		if err := worker.Server.ListenAndServe(); err != nil {
-			G.OutDebug("Failed to setup the "+net+" server: %s\n", err.Error())
+			G.OutDebug("Failed to setup the "+nets+" server: %s\n", err.Error())
 		}
 	default:
-		worker.Server = &dns.Server{Addr: ":" + port, Net: net, TsigSecret: map[string]string{name: secret}}
+		worker.Server = &dns.Server{Addr: ":" + port, Net: nets, TsigSecret: map[string]string{name: secret}}
 		worker.Server.Handler = &worker
+
+		go func() {
+			time.Sleep(time.Duration(1) * time.Second)
+			pck_conn := worker.Server.PacketConn
+			udp_conn := pck_conn.(*net.UDPConn)
+			if Bufsize > 0 {
+				udp_conn.SetReadBuffer(Bufsize)
+				udp_conn.SetWriteBuffer(Bufsize)
+			}
+			fd, _ := udp_conn.File()
+			value, _ := syscall.GetsockoptInt(int(fd.Fd()), syscall.SOL_SOCKET, syscall.SO_SNDBUF)
+			G.OutDebug("Worker %d UDP socket SNDBUF size:%d", worker.Id, value)
+			value, _ = syscall.GetsockoptInt(int(fd.Fd()), syscall.SOL_SOCKET, syscall.SO_RCVBUF)
+			G.OutDebug("Worker %d UDP socket RCVBUF size:%d", worker.Id, value)
+
+		}()
+
 		if err := worker.Server.ListenAndServe(); err != nil {
-			G.OutDebug("Failed to setup the "+net+" server: %s\n", err.Error())
+			G.OutDebug("Failed to setup the "+nets+" server: %s\n", err.Error())
 		}
 	}
 }
