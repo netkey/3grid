@@ -30,7 +30,7 @@ func init_db() {
 
 }
 
-func TestUpdate(t *testing.T) {
+func TestUpdateCmdb(t *testing.T) {
 	var _param map[string]string
 	var _msg1 map[string]map[string]map[string][]string
 	var _msg2 string
@@ -71,6 +71,48 @@ func TestUpdate(t *testing.T) {
 		}
 	} else {
 		t.Errorf("Error updating node: %+v", nr)
+	}
+
+}
+
+func TestUpdateRtdb(t *testing.T) {
+	var _param map[string]string
+	var _msg1 map[string]map[string]map[string][]string
+	var _msg2 string
+	var c = new(Cmds)
+
+	if IP.Ipdb == nil {
+		init_db()
+	}
+
+	_param = map[string]string{}
+	_msg2 = ""
+
+	//{"1": {"*.*": {"65": ["2", "100"]}, "CMCC.CN.XIN.SC": {"81": ["1", "100"]}}}
+	_msg1 = map[string]map[string]map[string][]string{"1": {"*.*": {"65": {"5", "123"}}, "CMCC.CN.XIN.SC": {"81": {"10", "1000"}}}}
+
+	am := AMQP_Message{
+		ID:      1,
+		Sender:  "gslb-center",
+		Command: "Update",
+		Params:  &_param,
+		Object:  "Routedb",
+		Msg1:    &_msg1,
+		Msg2:    _msg2,
+		Gzip:    false,
+		Ack:     false,
+	}
+
+	c.Update(&am)
+
+	time.Sleep(time.Duration(1) * time.Second)
+
+	if rr := RT.Rtdb.Read_Route_Record("*.*", 1); rr.Nodes != nil && rr.Nodes[65].PW[0] == 5 && rr.Nodes[65].PW[1] == 123 {
+		if rr2 := RT.Rtdb.Read_Route_Record("CMCC.CN.XIN.SC", 1); rr2.Nodes != nil && rr2.Nodes[81].PW[0] == 10 && rr2.Nodes[81].PW[1] == 1000 {
+			t.Logf("Route updated: %+v %+v", rr, rr2)
+		}
+	} else {
+		t.Errorf("Error updating route: %+v", _msg1)
 	}
 
 }
