@@ -211,3 +211,85 @@ func TestDeleteCmdb(t *testing.T) {
 	}
 
 }
+
+func TestUpdateDomain(t *testing.T) {
+	var _param map[string]string
+	var _msg1 map[string]map[string]map[string][]string
+	var _msg2 string
+	var c = new(Cmds)
+
+	if IP.Ipdb == nil {
+		init_db()
+	}
+
+	_param = map[string]string{}
+	_msg2 = ""
+
+	//"image15-c.poco.cn": ["", "image15-c.poco.cn.mmycdn.com", "10", "1", "3", "300", "8,70", "1", ""]
+	_msg1 = map[string]map[string]map[string][]string{"Domain": {"Domain": {"image15-c.poco.cn": {"", "image15-c.poco.cn.mmycdn.com", "10", "1", "3", "600", "8,70", "1", ""}}}}
+
+	am := AMQP_Message{
+		ID:      1,
+		Sender:  "gslb-center",
+		Command: "Update",
+		Params:  &_param,
+		Object:  "Domain",
+		Msg1:    &_msg1,
+		Msg2:    _msg2,
+		Gzip:    false,
+		Ack:     false,
+	}
+
+	c.Update(&am)
+
+	time.Sleep(time.Duration(1) * time.Second)
+	dr := RT.Rtdb.Read_Domain_Record("image15-c.poco.cn.mmycdn.com")
+
+	if dr.TTL == 600 {
+		t.Logf("Domain updated: %+v", dr)
+	} else {
+		t.Errorf("Error updating domain: %+v", dr)
+	}
+
+}
+
+func TestDeleteDomain(t *testing.T) {
+	var _param map[string]string
+	var _msg1 map[string]map[string]map[string][]string
+	var _msg2 string
+	var c = new(Cmds)
+
+	if IP.Ipdb == nil {
+		init_db()
+	}
+
+	_param = map[string]string{}
+	_msg2 = ""
+
+	//"image15-c.poco.cn": ["", "image15-c.poco.cn.mmycdn.com", "10", "1", "3", "300", "8,70", "1", ""]
+	_msg1 = map[string]map[string]map[string][]string{"Domain": {"Domain": {"image15-c.poco.cn.mmycdn.com": {"", "image15-c.poco.cn.mmycdn.com", "10", "1", "3", "600", "8,70", "1", ""}}}}
+
+	am := AMQP_Message{
+		ID:      1,
+		Sender:  "gslb-center",
+		Command: "Delete",
+		Params:  &_param,
+		Object:  "Domain",
+		Msg1:    &_msg1,
+		Msg2:    _msg2,
+		Gzip:    false,
+		Ack:     false,
+	}
+
+	c.Delete(&am)
+
+	time.Sleep(time.Duration(1) * time.Second)
+	dr := RT.Rtdb.Read_Domain_Record("image15-c.poco.cn.mmycdn.com")
+
+	if dr.TTL == 0 {
+		t.Logf("Domain deleted: image15-c.poco.cn.mmycdn.com")
+	} else {
+		t.Errorf("Error deleting domain: %+v", dr)
+	}
+
+}
