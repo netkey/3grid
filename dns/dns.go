@@ -298,9 +298,15 @@ func Working(nets, port, name, secret string, num int, ipdb *IP.IP_db, rtdb *RT.
 
 			value, _ := syscall.GetsockoptInt(int(fd.Fd()), syscall.SOL_SOCKET, syscall.SO_SNDBUF)
 			G.OutDebug("Worker %d UDP socket SNDBUF size:%d", worker.Id, value)
+
 			value, _ = syscall.GetsockoptInt(int(fd.Fd()), syscall.SOL_SOCKET, syscall.SO_RCVBUF)
 			G.OutDebug("Worker %d UDP socket RCVBUF size:%d", worker.Id, value)
 
+			/*
+			   https://github.com/miekg/dns/blob/master/udp_linux.go#79:
+			   Calling File() above results in the connection becoming blocking, we must fix that.
+			   See https://github.com/miekg/dns/issues/279
+			*/
 			syscall.SetNonblock(int(fd.Fd()), true)
 			fd.Close()
 		}
