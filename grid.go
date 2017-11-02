@@ -59,6 +59,7 @@ var state_recv bool
 var ip_dn_spliter string
 var ac_dn_spliter string
 var amqp_uri string
+var compress bool
 
 func read_conf() {
 	viper.SupportedExts = append(viper.SupportedExts, "conf")
@@ -223,6 +224,12 @@ func read_conf() {
 		} else {
 			state_recv = true
 		}
+		_compress := viper.GetBool("gslb.compress")
+		if _compress == false {
+			compress = false
+		} else {
+			compress = true
+		}
 		if *debug {
 			debug_info = fmt.Sprintf("%s running - cpus:%d port:%s daemon:%t debug:%t interval:%d keepalive:%d myname:%s", myname, num_cpus, port, daemond, *debug, interval, keepalive, myname)
 		}
@@ -357,6 +364,7 @@ func main() {
 
 		{
 			D.Bufsize = bufsize
+			*D.Compress = compress
 			D.DN = mydomain
 			D.IP_DN_Spliter = ip_dn_spliter
 			D.AC_DN_Spliter = ac_dn_spliter

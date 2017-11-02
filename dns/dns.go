@@ -14,8 +14,7 @@ import (
 )
 
 var (
-	debug    = flag.Bool("dns-debug", true, "output debug info")
-	compress = flag.Bool("compress", false, "compress replies")
+	Compress = flag.Bool("compress", false, "compress replies")
 
 	Bufsize       int
 	DN            string
@@ -83,7 +82,7 @@ func (wkr *DNS_worker) RR(aaa []string, q *DNS_query, w dns.ResponseWriter, r *d
 
 	m := dns.Msg{}
 	m.SetReply(r)
-	m.Compress = *compress
+	m.Compress = *Compress
 
 	if qtype = q.Query_Type; qtype != dns.TypeSOA {
 		switch q.Matched_Type {
