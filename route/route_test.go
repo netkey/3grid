@@ -80,6 +80,34 @@ func TestGetAAA2(t *testing.T) {
 	}
 }
 
+func TestGetAAA3(t *testing.T) {
+
+	if Rtdb == nil {
+		init_db()
+	}
+
+	ip := net.ParseIP("116.55.232.248")
+	ac := "CTC.CN.XIN.YN"
+	dn := "ns01.ctc.mmycdn.com"
+
+	//aaa, ttl, _type, ok, _ac := Rtdb.GetAAA(dn, ac, ip)
+	aaa, ttl, _type, ok, _ac, rid, _dn := Rtdb.GetAAA(dn, ac, ip, 0)
+
+	if _type == "" {
+		_type = "CDN"
+	}
+
+	if aaa == nil || len(aaa) == 0 {
+
+		ok = false
+	}
+	if ok {
+		t.Logf("dn:%s matched_dn:%s ac:%s matched_ac:%s ip:%+v ttl:%d type:%s rid:%d", dn, _dn, ac, _ac, aaa, ttl, _type, rid)
+	} else {
+		t.Errorf("dn:%s matched_dn:%s ac:%s matched_ac:%s ip:%+v ttl:%d type:%s rid:%d", dn, _dn, ac, _ac, aaa, ttl, _type, rid)
+	}
+}
+
 func TGetAAA(t *testing.T) {
 
 	if Rtdb == nil {

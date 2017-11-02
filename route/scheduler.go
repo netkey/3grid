@@ -248,6 +248,8 @@ func (rt_db *Route_db) GetAAA(query_dn string, acode string, ip net.IP,
 			s = strings.Split(dr.Value, ",")
 		} else if spli = strings.Index(dr.Value, "|"); spli != -1 {
 			s = strings.Split(dr.Value, "|")
+		} else {
+			s = []string{dr.Value}
 		}
 
 		for _, x := range s {
