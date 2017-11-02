@@ -120,6 +120,8 @@ func TestGrid(t *testing.T) {
 	var line string
 	var _ip net.IP
 
+	var test_counter, fail_counter int
+
 	if IP.Ipdb == nil {
 		init_db(t)
 		init_log(t)
@@ -133,7 +135,7 @@ func TestGrid(t *testing.T) {
 		scanner := bufio.NewScanner(file)
 		for scanner.Scan() {
 			line = scanner.Text()
-
+			test_counter += 1
 			//get line from slb log
 			a := strings.Split(line, "|")
 			if len(a) < 4 {
@@ -162,7 +164,6 @@ func TestGrid(t *testing.T) {
 					dn, ip, ac, sss, s_ac, aaa, rid, match_ac)
 				//t.Errorf("Error GetAAA: ip:%s(%s) dn:%s aaa:%v(%s) rid:%d",
 				//	_ip, ac, dn, aaa, match_ac, rid)
-				t.Fail()
 			}
 
 			if aaa == nil || len(aaa) < 1 {
@@ -207,14 +208,23 @@ func TestGrid(t *testing.T) {
 				//t.Logf("Correct: ip:%s(%s) dn:%s sss:%+v(%s) aaa:%v(%s) rid:%d(%s)",
 				//ip, ac, dn, sss[0], s_ac, aaa[0], a_ac, rid, _ac)
 			} else {
+				fail_counter += 1
 				G.Outlog3(G.LOG_TEST, "dn:%s ip:%s(%s) sss:%+v(%s) aaa:%v(%s) rid:%d(%s)",
 					dn, ip, ac, sss[0], s_ac, aaa[0], a_ac, rid, match_ac)
 
 				//t.Errorf("ip:%s(%s) sss:%+v(%s) aaa:%v(%s) rid:%d(%s)",
 				//ip, ac, sss[0], s_ac, aaa[0], a_ac, rid, match_ac)
-				t.Fail()
 			}
 		}
+
+		x := float64(fail_counter * 100.0 / (1.0 * test_counter))
+		if x > 5 {
+			// <95% match, test fail
+			t.Errorf("Test resolving ip failed with %+v%% of data unmatched", x)
+		} else {
+			t.Logf("Test resolving ip successed with %+v%% of data unmatched", x)
+		}
+
 	}
 
 }

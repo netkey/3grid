@@ -277,55 +277,37 @@ func Working(nets, port, name, secret string, num int, ipdb *IP.IP_db, rtdb *RT.
 
 	switch name {
 	case "":
-		worker.Server = &dns.Server{Addr: ":" + port, Net: nets, TsigSecret: nil}
-		worker.Server.Handler = &worker
-
-		go func() {
-			time.Sleep(time.Duration(1) * time.Second)
-			pck_conn := worker.Server.PacketConn
-			if pck_conn != nil {
-				udp_conn := pck_conn.(*net.UDPConn)
-				if Bufsize > 0 {
-					udp_conn.SetReadBuffer(Bufsize)
-					udp_conn.SetWriteBuffer(Bufsize)
-				}
-				fd, _ := udp_conn.File()
-
-				value, _ := syscall.GetsockoptInt(int(fd.Fd()), syscall.SOL_SOCKET, syscall.SO_SNDBUF)
-				G.OutDebug("Worker %d UDP socket SNDBUF size:%d", worker.Id, value)
-				value, _ = syscall.GetsockoptInt(int(fd.Fd()), syscall.SOL_SOCKET, syscall.SO_RCVBUF)
-				G.OutDebug("Worker %d UDP socket RCVBUF size:%d", worker.Id, value)
-			}
-		}()
-
-		if err := worker.Server.ListenAndServe(); err != nil {
-			G.OutDebug("Failed to setup the "+nets+" server: %s\n", err.Error())
-		}
+		worker.Server = &dns.Server{Addr: ":" + port, Net: nets,
+			TsigSecret: nil}
 	default:
-		worker.Server = &dns.Server{Addr: ":" + port, Net: nets, TsigSecret: map[string]string{name: secret}}
-		worker.Server.Handler = &worker
+		worker.Server = &dns.Server{Addr: ":" + port, Net: nets,
+			TsigSecret: map[string]string{name: secret}}
+	}
 
-		go func() {
-			time.Sleep(time.Duration(1) * time.Second)
-			pck_conn := worker.Server.PacketConn
-			if pck_conn != nil {
-				udp_conn := pck_conn.(*net.UDPConn)
-				if Bufsize > 0 {
-					udp_conn.SetReadBuffer(Bufsize)
-					udp_conn.SetWriteBuffer(Bufsize)
-				}
-				fd, _ := udp_conn.File()
+	worker.Server.Handler = &worker
 
-				value, _ := syscall.GetsockoptInt(int(fd.Fd()), syscall.SOL_SOCKET, syscall.SO_SNDBUF)
-				G.OutDebug("Worker %d UDP socket SNDBUF size:%d", worker.Id, value)
-				value, _ = syscall.GetsockoptInt(int(fd.Fd()), syscall.SOL_SOCKET, syscall.SO_RCVBUF)
-				G.OutDebug("Worker %d UDP socket RCVBUF size:%d", worker.Id, value)
+	worker.Server.NotifyStartedFunc = func() {
+		pck_conn := worker.Server.PacketConn
+		if pck_conn != nil {
+			udp_conn := pck_conn.(*net.UDPConn)
+			if Bufsize > 0 {
+				udp_conn.SetReadBuffer(Bufsize)
+				udp_conn.SetWriteBuffer(Bufsize)
 			}
-		}()
+			fd, _ := udp_conn.File()
 
-		if err := worker.Server.ListenAndServe(); err != nil {
-			G.OutDebug("Failed to setup the "+nets+" server: %s\n", err.Error())
+			value, _ := syscall.GetsockoptInt(int(fd.Fd()), syscall.SOL_SOCKET, syscall.SO_SNDBUF)
+			G.OutDebug("Worker %d UDP socket SNDBUF size:%d", worker.Id, value)
+			value, _ = syscall.GetsockoptInt(int(fd.Fd()), syscall.SOL_SOCKET, syscall.SO_RCVBUF)
+			G.OutDebug("Worker %d UDP socket RCVBUF size:%d", worker.Id, value)
+
+			syscall.SetNonblock(int(fd.Fd()), true)
+			fd.Close()
 		}
+	}
+
+	if err := worker.Server.ListenAndServe(); err != nil {
+		G.OutDebug("Failed to setup the "+nets+" server: %s", err)
 	}
 }
 

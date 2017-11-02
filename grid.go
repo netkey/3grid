@@ -369,7 +369,7 @@ func main() {
 			D.IP_DN_Spliter = ip_dn_spliter
 			D.AC_DN_Spliter = ac_dn_spliter
 
-			//init dns workers
+			//init dns  workers
 			var name, secret string
 			for i := 0; i < num_cpus; i++ {
 				go D.Working("udp", port, name, secret, i, IP.Ipdb, RT.Rtdb)
