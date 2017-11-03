@@ -110,6 +110,7 @@ func (ip_db *IP_db) GetAreaCode(ip net.IP) string {
 			ip_db.Chan <- map[string]string{ips: cn}
 
 			G.OutDebug("Area Code of %s: %s", ips, cn)
+
 		} else {
 			G.OutDebug("IP lookup error: %s", err)
 		}
@@ -117,7 +118,9 @@ func (ip_db *IP_db) GetAreaCode(ip net.IP) string {
 		cn = ipc.AC
 	}
 
-	G.Outlog3(G.LOG_IP, "ip:%s ac:%s", ips, cn)
+	if G.Debug {
+		G.Outlog3(G.LOG_IP, "ip:%s ac:%s", ips, cn)
+	}
 
 	return cn
 }

@@ -1,7 +1,6 @@
 package grid_globals
 
 import (
-	"fmt"
 	"io/ioutil"
 	"strconv"
 	"strings"
@@ -91,9 +90,8 @@ func (pcs *Perfcs) keeper() error {
 				pc.Zero_Qs()
 				pc.Update_Qps(qps)
 
-				if Debug {
-					Outlog(LOG_DEBUG, fmt.Sprintf("Perf: dn:%s qs:%d qps:%d", k, qs, qps))
-				}
+				OutDebug("Perf: dn:%s qs:%d qps:%d", k, qs, qps)
+
 				//update load
 				/*
 					switch _type {
@@ -253,9 +251,7 @@ func (pc *Perf_Counter) keeper() error {
 		pc.Chan <- map[string]uint64{"LOAD": load}
 		_idle, _total = idle, total
 
-		if Debug {
-			Outlog(LOG_DEBUG, fmt.Sprintf("Perf: qs:%d qps:%d load:%d", qs, qps, load))
-		}
+		OutDebug("Perf: qs:%d qps:%d load:%d", qs, qps, load)
 
 	}
 

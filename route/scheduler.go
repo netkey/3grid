@@ -36,8 +36,6 @@ func (rt_db *Route_db) Match_AC_RR(ac string, rid uint) (string, Route_List_Reco
 
 		rr = rt_db.Read_Route_Record(_ac, rid)
 
-		//G.Outlog3(G.LOG_SCHEDULER, "AC_RR matching:%s rr:%+v", _ac, rr)
-
 		if rr.Nodes != nil && len(rr.Nodes) > 0 {
 			//find a match
 			find = true
@@ -77,11 +75,11 @@ func (rt_db *Route_db) Match_AC_RR(ac string, rid uint) (string, Route_List_Reco
 	}
 
 	if find {
-		G.Outlog3(G.LOG_SCHEDULER, "AC:%s matched in route plan %d, %+v", _ac, rid, rr)
+		G.OutDebug2(G.LOG_SCHEDULER, "AC:%s matched in route plan %d, %+v", _ac, rid, rr)
 
 		return _ac, rr
 	} else {
-		G.Outlog3(G.LOG_SCHEDULER, "No matched ac:%s in route plan %d", ac, rid)
+		G.OutDebug2(G.LOG_SCHEDULER, "No matched ac:%s in route plan %d", ac, rid)
 
 		return "", Route_List_Record{}
 	}
@@ -94,8 +92,6 @@ func (rt_db *Route_db) Match_DN(query_dn string) (Domain_List_Record, bool) {
 	var find bool = false
 
 	for dn = query_dn; dn != ""; {
-
-		//G.Outlog3(G.LOG_SCHEDULER, "DN: matching:%s", dn)
 
 		dr = rt_db.Read_Domain_Record(dn)
 		if dr.TTL != 0 {
@@ -117,11 +113,11 @@ func (rt_db *Route_db) Match_DN(query_dn string) (Domain_List_Record, bool) {
 	}
 
 	if find {
-		G.Outlog3(G.LOG_SCHEDULER, "DN:%s matched for %s, %+v", dn, query_dn, dr)
+		G.OutDebug2(G.LOG_SCHEDULER, "DN:%s matched for %s, %+v", dn, query_dn, dr)
 
 		return dr, true
 	} else {
-		G.Outlog3(G.LOG_SCHEDULER, "DN:No matched for %s", query_dn)
+		G.OutDebug2(G.LOG_SCHEDULER, "DN:No matched for %s", query_dn)
 
 		return Domain_List_Record{}, false
 	}
@@ -158,7 +154,7 @@ func (rt_db *Route_db) Match_FB(ac string, dr *Domain_List_Record) (_ac string, 
 	}
 
 	if _matched {
-		G.Outlog3(G.LOG_SCHEDULER, "Match_FB mangle client ac:%s to %s", ac, _ac)
+		G.OutDebug2(G.LOG_SCHEDULER, "Match_FB mangle client ac:%s to %s", ac, _ac)
 	}
 
 	return
@@ -217,7 +213,7 @@ func (rt_db *Route_db) GetAAA(query_dn string, acode string, ip net.IP,
 	_ac, client_ac = ac, ac
 	dn = query_dn
 
-	G.Outlog3(G.LOG_SCHEDULER, "Geting AAA for dn:%s client_ip:%s ac:%s", query_dn, ip.String(), _ac)
+	G.OutDebug2(G.LOG_SCHEDULER, "Geting AAA for dn:%s client_ip:%s ac:%s", query_dn, ip.String(), _ac)
 
 	if aaa, ttl, _type, rid, _ac, ok = rt_db.GetRTCache(query_dn, client_ac); ok {
 		//found in route cache
@@ -326,7 +322,7 @@ func (rt_db *Route_db) GetAAA(query_dn string, acode string, ip net.IP,
 		}
 	}
 
-	G.Outlog3(G.LOG_ROUTE, "GETAAA ac:%s, matched ac:%s, rid:%d, noder_p:%+v node_s:%+v",
+	G.OutDebug2(G.LOG_ROUTE, "GETAAA ac:%s, matched ac:%s, rid:%d, noder_p:%+v node_s:%+v",
 		ac, _ac, rid, cnr, snr)
 
 	if nid == 0 {
@@ -393,12 +389,12 @@ func (rt_db *Route_db) Match_Local_AC(nr *Node_List_Record, client_ac string, ch
 	_node_ac = strings.Replace(_node_ac, "CN.CMCC", "CMCC.CN", -1)
 
 	//CTC.CN.JX.NC
-	//G.Outlog3(G.LOG_SCHEDULER, "Match-Local-AC: matching client_ac:%s and node_ac:%s", client_ac, _node_ac)
+	//G.OutDebug2(G.LOG_SCHEDULER, "Match-Local-AC: matching client_ac:%s and node_ac:%s", client_ac, _node_ac)
 	match = strings.Contains(client_ac, _node_ac)
 
 	if !match && check_nearby {
 		if li := strings.LastIndex(_node_ac, "."); li != -1 {
-			//G.Outlog3(G.LOG_SCHEDULER, "Match-Local-AC2: matching client_ac:%s and node_ac:%s", client_ac, _node_ac[:li])
+			//G.OutDebug2(G.LOG_SCHEDULER, "Match-Local-AC2: matching client_ac:%s and node_ac:%s", client_ac, _node_ac[:li])
 			match = strings.Contains(client_ac, _node_ac[:li])
 			_node_ac = _node_ac[:li]
 		}
@@ -411,15 +407,15 @@ func (rt_db *Route_db) Match_Local_AC(nr *Node_List_Record, client_ac string, ch
 				if nr.ServerList != nil && len(nr.ServerList) > 0 {
 					sr := rt_db.Read_Server_Record(nr.ServerList[0])
 					_node_ac = IP.Ipdb.GetAreaCode(net.ParseIP(sr.ServerIp))
-					G.Outlog3(G.LOG_SCHEDULER, "Match-Local-AC3: from ip db get _node_ac:%s",
-						_node_ac)
+					//G.OutDebug2(G.LOG_SCHEDULER, "Match-Local-AC3: from ip db get _node_ac:%s",
+					//_node_ac)
 					nr.AC2 = _node_ac
 					rt_db.Update_Node_Record(nr.NodeId, nr)
 				}
 			}
 
 			if li := strings.LastIndex(_node_ac, "."); li != -1 {
-				//G.Outlog3(G.LOG_SCHEDULER, "Match-Local-AC3: matching client_ac:%s and node_ac:%s", client_ac, _node_ac[:li])
+				//G.OutDebug2(G.LOG_SCHEDULER, "Match-Local-AC3: matching client_ac:%s and node_ac:%s", client_ac, _node_ac[:li])
 				match = strings.Contains(client_ac, _node_ac[:li])
 				_node_ac = _node_ac[:li]
 			}
@@ -465,18 +461,18 @@ func (rt_db *Route_db) ChooseNode(nodes map[uint]PW_List_Record, matched_ac, cli
 
 		nr = rt_db.Read_Node_Record(k)
 
-		G.Outlog3(G.LOG_SCHEDULER, "Looking at node:%s(%d), p:%d w:%d u:%d c:%d s:%t ac:%s",
+		G.OutDebug2(G.LOG_SCHEDULER, "Looking at node:%s(%d), p:%d w:%d u:%d c:%d s:%t ac:%s",
 			nr.Name, nr.NodeId, v.PW[0], v.PW[1], nr.Usage, nr.Costs, nr.Status, nr.AC)
 
 		if (nr.Status == false && status_check) || nr.Usage >= Service_Deny_Percent ||
 			nr.Priority == 0 || v.PW[0] == 0 { //priority==0 means node disabled
 			//not available(status algorithm) to serve(cutoff algorithm)
-			G.Outlog3(G.LOG_SCHEDULER, "%s(%d) not available to serve", nr.Name, nr.NodeId)
+			G.OutDebug2(G.LOG_SCHEDULER, "%s(%d) not available to serve", nr.Name, nr.NodeId)
 			continue
 		}
 		if _, fb_matched := rt_db.Match_FB(nr.AC, dr); fb_matched {
 			//node's AC match domain forbidden map's
-			G.Outlog3(G.LOG_SCHEDULER, "%s(%d) match domain forbidden map, pass it", nr.Name, nr.NodeId)
+			G.OutDebug2(G.LOG_SCHEDULER, "%s(%d) match domain forbidden map, pass it", nr.Name, nr.NodeId)
 			continue
 		}
 		if nr.Status && cnr.NodeId != 0 &&
@@ -485,7 +481,7 @@ func (rt_db *Route_db) ChooseNode(nodes map[uint]PW_List_Record, matched_ac, cli
 			mlac, _ := rt_db.Match_Local_AC(&cnr, client_ac, false)
 			if !mlac || cnr.Usage > Service_Deny_Percent {
 				//cutoff none local client access, then local's
-				G.Outlog3(G.LOG_SCHEDULER, "%s(%d) is in busy, use %s(%d) instead",
+				G.OutDebug2(G.LOG_SCHEDULER, "%s(%d) is in busy, use %s(%d) instead",
 					cnr.Name, cnr.NodeId, nr.Name, nr.NodeId)
 
 				snr, cnr, nid, priority, weight = cnr, nr, k, v.PW[0], v.PW[1]
@@ -495,9 +491,9 @@ func (rt_db *Route_db) ChooseNode(nodes map[uint]PW_List_Record, matched_ac, cli
 		if v.PW[0] < priority {
 			//higher priority node(priority&weight algorithm)
 			if priority == 100 {
-				G.Outlog3(G.LOG_SCHEDULER, "%s(%d) has made default", nr.Name, nr.NodeId)
+				G.OutDebug2(G.LOG_SCHEDULER, "%s(%d) has made default", nr.Name, nr.NodeId)
 			} else {
-				G.Outlog3(G.LOG_SCHEDULER, "%s(%d) has higher priority", nr.Name, nr.NodeId)
+				G.OutDebug2(G.LOG_SCHEDULER, "%s(%d) has higher priority", nr.Name, nr.NodeId)
 			}
 
 			snr, cnr, nid, priority, weight = cnr, nr, k, v.PW[0], v.PW[1]
@@ -507,7 +503,7 @@ func (rt_db *Route_db) ChooseNode(nodes map[uint]PW_List_Record, matched_ac, cli
 			//equipotent priority node
 			if nr.Costs < cnr.Costs {
 				//which has less Costs (cost algorithm)
-				G.Outlog3(G.LOG_SCHEDULER, "%s(%d) is less costs, use it", nr.Name, nr.NodeId)
+				G.OutDebug2(G.LOG_SCHEDULER, "%s(%d) is less costs, use it", nr.Name, nr.NodeId)
 
 				snr, cnr, nid, priority, weight = cnr, nr, k, v.PW[0], v.PW[1]
 
@@ -518,7 +514,7 @@ func (rt_db *Route_db) ChooseNode(nodes map[uint]PW_List_Record, matched_ac, cli
 
 				if _weight_idle > weight_idle {
 					//higher weight&&idle(weight&usage algorithm), means more idle
-					G.Outlog3(G.LOG_SCHEDULER, "%s(%d) is more idle(%f>%f), use it",
+					G.OutDebug2(G.LOG_SCHEDULER, "%s(%d) is more idle(%f>%f), use it",
 						nr.Name, nr.NodeId, _weight_idle, weight_idle)
 
 					snr, cnr, nid, priority, weight = cnr, nr, k, v.PW[0], v.PW[1]
@@ -527,7 +523,7 @@ func (rt_db *Route_db) ChooseNode(nodes map[uint]PW_List_Record, matched_ac, cli
 					//if client and node are in same major area, use it first
 
 					if mlac, ac2 := rt_db.Match_Local_AC(&nr, client_ac, true); mlac {
-						G.Outlog3(G.LOG_SCHEDULER, "%s(%d)(%s) is nearby client(%s), use it",
+						G.OutDebug2(G.LOG_SCHEDULER, "%s(%d)(%s) is nearby client(%s), use it",
 							nr.Name, nr.NodeId, ac2, client_ac)
 
 						snr, cnr, nid, priority, weight = cnr, nr, k, v.PW[0], v.PW[1]
@@ -545,7 +541,7 @@ func (rt_db *Route_db) ChooseNode(nodes map[uint]PW_List_Record, matched_ac, cli
 
 			if _weight_idle >= weight_idle && nr.Costs < cnr.Costs {
 				//higher or same weight&&idle(weight&usage algorithm) and cheaper node
-				G.Outlog3(G.LOG_SCHEDULER, "%s(%d) is more idle and less costs, use it", nr.Name)
+				G.OutDebug2(G.LOG_SCHEDULER, "%s(%d) is more idle and less costs, use it", nr.Name)
 
 				snr, cnr, nid, priority, weight = cnr, nr, k, v.PW[0], v.PW[1]
 			} else {
@@ -556,15 +552,15 @@ func (rt_db *Route_db) ChooseNode(nodes map[uint]PW_List_Record, matched_ac, cli
 	}
 
 	if cnr.NodeId != 0 && snr.NodeId != 0 {
-		G.Outlog3(G.LOG_SCHEDULER,
+		G.OutDebug2(G.LOG_SCHEDULER,
 			"Chosen node:%s(%d) p:%d w:%d u:%d c:%d s:%t, second node:%s(%d) u:%d c:%d s:%t, for ac:%s",
 			cnr.Name, cnr.NodeId, priority, weight, cnr.Usage, cnr.Costs, cnr.Status,
 			snr.Name, snr.NodeId, snr.Usage, snr.Costs, snr.Status, client_ac)
 	} else if cnr.NodeId != 0 && snr.NodeId == 0 {
-		G.Outlog3(G.LOG_SCHEDULER, "Chosen node:%s(%d) p:%d w:%d u:%d c:%d s:%t",
+		G.OutDebug2(G.LOG_SCHEDULER, "Chosen node:%s(%d) p:%d w:%d u:%d c:%d s:%t",
 			cnr.Name, cnr.NodeId, priority, weight, cnr.Usage, cnr.Costs, cnr.Status)
 	} else if cnr.NodeId == 0 && snr.NodeId == 0 {
-		G.Outlog3(G.LOG_SCHEDULER, "No further node being chosen")
+		G.OutDebug2(G.LOG_SCHEDULER, "No further node being chosen")
 	}
 
 	if nid == 0 {
