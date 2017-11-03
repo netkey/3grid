@@ -33,6 +33,7 @@ var Chan *chan map[string]map[string]map[string]map[string][]string
 
 var Rtdb *Route_db
 var RT_Cache_TTL int
+var RR_Cache_TTL int
 var RT_Cache_Size int64
 
 const (
@@ -126,12 +127,13 @@ type PW_List_Record struct {
 }
 
 type RT_Cache_Record struct {
-	TS   int64
-	TTL  uint32
-	AAA  []string
-	TYPE string
-	RID  uint
-	MAC  string
+	TS     int64
+	TTL    uint32
+	RR_TTL uint32
+	AAA    []string
+	TYPE   string
+	RID    uint
+	MAC    string
 }
 
 func (rt_db *Route_db) RT_db_init() {
@@ -760,12 +762,18 @@ func (rt_db *Route_db) Update_Route_Record(k string, rid uint, r *Route_List_Rec
 
 func (rt_db *Route_db) Read_Cache_Record(dn string, ac string) RT_Cache_Record {
 	var r RT_Cache_Record
+	var _ttl uint32
 
 	rt_db.Locks["cache"].RLock()
 	if rt_db.Cache[ac] != nil {
 		if rt_db.Cache[ac][dn].TTL != 0 {
-			if int64(rt_db.Cache[ac][dn].TTL)+rt_db.Cache[ac][dn].TS >=
-				time.Now().Unix() {
+			if rt_db.Cache[ac][dn].TTL > rt_db.Cache[ac][dn].RR_TTL {
+				_ttl = rt_db.Cache[ac][dn].RR_TTL
+			} else {
+				_ttl = rt_db.Cache[ac][dn].TTL
+			}
+
+			if int64(_ttl)+rt_db.Cache[ac][dn].TS >= time.Now().Unix() {
 				//cache not expired
 				r = rt_db.Cache[ac][dn]
 			}

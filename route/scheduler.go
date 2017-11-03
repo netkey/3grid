@@ -11,6 +11,7 @@ import (
 var MyACPrefix string
 var Service_Cutoff_Percent uint
 var Service_Deny_Percent uint
+var RandomRR bool
 
 //check if the ip is in my server list
 func (rt_db *Route_db) IN_Serverlist(ip net.IP) (uint, bool) {
@@ -328,7 +329,8 @@ func (rt_db *Route_db) GetAAA(query_dn string, acode string, ip net.IP,
 	if nid == 0 {
 		//cache the fail rusult for a few seconds
 		rt_db.Update_Cache_Record(query_dn, client_ac,
-			&RT_Cache_Record{TS: time.Now().Unix(), TTL: 5, AAA: aaa, TYPE: _type, RID: rid, MAC: _ac})
+			&RT_Cache_Record{TS: time.Now().Unix(), TTL: 5, RR_TTL: uint32(RR_Cache_TTL),
+				AAA: aaa, TYPE: _type, RID: rid, MAC: _ac})
 
 		return aaa, ttl, _type, false, _ac, rid, dn
 	}
@@ -358,7 +360,8 @@ func (rt_db *Route_db) GetAAA(query_dn string, acode string, ip net.IP,
 	}
 
 	rt_db.Update_Cache_Record(query_dn, client_ac,
-		&RT_Cache_Record{TS: time.Now().Unix(), TTL: ttl, AAA: aaa, TYPE: _type, RID: rid, MAC: _ac})
+		&RT_Cache_Record{TS: time.Now().Unix(), TTL: ttl, RR_TTL: uint32(RR_Cache_TTL),
+			AAA: aaa, TYPE: _type, RID: rid, MAC: _ac})
 
 	return aaa, ttl, _type, true, _ac, rid, dn
 }
@@ -581,6 +584,7 @@ func (rt_db *Route_db) ChooseServer(servers []uint, servergroup uint) []uint {
 
 	server_list := []uint{}
 	_server_list := []uint{}
+	_server_map := map[uint]uint{}
 
 	var weight_idle, _weight_idle float64
 
@@ -590,35 +594,47 @@ func (rt_db *Route_db) ChooseServer(servers []uint, servergroup uint) []uint {
 			continue
 		}
 
-		weight_idle = float64(float64(rt_db.Servers[sid].Weight) *
-			(1.0 - float64(rt_db.Servers[sid].Usage)/100.0))
+		if !RandomRR {
+			weight_idle = float64(float64(rt_db.Servers[sid].Weight) *
+				(1.0 - float64(rt_db.Servers[sid].Usage)/100.0))
 
-		sorted = false
+			sorted = false
 
-		for i, _sid := range server_list {
-			//sort by weight&&idle, weight*(1-usage/100)
-			_weight_idle = float64(rt_db.Servers[_sid].Weight *
-				(1 - rt_db.Servers[_sid].Usage/100))
+			for i, _sid := range server_list {
+				//sort by weight&&idle, weight*(1-usage/100)
+				_weight_idle = float64(rt_db.Servers[_sid].Weight *
+					(1 - rt_db.Servers[_sid].Usage/100))
 
-			if _weight_idle < weight_idle {
-				if i == 0 {
-					//insert into head of slice
-					_server_list = append([]uint{sid}, server_list...)
-				} else {
-					//insert into middle of slice
-					_server_list = append(server_list[0:i-1], sid)
-					_server_list = append(_server_list, server_list[i:]...)
+				if _weight_idle < weight_idle {
+					if i == 0 {
+						//insert into head of slice
+						_server_list = append([]uint{sid}, server_list...)
+					} else {
+						//insert into middle of slice
+						_server_list = append(server_list[0:i-1], sid)
+						_server_list = append(_server_list, server_list[i:]...)
+					}
+					sorted = true
+					break
 				}
-				sorted = true
-				break
 			}
-		}
-		if sorted {
-			//inserted
-			server_list = _server_list
+			if sorted {
+				//inserted
+				server_list = _server_list
+			} else {
+				//append to tail of slice
+				server_list = append(server_list, sid)
+			}
 		} else {
-			//append to tail of slice
-			server_list = append(server_list, sid)
+			_server_map[sid] = sid
+		}
+
+	}
+
+	if RandomRR {
+		//gen random aaa records
+		for i, _ := range _server_map {
+			server_list = append(server_list, i)
 		}
 	}
 

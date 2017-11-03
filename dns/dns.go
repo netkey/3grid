@@ -166,9 +166,6 @@ func (wkr *DNS_worker) RR(aaa []string, q *DNS_query, w dns.ResponseWriter, r *d
 		}
 	}
 
-	//output query log
-	G.Outlog3(G.LOG_DNS, "ip:%s type:%d name:%s result:%+v", q.Client_IP, qtype, q.DN, aaa)
-
 	return &m
 }
 
@@ -263,6 +260,9 @@ func (wkr *DNS_worker) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
 
 	//update domain perf counter async
 	G.PC.Chan <- map[string]map[string]uint64{G.PERF_DOMAIN: {_dn: 1}}
+
+	//output query log
+	G.Outlog3(G.LOG_DNS, "%s|%d|%s|%s", ip, r.Question[0].Qtype, _dn, strings.Join(aaa, ","))
 }
 
 func Working(nets, port, name, secret string, num int, ipdb *IP.IP_db, rtdb *RT.Route_db) {

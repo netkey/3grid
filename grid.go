@@ -51,6 +51,7 @@ var cutoff_percent int
 var deny_percent int
 var ip_cache_ttl int
 var rt_cache_ttl int
+var rr_cache_ttl int
 var ip_cache_size int
 var rt_cache_size int
 var log_buf_size int
@@ -60,6 +61,7 @@ var ip_dn_spliter string
 var ac_dn_spliter string
 var amqp_uri string
 var compress bool
+var randomrr bool
 
 func read_conf() {
 	viper.SupportedExts = append(viper.SupportedExts, "conf")
@@ -200,6 +202,12 @@ func read_conf() {
 		} else {
 			rt_cache_ttl = _rt_cache_ttl
 		}
+		_rr_cache_ttl := viper.GetInt("gslb.rr_cache_ttl")
+		if _rr_cache_ttl == 0 {
+			rr_cache_ttl = 0
+		} else {
+			rr_cache_ttl = _rr_cache_ttl
+		}
 		_rt_cache_size := viper.GetInt("gslb.rt_cache_size")
 		if _rt_cache_size < 1000 {
 			rt_cache_size = 1000
@@ -230,6 +238,13 @@ func read_conf() {
 		} else {
 			compress = true
 		}
+		_randomrr := viper.GetBool("gslb.random_rr")
+		if _randomrr == false {
+			randomrr = false
+		} else {
+			randomrr = true
+		}
+
 		if *debug {
 			debug_info = fmt.Sprintf("%s running - cpus:%d port:%s daemon:%t debug:%t interval:%d keepalive:%d myname:%s", myname, num_cpus, port, daemond, *debug, interval, keepalive, myname)
 		}
@@ -359,7 +374,9 @@ func main() {
 			RT.Service_Cutoff_Percent = uint(cutoff_percent)
 			RT.Service_Deny_Percent = uint(deny_percent)
 			RT.RT_Cache_TTL = rt_cache_ttl
+			RT.RR_Cache_TTL = rr_cache_ttl
 			RT.RT_Cache_Size = int64(rt_cache_size)
+			RT.RandomRR = randomrr
 		}
 
 		{
