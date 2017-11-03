@@ -18,6 +18,7 @@ A Global Route IP Director(Daemon), aka GSLB.
 
 	业务状态（state）数据发送	√	
 			
+	AMQP断线重连	√
 
 DNS	
 
@@ -45,6 +46,7 @@ DNS
 
 	域名QPS状态	√	
 			
+	DNS Debug模式（模拟IP/AC查询）	√
 
 IP库	
 
@@ -104,6 +106,7 @@ IP库
 
 	服务器A记录按照权重空闲%排列	√	
 			
+	位置算法(邻近客户的节点优先)	√
 
 其它	
 
@@ -124,3 +127,7 @@ IP库
 	miekg-dns-server-go.patch (添加reuse_port支持)	√	
 
 	GSLB master/worker(主控/工作)方式	√	
+
+	GSLB内部数据反馈（路由/CMDB）		√/√
+
+	各模块测试用例		√
