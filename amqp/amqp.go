@@ -65,24 +65,24 @@ func NewAMQPBroadcaster(amqpURI, exchange, exchangeType, queueName, routingKey, 
 
 	var err error
 
-	G.Outlog(G.LOG_AMQP, fmt.Sprintf("dialing %q", amqpURI))
+	G.Outlog3(G.LOG_AMQP, "dialing %q", amqpURI)
 	c.conn, err = amqp.Dial(amqpURI)
 	if err != nil {
 		return nil, fmt.Errorf("Dial: %s", err)
 	}
 
 	go func() {
-		G.Outlog(G.LOG_AMQP, fmt.Sprintf("closing: %s, re-dialing..", <-c.conn.NotifyClose(make(chan *amqp.Error))))
+		G.Outlog3(G.LOG_AMQP, "closing: %s, re-dialing..", <-c.conn.NotifyClose(make(chan *amqp.Error)))
 		AMQP_B_RECONNECT()
 	}()
 
-	G.Outlog(G.LOG_AMQP, fmt.Sprintf("got Connection, getting Channel"))
+	G.Outlog3(G.LOG_AMQP, "got Connection, getting Channel")
 	c.channel, err = c.conn.Channel()
 	if err != nil {
 		return nil, fmt.Errorf("Channel: %s", err)
 	}
 
-	G.Outlog(G.LOG_AMQP, fmt.Sprintf("got Channel, declaring %q Exchange (%q)", exchangeType, exchange))
+	G.Outlog3(G.LOG_AMQP, "got Channel, declaring %q Exchange (%q)", exchangeType, exchange)
 	if err = c.channel.ExchangeDeclare(
 		exchange,     // name of the exchange
 		exchangeType, // type
@@ -95,7 +95,7 @@ func NewAMQPBroadcaster(amqpURI, exchange, exchangeType, queueName, routingKey, 
 		return nil, fmt.Errorf("Exchange Declare: %s", err)
 	}
 
-	G.Outlog(G.LOG_AMQP, fmt.Sprintf("declared Exchange, declaring Queue %q", queueName))
+	G.Outlog3(G.LOG_AMQP, "declared Exchange, declaring Queue %q", queueName)
 	queue, err := c.channel.QueueDeclare(
 		queueName, // name of the queue
 		true,      // durable
@@ -108,7 +108,7 @@ func NewAMQPBroadcaster(amqpURI, exchange, exchangeType, queueName, routingKey, 
 		return nil, fmt.Errorf("Queue Declare: %s", err)
 	}
 
-	G.Outlog(G.LOG_AMQP, fmt.Sprintf("declared Queue (%q %d messages, %d consumers), binding to Exchange (key %q)", queue.Name, queue.Messages, queue.Consumers, c.rkey))
+	G.Outlog3(G.LOG_AMQP, "declared Queue (%q %d messages, %d consumers), binding to Exchange (key %q)", queue.Name, queue.Messages, queue.Consumers, c.rkey)
 
 	if err = c.channel.QueueBind(
 		queue.Name, // name of the queue
@@ -120,7 +120,7 @@ func NewAMQPBroadcaster(amqpURI, exchange, exchangeType, queueName, routingKey, 
 		return nil, fmt.Errorf("Queue Bind: %s", err)
 	}
 
-	G.Outlog(G.LOG_AMQP, fmt.Sprintf("Queue bound to Exchange, starting Broadcast (broadcaster tag %q)", c.tag))
+	G.Outlog3(G.LOG_AMQP, "Queue bound to Exchange, starting Broadcast (broadcaster tag %q)", c.tag)
 	deliveries, err := c.channel.Consume(
 		queue.Name, // name
 		c.tag,      // consumerTag,
@@ -142,7 +142,7 @@ func NewAMQPBroadcaster(amqpURI, exchange, exchangeType, queueName, routingKey, 
 func (c *AMQP_Broadcaster) Publish(body []byte) error {
 	var err error
 
-	//G.Outlog(G.LOG_AMQP, fmt.Sprintf("broadcasting %dB body to %s", len(body), c.exc))
+	//G.Outlog3(G.LOG_AMQP, "broadcasting %dB body to %s", len(body), c.exc)
 	if err = c.channel.Publish(
 		c.exc, // publish to an exchange
 		"",    // routing to 0 or more queues
@@ -173,7 +173,7 @@ func (c *AMQP_Broadcaster) Shutdown() error {
 		return fmt.Errorf("AMQP connection close error: %s", err)
 	}
 
-	defer G.Outlog(G.LOG_AMQP, fmt.Sprintf("AMQP_Broadcaster shutdown OK"))
+	defer G.Outlog3(G.LOG_AMQP, "AMQP_Broadcaster shutdown OK")
 
 	// wait for handle() to exit
 	return <-c.done
@@ -189,7 +189,7 @@ func (c *AMQP_Broadcaster) amqp_handle_b(deliveries <-chan amqp.Delivery, done c
 
 	for d := range deliveries {
 		if err = Transmsg(d.Body, &msg); err != nil {
-			G.Outlog(G.LOG_AMQP, fmt.Sprintf("transmsg: %s", err))
+			G.Outlog3(G.LOG_AMQP, "transmsg: %s", err)
 			continue
 		}
 		if msg.Sender == c.myname {
@@ -198,23 +198,23 @@ func (c *AMQP_Broadcaster) amqp_handle_b(deliveries <-chan amqp.Delivery, done c
 		//call msg handler functions
 		fn, r := reflect.TypeOf(cmds).MethodByName(msg.Command)
 		if r == false {
-			G.Outlog(G.LOG_AMQP, fmt.Sprintf("error reflect cmds: %s", msg.Command))
+			G.Outlog3(G.LOG_AMQP, "error reflect cmds: %s", msg.Command)
 		} else {
 			params[0] = reflect.ValueOf(cmds)
 			params[1] = reflect.ValueOf(&msg)
 			v := fn.Func.Call(params)
 			if v[0].IsNil() == false {
-				G.Outlog(G.LOG_AMQP, fmt.Sprintf("error handing msg: %+v", v[0].Interface()))
+				G.Outlog3(G.LOG_AMQP, "error handing msg: %+v", v[0].Interface())
 			}
 		}
 		//need ack?
 		if msg.Ack == true {
 			if err = Sendmsg("", AMQP_CMD_ACK, &_param, msg.Object, &_msg1, "", msg.Sender, msg.ID); err != nil {
-				G.Outlog(G.LOG_AMQP, fmt.Sprintf("error sending ack msg: %s", err))
+				G.Outlog3(G.LOG_AMQP, "error sending ack msg: %s", err)
 			}
 		}
 	}
-	G.Outlog(G.LOG_AMQP, fmt.Sprintf("handle: deliveries channel closed"))
+	G.Outlog3(G.LOG_AMQP, "handle: deliveries channel closed")
 	done <- nil
 }
 
@@ -241,24 +241,24 @@ func NewAMQPDirector(amqpURI, exchange, exchangeType, queueName, routingKey, myn
 
 	var err error
 
-	G.Outlog(G.LOG_AMQP, fmt.Sprintf("dialing %q", amqpURI))
+	G.Outlog3(G.LOG_AMQP, "dialing %q", amqpURI)
 	c.conn, err = amqp.Dial(amqpURI)
 	if err != nil {
 		return nil, fmt.Errorf("Dial: %s", err)
 	}
 
 	go func() {
-		G.Outlog(G.LOG_AMQP, fmt.Sprintf("closing: %s, re-dialing..", <-c.conn.NotifyClose(make(chan *amqp.Error))))
+		G.Outlog3(G.LOG_AMQP, "closing: %s, re-dialing..", <-c.conn.NotifyClose(make(chan *amqp.Error)))
 		AMQP_D_RECONNECT()
 	}()
 
-	G.Outlog(G.LOG_AMQP, fmt.Sprintf("got Connection, getting Channel"))
+	G.Outlog3(G.LOG_AMQP, "got Connection, getting Channel")
 	c.channel, err = c.conn.Channel()
 	if err != nil {
 		return nil, fmt.Errorf("Channel: %s", err)
 	}
 
-	G.Outlog(G.LOG_AMQP, fmt.Sprintf("got Channel, declaring %q Exchange (%q)", exchangeType, exchange))
+	G.Outlog3(G.LOG_AMQP, "got Channel, declaring %q Exchange (%q)", exchangeType, exchange)
 	if err = c.channel.ExchangeDeclare(
 		exchange,     // name of the exchange
 		exchangeType, // type
@@ -271,7 +271,7 @@ func NewAMQPDirector(amqpURI, exchange, exchangeType, queueName, routingKey, myn
 		return nil, fmt.Errorf("Exchange Declare: %s", err)
 	}
 
-	G.Outlog(G.LOG_AMQP, fmt.Sprintf("declared Exchange, declaring Queue %q", queueName))
+	G.Outlog3(G.LOG_AMQP, "declared Exchange, declaring Queue %q", queueName)
 	queue, err := c.channel.QueueDeclare(
 		queueName, // name of the queue
 		true,      // durable
@@ -284,8 +284,8 @@ func NewAMQPDirector(amqpURI, exchange, exchangeType, queueName, routingKey, myn
 		return nil, fmt.Errorf("Queue Declare: %s", err)
 	}
 
-	G.Outlog(G.LOG_AMQP, fmt.Sprintf("declared Queue (%q %d messages, %d consumers), binding to Exchange (key %q)",
-		queue.Name, queue.Messages, queue.Consumers, c.rkey))
+	G.Outlog3(G.LOG_AMQP, "declared Queue (%q %d messages, %d consumers), binding to Exchange (key %q)",
+		queue.Name, queue.Messages, queue.Consumers, c.rkey)
 
 	if err = c.channel.QueueBind(
 		queue.Name, // name of the queue
@@ -297,7 +297,7 @@ func NewAMQPDirector(amqpURI, exchange, exchangeType, queueName, routingKey, myn
 		return nil, fmt.Errorf("Queue Bind: %s", err)
 	}
 
-	G.Outlog(G.LOG_AMQP, fmt.Sprintf("Queue bound to Exchange, starting Consume (consumer tag %q)", c.tag))
+	G.Outlog3(G.LOG_AMQP, "Queue bound to Exchange, starting Consume (consumer tag %q)", c.tag)
 	deliveries, err := c.channel.Consume(
 		queue.Name, // name
 		c.tag,      // consumerTag,
@@ -326,7 +326,7 @@ func (c *AMQP_Director) Publish(body []byte, _key string) error {
 		key = _key
 	}
 
-	//G.Outlog(G.LOG_AMQP, fmt.Sprintf("publishing %dB body to %s of %s", len(body), c.rkey, c.exc))
+	//G.Outlog3(G.LOG_AMQP, "publishing %dB body to %s of %s", len(body), c.rkey, c.exc)
 	if err = c.channel.Publish(
 		c.exc, // publish to an exchange
 		key,   // routing to 0 or more queues
@@ -357,7 +357,7 @@ func (c *AMQP_Director) Shutdown() error {
 		return fmt.Errorf("AMQP connection close error: %s", err)
 	}
 
-	defer G.Outlog(G.LOG_AMQP, fmt.Sprintf("AMQP_Director shutdown OK"))
+	defer G.Outlog3(G.LOG_AMQP, "AMQP_Director shutdown OK")
 
 	// wait for handle() to exit
 	return <-c.done
@@ -373,7 +373,7 @@ func (c *AMQP_Director) amqp_handle_d(deliveries <-chan amqp.Delivery, done chan
 
 	for d := range deliveries {
 		if err = Transmsg(d.Body, &msg); err != nil {
-			G.Outlog(G.LOG_AMQP, fmt.Sprintf("transmsg: %s", err))
+			G.Outlog3(G.LOG_AMQP, "transmsg: %s", err)
 			continue
 		}
 		if msg.Sender == c.myname {
@@ -382,22 +382,22 @@ func (c *AMQP_Director) amqp_handle_d(deliveries <-chan amqp.Delivery, done chan
 		//call msg handler functions
 		fn, r := reflect.TypeOf(cmds).MethodByName(msg.Command)
 		if r == false {
-			G.Outlog(G.LOG_AMQP, fmt.Sprintf("error reflect cmds: %s", msg.Command))
+			G.Outlog3(G.LOG_AMQP, "error reflect cmds: %s", msg.Command)
 		} else {
 			params[0] = reflect.ValueOf(cmds)
 			params[1] = reflect.ValueOf(&msg)
 			v := fn.Func.Call(params)
 			if v[0].IsNil() == false {
-				G.Outlog(G.LOG_AMQP, fmt.Sprintf("error handing msg: %s", v[0].Interface()))
+				G.Outlog3(G.LOG_AMQP, "error handing msg: %s", v[0].Interface())
 			}
 		}
 		//need ack?
 		if msg.Ack == true {
 			if err = Sendmsg("", AMQP_CMD_ACK, &_param, msg.Object, &_msg1, "", msg.Sender, msg.ID); err != nil {
-				G.Outlog(G.LOG_AMQP, fmt.Sprintf("error sending ack msg: %s", err))
+				G.Outlog3(G.LOG_AMQP, "error sending ack msg: %s", err)
 			}
 		}
 	}
-	G.Outlog(G.LOG_AMQP, fmt.Sprintf("handle: deliveries channel closed"))
+	G.Outlog3(G.LOG_AMQP, "handle: deliveries channel closed")
 	done <- nil
 }
