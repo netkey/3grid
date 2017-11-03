@@ -26,7 +26,137 @@ func init_db() {
 	RT.Service_Cutoff_Percent = 85
 	RT.Service_Deny_Percent = 95
 	RT.RT_Cache_TTL = 10
+	RT.RR_Cache_TTL = 10
 	RT.RT_Cache_Size = 1000
+
+}
+
+func TestStateCmdbNode(t *testing.T) {
+	var _param map[string]string
+	var _msg1 map[string]map[string]map[string][]string
+	var _msg2 string
+	var c = new(Cmds)
+
+	if IP.Ipdb == nil {
+		init_db()
+	}
+
+	_msg1 = map[string]map[string]map[string][]string{"": {"": {"": {}}}}
+	_msg2 = ""
+
+	//"122": ["CN-CRC-GD-GZ-C1", " 1", "10", "0", "0", "1", "1700", "A", "CN-CRC-GD-GZ-C1"]
+	_param = map[string]string{"122": "CN-CRC-GD-GZ-C1,1,10,0,50,0,1234,A,CN-CRC-GD-GZ-C1"}
+
+	am := AMQP_Message{
+		ID:      1,
+		Sender:  "gslb-center",
+		Command: "State",
+		Params:  &_param,
+		Object:  "Cmdb",
+		Msg1:    &_msg1,
+		Msg2:    _msg2,
+		Gzip:    false,
+		Ack:     false,
+	}
+
+	State_Recv = true
+
+	c.State(&am)
+
+	time.Sleep(time.Duration(1) * time.Second)
+	nr := RT.Rtdb.Read_Node_Record(122)
+
+	if nr.Status == false && nr.NodeCapacity == 1234 && nr.Usage == 50 &&
+		(nr.ServerList != nil && len(nr.ServerList) > 0) {
+		t.Logf("Node state updated: %+v", nr)
+	} else {
+		t.Errorf("Error updating node state: %+v", nr)
+	}
+
+}
+
+func TestStateCmdbServer(t *testing.T) {
+	var _param map[string]string
+	var _msg1 map[string]map[string]map[string][]string
+	var _msg2 string
+	var c = new(Cmds)
+
+	if IP.Ipdb == nil {
+		init_db()
+	}
+
+	_msg1 = map[string]map[string]map[string][]string{"": {"": {"": {}}}}
+	_msg2 = ""
+
+	//"267" "122.72.12.19", "0", "1", "1", "1"  id ip usage group weight status
+	_param = map[string]string{"122.72.12.19": "122.72.12.19,30,1,1,0,122"}
+
+	am := AMQP_Message{
+		ID:      1,
+		Sender:  "gslb-center",
+		Command: "State",
+		Params:  &_param,
+		Object:  "Cmdb",
+		Msg1:    &_msg1,
+		Msg2:    _msg2,
+		Gzip:    false,
+		Ack:     false,
+	}
+
+	State_Recv = true
+
+	c.State(&am)
+
+	time.Sleep(time.Duration(1) * time.Second)
+	sr := RT.Rtdb.Read_Server_Record(267)
+
+	if sr.Status == false && sr.Usage == 30 {
+		t.Logf("Server state updated: %+v", sr)
+	} else {
+		t.Errorf("Error updating server state: %+v", sr)
+	}
+
+}
+
+func TestStateDomain(t *testing.T) {
+	var _param map[string]string
+	var _msg1 map[string]map[string]map[string][]string
+	var _msg2 string
+	var c = new(Cmds)
+
+	if IP.Ipdb == nil {
+		init_db()
+	}
+
+	_msg1 = map[string]map[string]map[string][]string{"": {"": {"": {}}}}
+	_msg2 = ""
+
+	//"image15-c.poco.cn": ["", "image15-c.poco.cn.mmycdn.com", "10", "1", "3", "300", "8,70", "1", ""]
+	_param = map[string]string{"image15-c.poco.cn": ",image15-c.poco.cn.mmycdn.com,10,1,3,600,8:70,0,CTC:CUC"}
+
+	am := AMQP_Message{
+		ID:      1,
+		Sender:  "gslb-center",
+		Command: "State",
+		Params:  &_param,
+		Object:  "Domain",
+		Msg1:    &_msg1,
+		Msg2:    _msg2,
+		Gzip:    false,
+		Ack:     false,
+	}
+
+	State_Recv = true
+	c.State(&am)
+
+	time.Sleep(time.Duration(1) * time.Second)
+	dr := RT.Rtdb.Read_Domain_Record("image15-c.poco.cn.mmycdn.com")
+
+	if dr.TTL == 600 && dr.Status == 0 {
+		t.Logf("Domain updated: %+v", dr)
+	} else {
+		t.Errorf("Error updating domain: %+v", dr)
+	}
 
 }
 
@@ -290,135 +420,6 @@ func TestDeleteDomain(t *testing.T) {
 		t.Logf("Domain deleted: image15-c.poco.cn.mmycdn.com")
 	} else {
 		t.Errorf("Error deleting domain: %+v", dr)
-	}
-
-}
-
-func TestStateCmdbNode(t *testing.T) {
-	var _param map[string]string
-	var _msg1 map[string]map[string]map[string][]string
-	var _msg2 string
-	var c = new(Cmds)
-
-	if IP.Ipdb == nil {
-		init_db()
-	}
-
-	_msg1 = map[string]map[string]map[string][]string{"": {"": {"": {}}}}
-	_msg2 = ""
-
-	//"122": ["CN-CRC-GD-GZ-C1", " 1", "10", "0", "0", "1", "1700", "A", "CN-CRC-GD-GZ-C1"]
-	_param = map[string]string{"122": "CN-CRC-GD-GZ-C1,1,10,0,50,0,1234,A,CN-CRC-GD-GZ-C1"}
-
-	am := AMQP_Message{
-		ID:      1,
-		Sender:  "gslb-center",
-		Command: "State",
-		Params:  &_param,
-		Object:  "Cmdb",
-		Msg1:    &_msg1,
-		Msg2:    _msg2,
-		Gzip:    false,
-		Ack:     false,
-	}
-
-	State_Recv = true
-
-	c.State(&am)
-
-	time.Sleep(time.Duration(1) * time.Second)
-	nr := RT.Rtdb.Read_Node_Record(122)
-
-	if nr.Status == false && nr.NodeCapacity == 1234 && nr.Usage == 50 &&
-		(nr.ServerList != nil && len(nr.ServerList) > 0) {
-		t.Logf("Node state updated: %+v", nr)
-	} else {
-		t.Errorf("Error updating node state: %+v", nr)
-	}
-
-}
-
-func TestStateCmdbServer(t *testing.T) {
-	var _param map[string]string
-	var _msg1 map[string]map[string]map[string][]string
-	var _msg2 string
-	var c = new(Cmds)
-
-	if IP.Ipdb == nil {
-		init_db()
-	}
-
-	_msg1 = map[string]map[string]map[string][]string{"": {"": {"": {}}}}
-	_msg2 = ""
-
-	//"267" "122.72.12.19", "0", "1", "1", "1"  id ip usage group weight status
-	_param = map[string]string{"122.72.12.19": "122.72.12.19,30,1,1,0,122"}
-
-	am := AMQP_Message{
-		ID:      1,
-		Sender:  "gslb-center",
-		Command: "State",
-		Params:  &_param,
-		Object:  "Cmdb",
-		Msg1:    &_msg1,
-		Msg2:    _msg2,
-		Gzip:    false,
-		Ack:     false,
-	}
-
-	State_Recv = true
-
-	c.State(&am)
-
-	time.Sleep(time.Duration(1) * time.Second)
-	sr := RT.Rtdb.Read_Server_Record(267)
-
-	if sr.Status == false && sr.Usage == 30 {
-		t.Logf("Server state updated: %+v", sr)
-	} else {
-		t.Errorf("Error updating server state: %+v", sr)
-	}
-
-}
-
-func TestStateDomain(t *testing.T) {
-	var _param map[string]string
-	var _msg1 map[string]map[string]map[string][]string
-	var _msg2 string
-	var c = new(Cmds)
-
-	if IP.Ipdb == nil {
-		init_db()
-	}
-
-	_msg1 = map[string]map[string]map[string][]string{"": {"": {"": {}}}}
-	_msg2 = ""
-
-	//"image15-c.poco.cn": ["", "image15-c.poco.cn.mmycdn.com", "10", "1", "3", "300", "8,70", "1", ""]
-	_param = map[string]string{"image15-c.poco.cn": ",image15-c.poco.cn.mmycdn.com,10,1,3,600,8:70,0,CTC:CUC"}
-
-	am := AMQP_Message{
-		ID:      1,
-		Sender:  "gslb-center",
-		Command: "State",
-		Params:  &_param,
-		Object:  "Domain",
-		Msg1:    &_msg1,
-		Msg2:    _msg2,
-		Gzip:    false,
-		Ack:     false,
-	}
-
-	State_Recv = true
-	c.State(&am)
-
-	time.Sleep(time.Duration(1) * time.Second)
-	dr := RT.Rtdb.Read_Domain_Record("image15-c.poco.cn.mmycdn.com")
-
-	if dr.TTL == 600 && dr.Status == 0 {
-		t.Logf("Domain updated: %+v", dr)
-	} else {
-		t.Errorf("Error updating domain: %+v", dr)
 	}
 
 }
