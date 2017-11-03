@@ -11,7 +11,6 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"flag"
-	"fmt"
 	"io"
 	"log"
 	"strconv"
@@ -120,7 +119,7 @@ func Synchronize(_interval, _ka_interval int, _myname string) {
 	}
 
 	defer func() {
-		G.Outlog(G.LOG_AMQP, fmt.Sprintf("shutting down"))
+		G.Outlog3(G.LOG_AMQP, "shutting down")
 		if err := AMQP_D.Shutdown(); err != nil {
 			log.Fatalf("error during direcror shutdown: %s", err)
 		}
@@ -142,7 +141,7 @@ func CheckVersion(_interval int) {
 		_param[AMQP_OBJ_CMDB] = grid_route.CM_Version
 		_param[AMQP_OBJ_DOMAIN] = grid_route.DM_Version
 		if err = Sendmsg("", AMQP_CMD_VER, &_param, AMQP_OBJ_CONTROL, &_msg1, "", *gslb_center, 0); err != nil {
-			G.Outlog(G.LOG_AMQP, fmt.Sprintf("checkversion: %s", err))
+			G.Outlog3(G.LOG_AMQP, "checkversion: %s", err)
 		}
 	}
 }
@@ -157,7 +156,7 @@ func State_Notify(_interval int) {
 
 		_param = G.PC.Read_Perfcs(G.PERF_DOMAIN)
 		if err = Sendmsg("", AMQP_CMD_STATE, _param, AMQP_OBJ_DOMAIN, &_msg1, "", *gslb_center, 0); err != nil {
-			G.Outlog(G.LOG_AMQP, fmt.Sprintf("state: %s", err))
+			G.Outlog3(G.LOG_AMQP, "state: %s", err)
 		}
 	}
 }
@@ -171,14 +170,14 @@ func Keepalive(_interval int) {
 	for {
 		if _first {
 			if err = Sendmsg("", AMQP_CMD_ONLINE, &_param, "", &_msg1, "", *gslb_center, 0); err != nil {
-				G.Outlog(G.LOG_AMQP, fmt.Sprintf("online: %s", err))
+				G.Outlog3(G.LOG_AMQP, "online: %s", err)
 			}
 			_first = false
 		} else {
 			_param["Qps"] = strconv.FormatUint(G.GP.Read_Qps(), 10)
 			_param["Load"] = strconv.FormatUint(G.GP.Read_Load(), 10)
 			if err = Sendmsg("", AMQP_CMD_KA, &_param, "", &_msg1, "", *gslb_center, 0); err != nil {
-				G.Outlog(G.LOG_AMQP, fmt.Sprintf("keepalive: %s", err))
+				G.Outlog3(G.LOG_AMQP, "keepalive: %s", err)
 			}
 			//G.Outlog3(G.LOG_AMQP, "GP Perf: %+v", _param)
 		}
@@ -255,7 +254,7 @@ func Transmsg(_msg []byte, _am *AMQP_Message) error {
 	var err error
 
 	if err = json.Unmarshal(_msg, _am); err != nil {
-		G.Outlog(G.LOG_AMQP, fmt.Sprintf("trans msg: %s", _msg))
+		G.Outlog3(G.LOG_AMQP, "trans msg: %s", _msg)
 		return err
 	}
 
