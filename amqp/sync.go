@@ -30,15 +30,16 @@ var (
 	gslb_center  = flag.String("gslb-center", "gslb-center", "AMQP routing key of gslb backends")
 )
 
-var AMQP_URI string
-
-var myname string
-var ka_interval int
-
 var AMQP_B *AMQP_Broadcaster
 var AMQP_D *AMQP_Director
 
+var AMQP_URI string
+var AMQP_Center string
+var State_Recv bool
+
 var msgid AutoInc
+var myname string
+var ka_interval int
 
 type AutoInc struct {
 	id uint
@@ -99,6 +100,8 @@ func Synchronize(_interval, _ka_interval int, _myname string) {
 	queue_b = &keyb
 	queue_d = &keyd
 	routingKey_b, routingKey_d = &_myname, &_myname
+
+	gslb_center = &AMQP_Center
 
 	AMQP_D, err = NewAMQPDirector(AMQP_URI, *exchange, *exchangeType, *queue_d, *routingKey_d, _myname)
 	if err != nil {

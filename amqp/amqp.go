@@ -28,8 +28,6 @@ const (
 	AMQP_OBJ_DOMAIN  = "Domain"  //Object domain db
 )
 
-var State_Recv bool
-
 type AMQP_Message struct {
 	ID      uint
 	Sender  string

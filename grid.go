@@ -60,6 +60,7 @@ var state_recv bool
 var ip_dn_spliter string
 var ac_dn_spliter string
 var amqp_uri string
+var amqp_center string
 var compress bool
 var randomrr bool
 
@@ -165,6 +166,12 @@ func read_conf() {
 			amqp_uri = ""
 		} else {
 			amqp_uri = _amqp_uri
+		}
+		_amqp_center := viper.GetString("gslb.amqp_center")
+		if _amqp_center == "" {
+			amqp_center = "gslb-center"
+		} else {
+			amqp_center = _amqp_center
 		}
 		_acprefix := viper.GetString("gslb.acprefix")
 		if _acprefix == "" {
@@ -396,6 +403,7 @@ func main() {
 		{
 			A.State_Recv = state_recv
 			A.AMQP_URI = amqp_uri
+			A.AMQP_Center = amqp_center
 
 			//init amqp synchronize routine
 			go A.Synchronize(interval, keepalive, myname)

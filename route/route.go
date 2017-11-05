@@ -32,6 +32,7 @@ var CM_Ver_Major, CM_Ver_Minor, CM_Ver_Patch uint64
 var Chan *chan map[string]map[string]map[string]map[string][]string
 
 var Rtdb *Route_db
+
 var RT_Cache_TTL int
 var RR_Cache_TTL int
 var RT_Cache_Size int64
@@ -147,7 +148,8 @@ func (rt_db *Route_db) RT_db_init() {
 	rt_db.Locks = map[string]*sync.RWMutex{"servers": new(sync.RWMutex), "ips": new(sync.RWMutex),
 		"nodes": new(sync.RWMutex), "domains": new(sync.RWMutex),
 		"routes": new(sync.RWMutex), "cache": new(sync.RWMutex)}
-	rt_db.Chan = make(chan map[string]map[string]map[string]map[string][]string, 100)
+
+	rt_db.Chan = make(chan map[string]map[string]map[string]map[string][]string, 1000)
 	Chan = &rt_db.Chan
 
 	go rt_db.Updatedb()
@@ -182,7 +184,7 @@ func (rt_db *Route_db) LoadDomaindb(_domain_records map[string][]string) error {
 	if err == nil {
 		rt_db.Convert_Domain_Record(domain_records)
 
-		if G.Debug {
+		if G.Debug && _domain_records == nil {
 			//time.Sleep(time.Duration(100) * time.Millisecond) //for use with channel updating
 			keys := reflect.ValueOf(rt_db.Domains).MapKeys()
 			G.OutDebug("domains data sample: %+v", rt_db.Domains[keys[0].String()])
@@ -249,7 +251,7 @@ func (rt_db *Route_db) LoadCMdb(_cmdb_records map[string]map[string][]string) er
 			}
 		}
 
-		if G.Debug {
+		if G.Debug && _cmdb_records == nil {
 			keys := reflect.ValueOf(rt_db.Nodes).MapKeys()
 			G.Outlog(G.LOG_DEBUG, fmt.Sprintf("nodes data sample: %+v",
 				rt_db.Nodes[uint(keys[0].Uint())]))
@@ -316,7 +318,7 @@ func (rt_db *Route_db) LoadRoutedb(_rtdb_records map[string]map[string]map[strin
 			}
 		}
 
-		if G.Debug {
+		if G.Debug && _rtdb_records == nil {
 			keys := reflect.ValueOf(rt_db.Routes).MapKeys()
 			G.Outlog(G.LOG_DEBUG, fmt.Sprintf("routes data sample: %s %+v",
 				keys[0].String(), rt_db.Routes[keys[0].String()]))
