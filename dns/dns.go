@@ -265,7 +265,7 @@ func (wkr *DNS_worker) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
 	G.Outlog3(G.LOG_DNS, "%s|%d|%s|%s", ip, r.Question[0].Qtype, _dn, strings.Join(aaa, ","))
 }
 
-func Working(nets, port, name, secret string, num int, ipdb *IP.IP_db, rtdb *RT.Route_db) {
+func Working(nets, listen, port, name, secret string, num int, ipdb *IP.IP_db, rtdb *RT.Route_db) {
 
 	worker := DNS_worker{}
 	worker.Id = num
@@ -276,10 +276,10 @@ func Working(nets, port, name, secret string, num int, ipdb *IP.IP_db, rtdb *RT.
 
 	switch name {
 	case "":
-		worker.Server = &dns.Server{Addr: ":" + port, Net: nets,
+		worker.Server = &dns.Server{Addr: listen + ":" + port, Net: nets,
 			TsigSecret: nil}
 	default:
-		worker.Server = &dns.Server{Addr: ":" + port, Net: nets,
+		worker.Server = &dns.Server{Addr: listen + ":" + port, Net: nets,
 			TsigSecret: map[string]string{name: secret}}
 	}
 

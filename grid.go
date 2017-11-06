@@ -28,6 +28,7 @@ var worker = flag.Bool("worker", false, "worker mode, no daemon mode")
 //main program related
 var num_cpus int
 var port string
+var listen string
 var daemond bool
 var debug_info string
 var workdir string
@@ -100,6 +101,12 @@ func read_conf() {
 			port = "53"
 		} else {
 			port = _port
+		}
+		_listen := viper.GetString("server.listen")
+		if _listen == "" {
+			listen = ""
+		} else {
+			listen = _listen
 		}
 		_daemon := viper.GetBool("server.daemon")
 		if _daemon == false {
@@ -396,7 +403,7 @@ func main() {
 			//init dns  workers
 			var name, secret string
 			for i := 0; i < num_cpus; i++ {
-				go D.Working("udp", port, name, secret, i, IP.Ipdb, RT.Rtdb)
+				go D.Working("udp", listen, port, name, secret, i, IP.Ipdb, RT.Rtdb)
 			}
 		}
 
