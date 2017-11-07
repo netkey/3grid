@@ -92,6 +92,12 @@ func Synchronize(_interval, _ka_interval int, _myname string) {
 	//function to synchronize ip & route db
 	var err error
 
+	defer func() {
+		if err := recover(); err != nil {
+			G.Outlog3(G.LOG_GSLB, "Panic: %s", err)
+		}
+	}()
+
 	myname = _myname
 	ka_interval = _ka_interval
 

@@ -310,8 +310,13 @@ func Working(nets, listen, port, name, secret string, num int, ipdb *IP.IP_db, r
 	worker.Id = num
 	worker.Ipdb = ipdb
 	worker.Rtdb = rtdb
-
 	worker.Qsc = map[string]uint64{"QS": 1}
+
+	defer func() {
+		if err := recover(); err != nil {
+			G.Outlog3(G.LOG_GSLB, "Panic: %s", err)
+		}
+	}()
 
 	switch name {
 	case "":
