@@ -14,6 +14,7 @@ import (
 	"io"
 	"log"
 	"strconv"
+	"sync"
 	"time"
 )
 
@@ -42,10 +43,13 @@ var myname string
 var ka_interval int
 
 type AutoInc struct {
-	id uint
+	id   uint
+	lock sync.RWMutex
 }
 
 func (a *AutoInc) AutoID() uint {
+	a.lock.Lock()
+	defer a.lock.Unlock()
 	a.id = a.id + 1
 	return a.id
 }
@@ -145,10 +149,12 @@ func CheckVersion(_interval int) {
 
 	for {
 		time.Sleep(time.Duration(_interval) * time.Second)
+		G.VerLock.RLock()
 		_param[AMQP_OBJ_IP] = grid_ip.Version
 		_param[AMQP_OBJ_ROUTE] = grid_route.RT_Version
 		_param[AMQP_OBJ_CMDB] = grid_route.CM_Version
 		_param[AMQP_OBJ_DOMAIN] = grid_route.DM_Version
+		G.VerLock.RUnlock()
 		if err = Sendmsg("", AMQP_CMD_VER, &_param, AMQP_OBJ_CONTROL, &_msg1, "", *gslb_center, 0); err != nil {
 			G.Outlog3(G.LOG_AMQP, "checkversion: %s", err)
 		}

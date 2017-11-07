@@ -370,6 +370,7 @@ func main() {
 			G.PC = G.Perfcs{}
 			G.PC.Init(keepalive)
 
+			G.VerLock = new(sync.RWMutex)
 			T.Check_db_versions()
 		}
 

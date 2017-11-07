@@ -86,6 +86,9 @@ func Check_db_versions() error {
 
 	var err error
 
+	G.VerLock.Lock()
+	defer G.VerLock.Unlock()
+
 	IP.Ver_Major, IP.Ver_Minor, IP.Ver_Patch, IP.Version,
 		IP.Db_file, err = check_db_version("ip")
 

@@ -242,11 +242,13 @@ func (rt_db *Route_db) LoadCMdb(_cmdb_records map[string]map[string][]string) er
 				server_records := make(map[string][]string)
 				x, _ := strconv.Atoi(nid)
 				xnid := uint(x)
+				rt_db.Locks["servers"].RLock()
 				for sid, server := range rt_db.Servers {
 					if server.NodeId == xnid {
 						server_records[strconv.Itoa(int(sid))] = nil
 					}
 				}
+				rt_db.Locks["servers"].RUnlock()
 				rt_db.Convert_Server_Record(server_records)
 			}
 		}
@@ -486,6 +488,7 @@ func (rt_db *Route_db) Read_IP_Record(k string) Server_List_Record {
 
 func (rt_db *Route_db) Update_Server_Record(k uint, r *Server_List_Record) {
 	rt_db.Locks["servers"].Lock()
+	rt_db.Locks["ips"].Lock()
 	if r == nil {
 		delete(rt_db.Ips, rt_db.Servers[k].ServerIp)
 		delete(rt_db.Servers, k)
@@ -493,6 +496,7 @@ func (rt_db *Route_db) Update_Server_Record(k uint, r *Server_List_Record) {
 		rt_db.Servers[k] = *r
 		rt_db.Ips[(*r).ServerIp] = *r
 	}
+	rt_db.Locks["ips"].Unlock()
 	rt_db.Locks["servers"].Unlock()
 }
 

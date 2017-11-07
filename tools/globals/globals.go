@@ -14,6 +14,8 @@ var Test bool  //global test flag
 var GP Perf_Counter //global perf counter
 var PC Perfcs       //specific perf counter
 
+var VerLock *sync.RWMutex
+
 const (
 	PERF_DOMAIN = "domain"
 )
@@ -22,12 +24,14 @@ type Perfcs struct {
 	Interval uint64
 	Pcs      map[string]map[string]*Perf_Counter //string for type, string for name/id
 	Chan     chan map[string]map[string]uint64
+	Lock     *sync.RWMutex
 }
 
 func (pcs *Perfcs) Init(interval int) {
 	pcs.Interval = uint64(interval)
 	pcs.Pcs = make(map[string]map[string]*Perf_Counter)
 	pcs.Chan = make(chan map[string]map[string]uint64, 1000)
+	pcs.Lock = new(sync.RWMutex)
 
 	go pcs.update_pcs()
 	go pcs.keeper()
@@ -40,6 +44,8 @@ func (pcs *Perfcs) Read_Perfcs(perf_type string) *map[string]string {
 
 	switch perf_type {
 	case PERF_DOMAIN:
+		pcs.Lock.RLock()
+		defer pcs.Lock.RUnlock()
 		for k, v := range pcs.Pcs[perf_type] {
 			qps = v.Read_Qps()
 			pfcs[k] = strconv.Itoa(int(qps))
@@ -52,6 +58,8 @@ func (pcs *Perfcs) Read_Perfcs(perf_type string) *map[string]string {
 func (pcs *Perfcs) update_pcs() error {
 	for {
 		if pcm := <-pcs.Chan; pcm != nil {
+			pcs.Lock.Lock()
+			defer pcs.Lock.Unlock()
 			for _type, _values := range pcm {
 				for k, v := range _values {
 					if pcs.Pcs[_type] == nil {
@@ -79,6 +87,8 @@ func (pcs *Perfcs) keeper() error {
 	for {
 		time.Sleep(time.Duration(pcs.Interval) * time.Second)
 
+		pcs.Lock.RLock()
+		defer pcs.Lock.RUnlock()
 		for _type, _v := range pcs.Pcs {
 			for k, _ := range _v {
 				pc := pcs.Pcs[_type][k]
