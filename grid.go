@@ -323,6 +323,7 @@ func main() {
 	} else {
 		//after fork as worker, go on working
 		{
+
 			//multi workers
 			if *worker && len(os.Args) > 1 {
 				myname = myname + os.Args[1][strings.LastIndex(os.Args[1], ":"):]

@@ -97,6 +97,39 @@ func (wkr *DNS_worker) RR(aaa []string, q *DNS_query, w dns.ResponseWriter, r *d
 		}
 	}
 
+	/*
+		TypeNone       uint16 = 0
+		TypeA          uint16 = 1
+		TypeNS         uint16 = 2
+		TypeMD         uint16 = 3
+		TypeMF         uint16 = 4
+		TypeCNAME      uint16 = 5
+		TypeSOA        uint16 = 6
+		TypeMB         uint16 = 7
+		TypeMG         uint16 = 8
+		TypeMR         uint16 = 9
+		TypeNULL       uint16 = 10
+		TypePTR        uint16 = 12
+		TypeHINFO      uint16 = 13
+		TypeMINFO      uint16 = 14
+		TypeMX         uint16 = 15
+		TypeTXT        uint16 = 16
+		TypeRP         uint16 = 17
+		TypeAFSDB      uint16 = 18
+		TypeX25        uint16 = 19
+		TypeISDN       uint16 = 20
+		TypeRT         uint16 = 21
+		TypeNSAPPTR    uint16 = 23
+		TypeSIG        uint16 = 24
+		TypeKEY        uint16 = 25
+		TypePX         uint16 = 26
+		TypeGPOS       uint16 = 27
+		TypeAAAA       uint16 = 28
+		TypeLOC        uint16 = 29
+		TypeNXT        uint16 = 30
+		TypeEID        uint16 = 31
+	*/
+
 	switch qtype {
 	case dns.TypeA, dns.TypeAAAA:
 		for _, aa := range aaa {
@@ -182,6 +215,12 @@ func (wkr *DNS_worker) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
 		debug          int      //debug query
 		rid            uint     //route plan id
 	)
+
+	defer func() {
+		if err := recover(); err != nil {
+			G.Outlog3(G.LOG_GSLB, "Panic: %s", err)
+		}
+	}()
 
 	debug = 0
 

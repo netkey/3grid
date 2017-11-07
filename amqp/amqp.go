@@ -185,6 +185,12 @@ func (c *AMQP_Broadcaster) amqp_handle_b(deliveries <-chan amqp.Delivery, done c
 	var _param = make(map[string]string)
 	var _msg1 []string
 
+	defer func() {
+		if err := recover(); err != nil {
+			G.Outlog3(G.LOG_GSLB, "Panic: %s", err)
+		}
+	}()
+
 	for d := range deliveries {
 		if err = Transmsg(d.Body, &msg); err != nil {
 			G.Outlog3(G.LOG_AMQP, "transmsg: %s", err)
@@ -368,6 +374,12 @@ func (c *AMQP_Director) amqp_handle_d(deliveries <-chan amqp.Delivery, done chan
 	var params = make([]reflect.Value, 2)
 	var _param = make(map[string]string)
 	var _msg1 []string
+
+	defer func() {
+		if err := recover(); err != nil {
+			G.Outlog3(G.LOG_GSLB, "Panic: %s", err)
+		}
+	}()
 
 	for d := range deliveries {
 		if err = Transmsg(d.Body, &msg); err != nil {
