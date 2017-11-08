@@ -58,10 +58,10 @@ func (pcs *Perfcs) Read_Perfcs(perf_type string) *map[string]string {
 func (pcs *Perfcs) update_pcs() error {
 	for {
 		if pcm := <-pcs.Chan; pcm != nil {
-			pcs.Lock.Lock()
-			defer pcs.Lock.Unlock()
 			for _type, _values := range pcm {
 				for k, v := range _values {
+
+					pcs.Lock.Lock()
 					if pcs.Pcs[_type] == nil {
 						pcs.Pcs[_type] = make(map[string]*Perf_Counter)
 					}
@@ -72,7 +72,10 @@ func (pcs *Perfcs) update_pcs() error {
 						pcs.Pcs[_type][k] = _pc
 					}
 					pc := pcs.Pcs[_type][k]
+					pcs.Lock.Unlock()
+
 					pc.Inc_Qs(v)
+
 				}
 			}
 		}
@@ -87,11 +90,12 @@ func (pcs *Perfcs) keeper() error {
 	for {
 		time.Sleep(time.Duration(pcs.Interval) * time.Second)
 
-		pcs.Lock.RLock()
-		defer pcs.Lock.RUnlock()
 		for _type, _v := range pcs.Pcs {
 			for k, _ := range _v {
+
+				pcs.Lock.RLock()
 				pc := pcs.Pcs[_type][k]
+				pcs.Lock.RUnlock()
 
 				//update qps, reset qs counter
 				qs = pc.Read_Qs()
