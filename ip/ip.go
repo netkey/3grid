@@ -118,9 +118,7 @@ func (ip_db *IP_db) GetAreaCode(ip net.IP) string {
 		cn = ipc.AC
 	}
 
-	if G.Debug {
-		G.Outlog3(G.LOG_IP, "ip:%s ac:%s", ips, cn)
-	}
+	G.OutDebug2(G.LOG_IP, "ip:%s ac:%s", ips, cn)
 
 	return cn
 }

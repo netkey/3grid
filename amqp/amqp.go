@@ -26,6 +26,7 @@ const (
 	AMQP_OBJ_CONTROL = "Control" //Object control db
 	AMQP_OBJ_CMDB    = "Cmdb"    //Object cm db
 	AMQP_OBJ_DOMAIN  = "Domain"  //Object domain db
+	AMQP_OBJ_API     = "Api"     //API request
 )
 
 type AMQP_Message struct {
@@ -206,10 +207,13 @@ func (c *AMQP_Broadcaster) amqp_handle_b(deliveries <-chan amqp.Delivery, done c
 		} else {
 			params[0] = reflect.ValueOf(cmds)
 			params[1] = reflect.ValueOf(&msg)
-			v := fn.Func.Call(params)
-			if v[0].IsNil() == false {
-				G.Outlog3(G.LOG_AMQP, "error handing msg: %+v", v[0].Interface())
-			}
+			go fn.Func.Call(params) //handle messages concurrently
+			/*
+				v := fn.Func.Call(params)
+				if v[0].IsNil() == false {
+					G.Outlog3(G.LOG_AMQP, "error handing msg: %+v", v[0].Interface())
+				}
+			*/
 		}
 		//need ack?
 		if msg.Ack == true {
@@ -396,10 +400,13 @@ func (c *AMQP_Director) amqp_handle_d(deliveries <-chan amqp.Delivery, done chan
 		} else {
 			params[0] = reflect.ValueOf(cmds)
 			params[1] = reflect.ValueOf(&msg)
-			v := fn.Func.Call(params)
-			if v[0].IsNil() == false {
-				G.Outlog3(G.LOG_AMQP, "error handing msg: %s", v[0].Interface())
-			}
+			go fn.Func.Call(params) //handle messages concurrently
+			/*
+				v := fn.Func.Call(params)
+				if v[0].IsNil() == false {
+					G.Outlog3(G.LOG_AMQP, "error handing msg: %s", v[0].Interface())
+				}
+			*/
 		}
 		//need ack?
 		if msg.Ack == true {

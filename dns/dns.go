@@ -174,7 +174,7 @@ func (wkr *DNS_worker) RR(aaa []string, q *DNS_query, w dns.ResponseWriter, r *d
 	case dns.TypeTXT:
 		m.Answer = append(m.Answer, t)
 	case dns.TypeSOA:
-		soa, _ := dns.NewRR(DN + `. 0 IN SOA master.chinamaincloud.com. chinamaincloud.com. 20170310002 21600 7200 604800 3600`)
+		soa, _ := dns.NewRR(DN + `. 86400 IN SOA master.chinamaincloud.com. chinamaincloud.com. 20170310002 21600 7200 604800 3600`)
 		m.Answer = append(m.Answer, soa)
 	case dns.TypeAXFR, dns.TypeIXFR:
 		c := make(chan *dns.Envelope)
