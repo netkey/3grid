@@ -94,7 +94,7 @@ func (c *Cmds) Get(msg *AMQP_Message) error {
 		case "Source":
 		}
 
-		if msg.ID > 0 {
+		if msg.ID == 0 {
 			break
 		}
 
