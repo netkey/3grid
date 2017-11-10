@@ -458,6 +458,12 @@ func signal_loop() {
 func guard_child(index int, child *os.Process) {
 	var _child *os.Process = child
 
+	defer func() {
+		if pan := recover(); pan != nil {
+			G.Outlog3(G.LOG_GSLB, "Panic grid guard_child: %s", pan)
+		}
+	}()
+
 	for {
 		if _child != nil {
 			_child.Wait()

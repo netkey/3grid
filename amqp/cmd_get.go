@@ -61,7 +61,7 @@ func (c *Cmds) Get(msg *AMQP_Message) error {
 			}
 			_dns_info := []string{_type, strconv.Itoa(int(ttl))}
 			_dns_info = append(_dns_info, aaa...)
-			_msg1 = map[string]map[string]map[string][]string{"Dns": {p["Domain"]: {p["Ip"]: aaa}}}
+			_msg1 = map[string]map[string]map[string][]string{"Dns": {p["Domain"]: {p["Ip"]: _dns_info}}}
 		case "Dns_debug":
 			dn := p["Domain"]
 			ip := net.ParseIP(p["Ip"])
@@ -75,7 +75,8 @@ func (c *Cmds) Get(msg *AMQP_Message) error {
 			_msg1 = map[string]map[string]map[string][]string{"Dns": {p["Domain"]: {p["Ip"]: _dns_info}}}
 
 			_debug_info := []string{""}
-			_msg1["Dns_debug"] = map[string]map[string][]string{p["Domain"]: {p["Ip"]: _debug_info}}
+			//_msg1["Dns_debug"] = map[string]map[string][]string{p["Domain"]: {p["Ip"]: _debug_info}}
+			_msg1["Dns_debug"]["Domain"]["Ip"] = _debug_info //bug here
 			/*
 			   DN:image227-c.poco.cn.mmycdn.com matched for image227-c.poco.cn.mmycdn.com, {Name:image227-c.poco.cn Type: Value:image227-c.poco.cn.mmycdn.com Priority:10 ServerGroup:1 Records:3 TTL:300 RoutePlan:[8 70] Status:1 Forbidden:map[]}
 			   AC:* matched in route plan 8, {Nodes:map[76:{PW:[1 100]} 71:{PW:[1 100]} 72:{PW:[1 100]}]}
@@ -94,7 +95,7 @@ func (c *Cmds) Get(msg *AMQP_Message) error {
 		}
 
 		if err = Sendmsg2("", AMQP_CMD_DATA, &_param, AMQP_OBJ_API,
-			&_msg1, "", *gslb_center, msg.ID); err != nil {
+			&_msg1, "", msg.Sender, msg.ID); err != nil {
 			G.Outlog3(G.LOG_AMQP, "Error send API data: %s", err)
 		}
 	}

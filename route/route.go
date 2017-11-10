@@ -331,6 +331,12 @@ func (rt_db *Route_db) LoadRoutedb(_rtdb_records map[string]map[string]map[strin
 }
 
 func (rt_db *Route_db) Updatedb() error {
+	defer func() {
+		if pan := recover(); pan != nil {
+			G.Outlog3(G.LOG_GSLB, "Panic Update_Routedb: %s", pan)
+		}
+	}()
+
 	for {
 		m := <-rt_db.Chan
 		for t, a := range m {

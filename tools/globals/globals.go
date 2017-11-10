@@ -56,6 +56,12 @@ func (pcs *Perfcs) Read_Perfcs(perf_type string) *map[string]string {
 }
 
 func (pcs *Perfcs) update_pcs() error {
+	defer func() {
+		if pan := recover(); pan != nil {
+			Outlog3(LOG_GSLB, "Panic pcs update_pcs: %s", pan)
+		}
+	}()
+
 	for {
 		if pcm := <-pcs.Chan; pcm != nil {
 			for _type, _values := range pcm {
@@ -86,6 +92,12 @@ func (pcs *Perfcs) update_pcs() error {
 
 func (pcs *Perfcs) keeper() error {
 	var qs, qps uint64
+
+	defer func() {
+		if pan := recover(); pan != nil {
+			Outlog3(LOG_GSLB, "Panic pcs keeper: %s", pan)
+		}
+	}()
 
 	for {
 		time.Sleep(time.Duration(pcs.Interval) * time.Second)
@@ -204,6 +216,12 @@ func (pc *Perf_Counter) Update_Load(load uint64) {
 func (pc *Perf_Counter) update_gp() error {
 	var qs, load, lc uint64
 
+	defer func() {
+		if pan := recover(); pan != nil {
+			Outlog3(LOG_GSLB, "Panic pc update_gp: %s", pan)
+		}
+	}()
+
 	for {
 		select {
 		case gpm := <-pc.Chan:
@@ -248,6 +266,12 @@ func (pc *Perf_Counter) update_gp() error {
 
 func (pc *Perf_Counter) keeper() error {
 	var qs, qps, load, idle, _idle, total, _total uint64
+
+	defer func() {
+		if pan := recover(); pan != nil {
+			Outlog3(LOG_GSLB, "Panic pc keeper: %s", pan)
+		}
+	}()
 
 	for {
 		time.Sleep(time.Duration(pc.Interval) * time.Second)
