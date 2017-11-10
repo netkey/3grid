@@ -48,6 +48,7 @@ func (c *Cmds) State(msg *AMQP_Message) error {
 				r := append(strings.Split(v, ","), strconv.Itoa(int(nid)))
 				m := map[string][]string{strconv.Itoa(int(sid)): r}
 				RT.Rtdb.Convert_Server_Record(m)
+				G.OutDebug("Server state: %+v", m)
 			} else {
 				//it's a node
 				x, _ := strconv.Atoi(k)
@@ -59,6 +60,7 @@ func (c *Cmds) State(msg *AMQP_Message) error {
 				}
 				r := append(strings.Split(v, ","), server_list)
 				RT.Rtdb.Convert_Node_Record(map[string][]string{k: r})
+				G.OutDebug("Node state: %s %+v", k, r)
 			}
 		}
 

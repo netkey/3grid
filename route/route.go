@@ -504,6 +504,8 @@ func (rt_db *Route_db) Update_Server_Record(k uint, r *Server_List_Record) {
 	}
 	rt_db.Locks["ips"].Unlock()
 	rt_db.Locks["servers"].Unlock()
+
+	G.OutDebug("Change server record: %+v", *r)
 }
 
 //Tag: NNN
@@ -578,6 +580,8 @@ func (rt_db *Route_db) Update_Node_Record(k uint, r *Node_List_Record) {
 		rt_db.Nodes[k] = *r
 	}
 	rt_db.Locks["nodes"].Unlock()
+
+	G.OutDebug("Change node record: %+v", *r)
 }
 
 func (rt_db *Route_db) Convert_Route_Record(m map[string][]string) {
