@@ -31,7 +31,7 @@ func (c *Cmds) Get(msg *AMQP_Message) error {
 		}
 
 		if err = Sendmsg2("", AMQP_CMD_DATA, &_param, AMQP_OBJ_CMDB,
-			&_msg1, "", *gslb_center, msg.ID); err != nil {
+			&_msg1, "", msg.Sender, msg.ID); err != nil {
 			G.Outlog3(G.LOG_AMQP, "Error send cmdb data: %s", err)
 		}
 
@@ -43,7 +43,7 @@ func (c *Cmds) Get(msg *AMQP_Message) error {
 		}
 
 		if err = Sendmsg2("", AMQP_CMD_DATA, &_param, AMQP_OBJ_ROUTE,
-			&_msg1, "", *gslb_center, msg.ID); err != nil {
+			&_msg1, "", msg.Sender, msg.ID); err != nil {
 			G.Outlog3(G.LOG_AMQP, "Error send routes data: %s", err)
 		}
 
@@ -92,6 +92,10 @@ func (c *Cmds) Get(msg *AMQP_Message) error {
 
 		case "Cover":
 		case "Source":
+		}
+
+		if msg.ID > 0 {
+			break
 		}
 
 		if err = Sendmsg2("", AMQP_CMD_DATA, &_param, AMQP_OBJ_API,

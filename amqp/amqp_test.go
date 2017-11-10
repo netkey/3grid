@@ -423,3 +423,82 @@ func TestDeleteDomain(t *testing.T) {
 	}
 
 }
+
+func TestCmdGet(t *testing.T) {
+	var _param map[string]string
+	var _msg1 map[string]map[string]map[string][]string
+	var _msg2 string
+	var c = new(Cmds)
+
+	if IP.Ipdb == nil {
+		init_db()
+	}
+
+	_msg2 = ""
+	_msg1 = map[string]map[string]map[string][]string{"Api": {"Api": {"Api": {""}}}}
+	_param = map[string]string{"Domain": "image15-c.poco.cn.mmycdn.com", "Ip": "61.144.1.1"}
+
+	am := AMQP_Message{
+		ID:      0,
+		Sender:  "gslb-api",
+		Command: "Get",
+		Params:  &_param,
+		Object:  "Api",
+		Msg1:    &_msg1,
+		Msg2:    _msg2,
+		Gzip:    false,
+		Ack:     false,
+	}
+
+	if err := c.Get(&am); err == nil {
+		t.Logf("AMQP API test ok")
+	} else {
+		t.Errorf("AMQP API test failed")
+	}
+
+}
+
+func TCmdGet(t *testing.T) {
+	var _param map[string]string
+	var _msg1 map[string]map[string]map[string][]string
+	var _msg2 string
+	var c = new(Cmds)
+
+	if IP.Ipdb == nil {
+		init_db()
+	}
+
+	_msg2 = ""
+	_msg1 = map[string]map[string]map[string][]string{"Api": {"Api": {"Api": {""}}}}
+	_param = map[string]string{"Domain": "image15-c.poco.cn.mmycdn.com", "Ip": "61.144.1.1"}
+
+	am := AMQP_Message{
+		ID:      0,
+		Sender:  "gslb-api",
+		Command: "Get",
+		Params:  &_param,
+		Object:  "Api",
+		Msg1:    &_msg1,
+		Msg2:    _msg2,
+		Gzip:    false,
+		Ack:     false,
+	}
+
+	c.Get(&am)
+
+}
+
+func TestBenchAPI(t *testing.T) {
+	res := testing.Benchmark(BenchmarkAPI)
+	t.Logf("AMQP API gen_time: %f s/q", float64(res.T)/(float64(res.N)*1000000000))
+	t.Logf("AMQP API gen_rate: %d q/s", uint64(1.0/(float64(res.T)/(float64(res.N)*1000000000))))
+}
+
+func BenchmarkAPI(b *testing.B) {
+	b.RunParallel(func(pb *testing.PB) {
+		t := &testing.T{}
+		for pb.Next() {
+			TCmdGet(t)
+		}
+	})
+}
