@@ -149,6 +149,12 @@ func (ip_db *IP_db) ReadIPCache(ips string) Ipcache_Item {
 }
 
 func (ip_db *IP_db) UpdateIPCache() error {
+	defer func() {
+		if pan := recover(); pan != nil {
+			G.Outlog3(G.LOG_GSLB, "Panic UpdateIPCache: %s", pan)
+		}
+	}()
+
 	for {
 		ipm := <-ip_db.Chan
 		if ipm == nil {

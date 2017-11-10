@@ -2,6 +2,7 @@ package grid_amqp
 
 import (
 	RT "3grid/route"
+	G "3grid/tools/globals"
 	"strconv"
 	"strings"
 )
@@ -9,6 +10,12 @@ import (
 //update node&server states via gslb-center
 func (c *Cmds) State(msg *AMQP_Message) error {
 	var err error
+
+	defer func() {
+		if pan := recover(); pan != nil {
+			G.Outlog3(G.LOG_GSLB, "Panic amqp cmd_state: %s", pan)
+		}
+	}()
 
 	if !State_Recv {
 		return nil

@@ -97,8 +97,8 @@ func Synchronize(_interval, _ka_interval int, _myname string) {
 	var err error
 
 	defer func() {
-		if err := recover(); err != nil {
-			G.Outlog3(G.LOG_GSLB, "Panic: %s", err)
+		if pan := recover(); pan != nil {
+			G.Outlog3(G.LOG_GSLB, "Panic Synchronize: %s", pan)
 		}
 	}()
 
@@ -147,6 +147,12 @@ func CheckVersion(_interval int) {
 	var _param = make(map[string]string)
 	var _msg1 []string
 
+	defer func() {
+		if pan := recover(); pan != nil {
+			G.Outlog3(G.LOG_GSLB, "Panic CheckVersion: %s", pan)
+		}
+	}()
+
 	for {
 		time.Sleep(time.Duration(_interval) * time.Second)
 		G.VerLock.RLock()
@@ -166,6 +172,12 @@ func State_Notify(_interval int) {
 	var _param *map[string]string
 	var _msg1 []string
 
+	defer func() {
+		if pan := recover(); pan != nil {
+			G.Outlog3(G.LOG_GSLB, "Panic State_Notify: %s", pan)
+		}
+	}()
+
 	for {
 		time.Sleep(time.Duration(_interval) * time.Second)
 
@@ -181,6 +193,12 @@ func Keepalive(_interval int) {
 	var _param = make(map[string]string)
 	var _msg1 []string
 	var _first bool = true
+
+	defer func() {
+		if pan := recover(); pan != nil {
+			G.Outlog3(G.LOG_GSLB, "Panic Keepalive: %s", pan)
+		}
+	}()
 
 	for {
 		if _first {

@@ -127,6 +127,12 @@ func NewLogger(path *string) (*Grid_Logger, error) {
 }
 
 func (lg *Grid_Logger) Output() {
+	defer func() {
+		if pan := recover(); pan != nil {
+			Outlog3(LOG_GSLB, "Panic logger ouput: %s", pan)
+		}
+	}()
+
 	for {
 		lmap := <-lg.Chan
 		for to, line := range lmap {
@@ -138,6 +144,12 @@ func (lg *Grid_Logger) Output() {
 }
 
 func (lg *Grid_Logger) Output3() {
+	defer func() {
+		if pan := recover(); pan != nil {
+			Outlog3(LOG_GSLB, "Panic logger ouput3: %s", pan)
+		}
+	}()
+
 	for {
 		lmap := <-lg.Chan3
 		for to, lines := range lmap {
@@ -149,6 +161,12 @@ func (lg *Grid_Logger) Output3() {
 }
 
 func (lg *Grid_Logger) Checklogs() {
+	defer func() {
+		if pan := recover(); pan != nil {
+			Outlog3(LOG_GSLB, "Panic logger checklogs: %s", pan)
+		}
+	}()
+
 	for {
 		time.Sleep(time.Duration(15) * time.Second)
 		for n, f := range lg.Files {

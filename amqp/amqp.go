@@ -187,8 +187,8 @@ func (c *AMQP_Broadcaster) amqp_handle_b(deliveries <-chan amqp.Delivery, done c
 	var _msg1 []string
 
 	defer func() {
-		if err := recover(); err != nil {
-			G.Outlog3(G.LOG_GSLB, "Panic: %s", err)
+		if pan := recover(); pan != nil {
+			G.Outlog3(G.LOG_GSLB, "Panic amqp_handle_b: %s", pan)
 		}
 	}()
 
@@ -380,8 +380,8 @@ func (c *AMQP_Director) amqp_handle_d(deliveries <-chan amqp.Delivery, done chan
 	var _msg1 []string
 
 	defer func() {
-		if err := recover(); err != nil {
-			G.Outlog3(G.LOG_GSLB, "Panic: %s", err)
+		if pan := recover(); pan != nil {
+			G.Outlog3(G.LOG_GSLB, "Panic amqp_handle_d: %s", pan)
 		}
 	}()
 
@@ -400,6 +400,7 @@ func (c *AMQP_Director) amqp_handle_d(deliveries <-chan amqp.Delivery, done chan
 		} else {
 			params[0] = reflect.ValueOf(cmds)
 			params[1] = reflect.ValueOf(&msg)
+
 			go fn.Func.Call(params) //handle messages concurrently
 			/*
 				v := fn.Func.Call(params)

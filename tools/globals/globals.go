@@ -294,3 +294,20 @@ func getCPULoad() (idle, total uint64) {
 	}
 	return
 }
+
+//Safety call to func with panic recovering
+func Safefunc(f interface{}, args ...interface{}) {
+	defer func() {
+		if err := recover(); err != nil {
+			Outlog3(LOG_GSLB, "Panic: %s", err)
+		}
+	}()
+
+	if len(args) > 1 {
+		f.(func(...interface{}))(args)
+	} else if len(args) == 1 {
+		f.(func(interface{}))(args[0])
+	} else {
+		f.(func())()
+	}
+}

@@ -218,7 +218,7 @@ func (wkr *DNS_worker) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
 
 	defer func() {
 		if err := recover(); err != nil {
-			G.Outlog3(G.LOG_GSLB, "Panic: %s", err)
+			G.Outlog3(G.LOG_GSLB, "Panic ServeDNS: %s", err)
 		}
 	}()
 
@@ -314,8 +314,8 @@ func Working(nets, listen, port, name, secret string, num int, ipdb *IP.IP_db, r
 	worker.Qsc = map[string]uint64{"QS": 1}
 
 	defer func() {
-		if err := recover(); err != nil {
-			G.Outlog3(G.LOG_GSLB, "Panic: %s", err)
+		if pan := recover(); pan != nil {
+			G.Outlog3(G.LOG_GSLB, "Panic DNS working: %s", pan)
 		}
 	}()
 
