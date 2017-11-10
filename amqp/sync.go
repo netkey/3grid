@@ -121,13 +121,11 @@ func Synchronize(_interval, _ka_interval int, _myname string) {
 		if err != nil {
 			log.Fatalf("%s", err)
 		} else {
-			go CheckVersion(_interval)    //Check version of ipdb & routedb
+			go CheckDBVersion(_interval)  //Check local cmdb&ipdb&routedb version
+			go CheckVersion(_interval)    //Check cmdb&ipdb&routedb version of gslb-center
 			go Keepalive(_ka_interval)    //keepalive with backend servers
 			go State_Notify(_ka_interval) //state notify with backend servers
-			for {
-				time.Sleep(time.Duration(_interval) * time.Second)
-				T.Check_db_versions()
-			}
+			select {}                     //just block here
 		}
 	}
 
@@ -140,6 +138,19 @@ func Synchronize(_interval, _ka_interval int, _myname string) {
 			log.Fatalf("error during broadcaster shutdown: %s", err)
 		}
 	}()
+}
+
+func CheckDBVersion(_interval int) {
+	defer func() {
+		if pan := recover(); pan != nil {
+			G.Outlog3(G.LOG_GSLB, "Panic CheckDBVersion: %s", pan)
+		}
+	}()
+
+	for {
+		time.Sleep(time.Duration(_interval) * time.Second)
+		T.Check_db_versions()
+	}
 }
 
 func CheckVersion(_interval int) {

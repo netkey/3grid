@@ -99,7 +99,7 @@ func Check_db_versions() error {
 	}
 
 	if (IP.Db_file0 != "") && (IP.Db_file != IP.Db_file0) {
-		G.OutDebug("IP db new version: %s", IP.Version)
+		G.Outlog3(G.LOG_GSLB, "IP db new version: %s", IP.Version)
 
 		IP.Ipdb.IP_db_init()
 		IP.Db_file0 = IP.Db_file
@@ -117,7 +117,7 @@ func Check_db_versions() error {
 	}
 
 	if (RT.RT_Db_file0 != "") && (RT.RT_Db_file != RT.RT_Db_file0) {
-		G.OutDebug("Route db new version: %s", RT.RT_Version)
+		G.Outlog3(G.LOG_GSLB, "Route db new version: %s", RT.RT_Version)
 
 		RT.Rtdb.LoadRoutedb(nil)
 		RT.RT_Db_file0 = RT.RT_Db_file
@@ -135,7 +135,7 @@ func Check_db_versions() error {
 	}
 
 	if (RT.DM_Db_file0 != "") && (RT.DM_Db_file != RT.DM_Db_file0) {
-		G.OutDebug("Domain db new version: %s", RT.DM_Version)
+		G.Outlog3(G.LOG_GSLB, "Domain db new version: %s", RT.DM_Version)
 
 		RT.Rtdb.LoadDomaindb(nil)
 		RT.DM_Db_file0 = RT.DM_Db_file
@@ -153,7 +153,7 @@ func Check_db_versions() error {
 	}
 
 	if (RT.CM_Db_file0 != "") && (RT.CM_Db_file != RT.CM_Db_file0) {
-		G.OutDebug("CM db new version: %s", RT.CM_Version)
+		G.Outlog3(G.LOG_GSLB, "CM db new version: %s", RT.CM_Version)
 
 		RT.Rtdb.LoadCMdb(nil)
 		RT.CM_Db_file0 = RT.CM_Db_file
