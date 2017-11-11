@@ -34,6 +34,7 @@ func (c *Cmds) State(msg *AMQP_Message) error {
 					ds[8] = strings.Replace(ds[8], ":", ",", -1)
 				}
 				RT.Rtdb.Convert_Domain_Record(map[string][]string{k: ds})
+				G.OutDebug("Domain state: %s %+v", k, ds)
 			}
 		}
 

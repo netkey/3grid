@@ -1,11 +1,15 @@
 package grid_globals
 
-import "io"
-import "log"
-import "os"
-import "path/filepath"
-import "sync"
-import "time"
+import (
+	"fmt"
+	"io"
+	"log"
+	"os"
+	"path/filepath"
+	"strconv"
+	"sync"
+	"time"
+)
 
 const (
 	LOG_IP        = "ip"
@@ -16,6 +20,7 @@ const (
 	LOG_DEBUG     = "debug"
 	LOG_AMQP      = "amqp"
 	LOG_TEST      = "test"
+	LOG_API       = "api"
 )
 
 var Log bool
@@ -23,6 +28,13 @@ var LogBufSize int
 var Logger *Grid_Logger
 var LogChan *chan map[string]string
 var LogChan3 *chan map[string][]interface{}
+
+var Apilog *ApiLog
+
+type ApiLog struct {
+	Chan *chan [2]string //logs chan, 0 for go routine id, 1 for log
+	Lock *sync.RWMutex
+}
 
 type Grid_Logger struct {
 	Workdir string
@@ -70,11 +82,20 @@ func OutDebug2(target string, a ...interface{}) {
 	if Debug {
 		*LogChan3 <- map[string][]interface{}{target: a}
 	}
+	if Apilog != nil {
+		if Apilog.Chan != nil {
+			if len(*Apilog.Chan) < cap(*Apilog.Chan)-10 {
+				*Apilog.Chan <- [2]string{strconv.Itoa(GoID()),
+					fmt.Sprintf(a[0].(string), a[1:]...)}
+			}
+		}
+	}
 }
 
 func NewLogger(path *string) (*Grid_Logger, error) {
 	var err error
-	var logto = []string{LOG_IP, LOG_DNS, LOG_ROUTE, LOG_SCHEDULER, LOG_GSLB, LOG_DEBUG, LOG_AMQP, LOG_TEST}
+	var logto = []string{LOG_IP, LOG_DNS, LOG_ROUTE, LOG_SCHEDULER,
+		LOG_GSLB, LOG_DEBUG, LOG_AMQP, LOG_TEST, LOG_API}
 	var lg = Grid_Logger{}
 	var O_FLAGS int
 

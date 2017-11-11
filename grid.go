@@ -359,6 +359,10 @@ func main() {
 					}
 				}
 			}
+
+			G.Apilog = &G.ApiLog{}
+			G.Apilog.Lock = new(sync.RWMutex)
+
 		}
 
 		{

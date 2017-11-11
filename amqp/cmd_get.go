@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"net"
 	"strconv"
+	"time"
 )
 
 //Get node&server data from gslb to gslb-center
@@ -14,6 +15,7 @@ func (c *Cmds) Get(msg *AMQP_Message) error {
 	var err error
 	var _msg1 = make(map[string]map[string]map[string][]string)
 	var _param = make(map[string]string)
+	var logs [2]string
 
 	defer func() {
 		if pan := recover(); pan != nil {
@@ -66,28 +68,48 @@ func (c *Cmds) Get(msg *AMQP_Message) error {
 			dn := p["Domain"]
 			ip := net.ParseIP(p["Ip"])
 			ac := IP.Ipdb.GetAreaCode(ip)
+
+			_debug_info := []string{}
+
+			_my_goid := G.GoID()
+
+			G.Apilog.Lock.Lock()
+			defer G.Apilog.Lock.Unlock()
+
+			_chan := make(chan [2]string, 1000)
+			G.Apilog.Chan = &_chan
+
 			aaa, ttl, _type, _, _, _, _ := RT.Rtdb.GetAAA(dn, ac, ip, 0)
 			if _type == "" {
 				_type = "A"
 			}
+
+			_time_out := false
+			for {
+				select {
+				case logs = <-*G.Apilog.Chan:
+					x, _ := strconv.Atoi(logs[0])
+					if _my_goid == int(x) {
+						_debug_info = append(_debug_info, logs[1])
+					}
+				case <-time.After(500 * time.Millisecond):
+					_time_out = true
+					break
+				}
+				if _time_out {
+					break
+				}
+			}
+
+			G.Apilog.Chan = nil
+
 			_dns_info := []string{_type, strconv.Itoa(int(ttl))}
 			_dns_info = append(_dns_info, aaa...)
 			_msg1 = map[string]map[string]map[string][]string{"Dns": {p["Domain"]: {p["Ip"]: _dns_info}}}
 
-			_debug_info := []string{""}
-			//_msg1["Dns_debug"] = map[string]map[string][]string{p["Domain"]: {p["Ip"]: _debug_info}}
-			_msg1["Dns_debug"]["Domain"]["Ip"] = _debug_info //bug here
-			/*
-			   DN:image227-c.poco.cn.mmycdn.com matched for image227-c.poco.cn.mmycdn.com, {Name:image227-c.poco.cn Type: Value:image227-c.poco.cn.mmycdn.com Priority:10 ServerGroup:1 Records:3 TTL:300 RoutePlan:[8 70] Status:1 Forbidden:map[]}
-			   AC:* matched in route plan 8, {Nodes:map[76:{PW:[1 100]} 71:{PW:[1 100]} 72:{PW:[1 100]}]}
-			   Looking at node:CN-CT-ZJ-JH-C1(76), p:1 w:100 u:33 c:0 s:true ac:CN-CT-ZJ-JH-C1
-			    CN-CT-ZJ-JH-C1(76) has made default
-			   Looking at node:CN-CHU-SD-YT-C1(71), p:1 w:100 u:54 c:0 s:true ac:CUC.CN.HAB.SD.YT
-			   CN-CHU-SD-YT-C1(71)() is nearby client(*.CN.HAD.SH), use it
-			   Looking at node:CN-CT-GD-FS-C1(72), p:1 w:100 u:34 c:0 s:true ac:CTC.CN.HAN.GD.FS
-			   CN-CT-GD-FS-C1(72) is more idle(66.000000>46.000000), use it
-			   Chosen node:CN-CT-GD-FS-C1(72) p:1 w:100 u:34 c:0 s:true, second node:CN-CHU-SD-YT-C1(71) u:54 c:0 s:true, for ac:*.CN.HAD.SH
-			*/
+			_msg1["Dns_debug"] = map[string]map[string][]string{p["Domain"]: {p["Ip"]: _debug_info}}
+
+			//_msg1["Dns_debug"]["Domain"]["Ip"] = _debug_info //bug here
 			//_msg := fmt.Sprintf("查询域名%s匹配%s记录，TTL设置：%d，返回A地址数：%d\n路由方案：%+v，禁止解析区域：%s\nIP区域码（AC）：%s，实际匹配区域码：%s\n，可用节点：%+v，选择节点：%s\n节点信息：%+v")
 
 		case "Cover":
@@ -101,6 +123,10 @@ func (c *Cmds) Get(msg *AMQP_Message) error {
 		if err = Sendmsg2("", AMQP_CMD_DATA, &_param, AMQP_OBJ_API,
 			&_msg1, "", msg.Sender, msg.ID); err != nil {
 			G.Outlog3(G.LOG_AMQP, "Error send API data: %s", err)
+		} else {
+			if G.Debug {
+				G.Outlog3(G.LOG_API, "Sent API data: %+v", _msg1)
+			}
 		}
 	}
 
