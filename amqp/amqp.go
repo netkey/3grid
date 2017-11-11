@@ -193,6 +193,8 @@ func (c *AMQP_Broadcaster) amqp_handle_b(deliveries <-chan amqp.Delivery, done c
 	}()
 
 	for d := range deliveries {
+
+		//for concurrently handling message, msg&params&cmds must be separated
 		msg = AMQP_Message{}
 		cmds = &Cmds{}
 		params = make([]reflect.Value, 2)
@@ -228,7 +230,9 @@ func (c *AMQP_Broadcaster) amqp_handle_b(deliveries <-chan amqp.Delivery, done c
 			}
 		}
 	}
+
 	G.Outlog3(G.LOG_AMQP, "handle: deliveries channel closed")
+
 	done <- nil
 }
 
@@ -392,6 +396,8 @@ func (c *AMQP_Director) amqp_handle_d(deliveries <-chan amqp.Delivery, done chan
 	}()
 
 	for d := range deliveries {
+
+		//for concurrently handling message, msg&params&cmds must be separated
 		msg = AMQP_Message{}
 		cmds = &Cmds{}
 		params = make([]reflect.Value, 2)
@@ -428,6 +434,8 @@ func (c *AMQP_Director) amqp_handle_d(deliveries <-chan amqp.Delivery, done chan
 			}
 		}
 	}
+
 	G.Outlog3(G.LOG_AMQP, "handle: deliveries channel closed")
+
 	done <- nil
 }
