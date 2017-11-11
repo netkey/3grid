@@ -1,14 +1,16 @@
 package grid_route
 
-import G "3grid/tools/globals"
-import "encoding/json"
-import "io/ioutil"
-import "fmt"
-import "reflect"
-import "strconv"
-import "strings"
-import "sync"
-import "time"
+import (
+	G "3grid/tools/globals"
+	"encoding/json"
+	"fmt"
+	"io/ioutil"
+	"reflect"
+	"strconv"
+	"strings"
+	"sync"
+	"time"
+)
 
 //route db version and file path
 var RT_Version string

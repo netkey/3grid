@@ -181,9 +181,9 @@ func (c *AMQP_Broadcaster) Shutdown() error {
 func (c *AMQP_Broadcaster) amqp_handle_b(deliveries <-chan amqp.Delivery, done chan error) {
 	var err error
 	var msg AMQP_Message
-	var cmds = &Cmds{}
-	var params = make([]reflect.Value, 2)
-	var _param = make(map[string]string)
+	var cmds *Cmds
+	var params []reflect.Value
+	var _param map[string]string
 	var _msg1 []string
 
 	defer func() {
@@ -193,6 +193,12 @@ func (c *AMQP_Broadcaster) amqp_handle_b(deliveries <-chan amqp.Delivery, done c
 	}()
 
 	for d := range deliveries {
+		msg = AMQP_Message{}
+		cmds = &Cmds{}
+		params = make([]reflect.Value, 2)
+		_param = make(map[string]string)
+		_msg1 = []string{}
+
 		if err = Transmsg(d.Body, &msg); err != nil {
 			G.Outlog3(G.LOG_AMQP, "transmsg: %s", err)
 			continue
@@ -374,9 +380,9 @@ func (c *AMQP_Director) Shutdown() error {
 func (c *AMQP_Director) amqp_handle_d(deliveries <-chan amqp.Delivery, done chan error) {
 	var err error
 	var msg AMQP_Message
-	var cmds = &Cmds{}
-	var params = make([]reflect.Value, 2)
-	var _param = make(map[string]string)
+	var cmds *Cmds
+	var params []reflect.Value
+	var _param map[string]string
 	var _msg1 []string
 
 	defer func() {
@@ -386,6 +392,12 @@ func (c *AMQP_Director) amqp_handle_d(deliveries <-chan amqp.Delivery, done chan
 	}()
 
 	for d := range deliveries {
+		msg = AMQP_Message{}
+		cmds = &Cmds{}
+		params = make([]reflect.Value, 2)
+		_param = make(map[string]string)
+		_msg1 = []string{}
+
 		if err = Transmsg(d.Body, &msg); err != nil {
 			G.Outlog3(G.LOG_AMQP, "transmsg: %s", err)
 			continue

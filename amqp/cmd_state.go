@@ -45,22 +45,28 @@ func (c *Cmds) State(msg *AMQP_Message) error {
 				ir := RT.Rtdb.Read_IP_Record(k)
 				sid := ir.ServerId
 				nid := ir.NodeId
-				r := append(strings.Split(v, ","), strconv.Itoa(int(nid)))
-				m := map[string][]string{strconv.Itoa(int(sid)): r}
-				RT.Rtdb.Convert_Server_Record(m)
-				G.OutDebug("Server state: %+v", m)
+
+				if nid > 0 {
+					r := append(strings.Split(v, ","), strconv.Itoa(int(nid)))
+					m := map[string][]string{strconv.Itoa(int(sid)): r}
+					RT.Rtdb.Convert_Server_Record(m)
+					G.OutDebug("Server state: %+v", m)
+				}
 			} else {
 				//it's a node
 				x, _ := strconv.Atoi(k)
 				nid := uint(x)
 				server_list := ""
 				nr := RT.Rtdb.Read_Node_Record(nid)
-				for _, sid := range nr.ServerList {
-					server_list = server_list + strconv.Itoa(int(sid)) + ","
+
+				if nr.NodeId > 0 {
+					for _, sid := range nr.ServerList {
+						server_list = server_list + strconv.Itoa(int(sid)) + ","
+					}
+					r := append(strings.Split(v, ","), server_list)
+					RT.Rtdb.Convert_Node_Record(map[string][]string{k: r})
+					G.OutDebug("Node state: %s %+v", k, r)
 				}
-				r := append(strings.Split(v, ","), server_list)
-				RT.Rtdb.Convert_Node_Record(map[string][]string{k: r})
-				G.OutDebug("Node state: %s %+v", k, r)
 			}
 		}
 
