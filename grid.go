@@ -361,6 +361,8 @@ func main() {
 			}
 
 			G.Apilog = &G.ApiLog{}
+			G.Apilog.Goid = 0
+			G.Apilog.Chan = nil
 			G.Apilog.Lock = new(sync.RWMutex)
 
 		}

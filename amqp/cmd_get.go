@@ -15,7 +15,7 @@ func (c *Cmds) Get(msg *AMQP_Message) error {
 	var err error
 	var _msg1 = make(map[string]map[string]map[string][]string)
 	var _param = make(map[string]string)
-	var logs [2]string
+	var logs string
 
 	defer func() {
 		if pan := recover(); pan != nil {
@@ -74,10 +74,16 @@ func (c *Cmds) Get(msg *AMQP_Message) error {
 			_my_goid := G.GoID()
 
 			G.Apilog.Lock.Lock()
-			defer G.Apilog.Lock.Unlock()
-
-			_chan := make(chan [2]string, 1000)
+			_chan := make(chan string, 100)
 			G.Apilog.Chan = &_chan
+			G.Apilog.Goid = _my_goid
+
+			defer func() {
+				close(_chan)
+				G.Apilog.Goid = 0
+				G.Apilog.Chan = nil
+				G.Apilog.Lock.Unlock()
+			}()
 
 			aaa, ttl, _type, _, _, _, _ := RT.Rtdb.GetAAA(dn, ac, ip, 0)
 			if _type == "" {
@@ -88,20 +94,14 @@ func (c *Cmds) Get(msg *AMQP_Message) error {
 			for {
 				select {
 				case logs = <-*G.Apilog.Chan:
-					x, _ := strconv.Atoi(logs[0])
-					if _my_goid == int(x) {
-						_debug_info = append(_debug_info, logs[1])
-					}
+					_debug_info = append(_debug_info, logs)
 				case <-time.After(500 * time.Millisecond):
 					_time_out = true
-					break
 				}
 				if _time_out {
 					break
 				}
 			}
-
-			G.Apilog.Chan = nil
 
 			_dns_info := []string{_type, strconv.Itoa(int(ttl))}
 			_dns_info = append(_dns_info, aaa...)

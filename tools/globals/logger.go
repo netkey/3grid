@@ -6,7 +6,6 @@ import (
 	"log"
 	"os"
 	"path/filepath"
-	"strconv"
 	"sync"
 	"time"
 )
@@ -32,7 +31,8 @@ var LogChan3 *chan map[string][]interface{}
 var Apilog *ApiLog
 
 type ApiLog struct {
-	Chan *chan [2]string //logs chan, 0 for go routine id, 1 for log
+	Goid int
+	Chan *chan string
 	Lock *sync.RWMutex
 }
 
@@ -79,14 +79,22 @@ func OutDebug(a ...interface{}) {
 }
 
 func OutDebug2(target string, a ...interface{}) {
+	defer func() {
+		if pan := recover(); pan != nil {
+			Outlog3(LOG_GSLB, "Panic logger OutDebug2: %s", pan)
+		}
+	}()
+
 	if Debug {
 		*LogChan3 <- map[string][]interface{}{target: a}
 	}
 	if Apilog != nil {
 		if Apilog.Chan != nil {
-			if len(*Apilog.Chan) < cap(*Apilog.Chan)-10 {
-				*Apilog.Chan <- [2]string{strconv.Itoa(GoID()),
-					fmt.Sprintf(a[0].(string), a[1:]...)}
+			if len(*Apilog.Chan) < cap(*Apilog.Chan) {
+				_go_id := GoID()
+				if _go_id == Apilog.Goid {
+					*Apilog.Chan <- fmt.Sprintf(a[0].(string), a[1:]...)
+				}
 			}
 		}
 	}
