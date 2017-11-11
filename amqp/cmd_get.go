@@ -16,6 +16,7 @@ func (c *Cmds) Get(msg *AMQP_Message) error {
 	var _msg1 = make(map[string]map[string]map[string][]string)
 	var _param = make(map[string]string)
 	var logs string
+	var _chan chan string
 
 	defer func() {
 		if pan := recover(); pan != nil {
@@ -65,31 +66,36 @@ func (c *Cmds) Get(msg *AMQP_Message) error {
 			_dns_info = append(_dns_info, aaa...)
 			_msg1 = map[string]map[string]map[string][]string{"Dns": {p["Domain"]: {p["Ip"]: _dns_info}}}
 		case "Dns_debug":
-			dn := p["Domain"]
-			ip := net.ParseIP(p["Ip"])
-			ac := IP.Ipdb.GetAreaCode(ip)
-
-			_debug_info := []string{}
-
 			_my_goid := G.GoID()
 
-			G.Apilog.Lock.Lock()
-			_chan := make(chan string, 100)
-			G.Apilog.Chan = &_chan
-			G.Apilog.Goid = _my_goid
+			//only one Dns_debug request can be run at a same time
+			G.Apilog_Lock.Lock()
 
+			_chan = make(chan string, 100)
 			defer func() {
+				G.Apilog.Clock.Lock()
 				close(_chan)
 				G.Apilog.Goid = 0
 				G.Apilog.Chan = nil
-				G.Apilog.Lock.Unlock()
+				G.Apilog.Clock.Unlock()
+
+				G.Apilog_Lock.Unlock()
 			}()
 
+			G.Apilog.Clock.Lock()
+			G.Apilog.Chan = &_chan
+			G.Apilog.Goid = _my_goid
+			G.Apilog.Clock.Unlock()
+
+			dn := p["Domain"]
+			ip := net.ParseIP(p["Ip"])
+			ac := IP.Ipdb.GetAreaCode(ip)
 			aaa, ttl, _type, _, _, _, _ := RT.Rtdb.GetAAA(dn, ac, ip, 0)
 			if _type == "" {
 				_type = "A"
 			}
 
+			_debug_info := []string{}
 			_time_out := false
 			for {
 				select {
@@ -105,12 +111,9 @@ func (c *Cmds) Get(msg *AMQP_Message) error {
 
 			_dns_info := []string{_type, strconv.Itoa(int(ttl))}
 			_dns_info = append(_dns_info, aaa...)
+
 			_msg1 = map[string]map[string]map[string][]string{"Dns": {p["Domain"]: {p["Ip"]: _dns_info}}}
-
 			_msg1["Dns_debug"] = map[string]map[string][]string{p["Domain"]: {p["Ip"]: _debug_info}}
-
-			//_msg1["Dns_debug"]["Domain"]["Ip"] = _debug_info //bug here
-			//_msg := fmt.Sprintf("查询域名%s匹配%s记录，TTL设置：%d，返回A地址数：%d\n路由方案：%+v，禁止解析区域：%s\nIP区域码（AC）：%s，实际匹配区域码：%s\n，可用节点：%+v，选择节点：%s\n节点信息：%+v")
 
 		case "Cover":
 		case "Source":

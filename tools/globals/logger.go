@@ -29,11 +29,12 @@ var LogChan *chan map[string]string
 var LogChan3 *chan map[string][]interface{}
 
 var Apilog *ApiLog
+var Apilog_Lock *sync.RWMutex
 
 type ApiLog struct {
-	Goid int
-	Chan *chan string
-	Lock *sync.RWMutex
+	Goid  int
+	Chan  *chan string
+	Clock *sync.RWMutex
 }
 
 type Grid_Logger struct {
@@ -89,14 +90,13 @@ func OutDebug2(target string, a ...interface{}) {
 		*LogChan3 <- map[string][]interface{}{target: a}
 	}
 	if Apilog != nil {
-		if Apilog.Chan != nil {
+		Apilog.Clock.RLock()
+		if Apilog.Chan != nil && Apilog.Goid == GoID() {
 			if len(*Apilog.Chan) < cap(*Apilog.Chan) {
-				_go_id := GoID()
-				if _go_id == Apilog.Goid {
-					*Apilog.Chan <- fmt.Sprintf(a[0].(string), a[1:]...)
-				}
+				*Apilog.Chan <- fmt.Sprintf(a[0].(string), a[1:]...)
 			}
 		}
+		Apilog.Clock.RUnlock()
 	}
 }
 

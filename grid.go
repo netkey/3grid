@@ -334,7 +334,15 @@ func main() {
 				log_enable = true
 			}
 
-			//init logger
+			{
+				//init api log
+				G.Apilog_Lock = new(sync.RWMutex)
+
+				G.Apilog = &G.ApiLog{Goid: 0, Chan: nil, Clock: nil}
+				G.Apilog.Clock = new(sync.RWMutex)
+			}
+
+			//init normal logger
 			if log_enable {
 				G.Log = true
 				G.LogBufSize = log_buf_size
@@ -359,12 +367,6 @@ func main() {
 					}
 				}
 			}
-
-			G.Apilog = &G.ApiLog{}
-			G.Apilog.Goid = 0
-			G.Apilog.Chan = nil
-			G.Apilog.Lock = new(sync.RWMutex)
-
 		}
 
 		{
