@@ -91,7 +91,7 @@ func OutDebug2(target string, a ...interface{}) {
 	}
 
 	Apilog.Clock.RLock()
-	if Apilog.Chan != nil && Apilog.Goid == GoID() {
+	if Apilog.Goid == GoID() && Apilog.Chan != nil {
 		if len(*Apilog.Chan) < cap(*Apilog.Chan) {
 			*Apilog.Chan <- fmt.Sprintf(a[0].(string), a[1:]...)
 		}

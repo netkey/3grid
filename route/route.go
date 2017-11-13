@@ -575,11 +575,17 @@ func (rt_db *Route_db) Read_Node_Record(k uint) Node_List_Record {
 }
 
 func (rt_db *Route_db) Update_Node_Record(k uint, r *Node_List_Record) {
+	var _r Node_List_Record
+
 	rt_db.Locks["nodes"].Lock()
 	if r == nil {
 		delete(rt_db.Nodes, k)
 	} else {
-		rt_db.Nodes[k] = *r
+		_r = *r
+		if ac2 := rt_db.Nodes[k].AC2; ac2 != "" {
+			_r.AC2 = ac2
+		}
+		rt_db.Nodes[k] = _r
 	}
 	rt_db.Locks["nodes"].Unlock()
 
