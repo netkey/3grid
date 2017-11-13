@@ -472,8 +472,8 @@ func (rt_db *Route_db) ChooseNode(nodes map[uint]PW_List_Record, matched_ac, cli
 
 		nr = rt_db.Read_Node_Record(k)
 
-		G.OutDebug2(G.LOG_SCHEDULER, "Looking at node:%s(%d), p:%d w:%d u:%d c:%d s:%t ac:%s",
-			nr.Name, nr.NodeId, v.PW[0], v.PW[1], nr.Usage, nr.Costs, nr.Status, nr.AC)
+		G.OutDebug2(G.LOG_SCHEDULER, "Looking at node:%s(%d), p:%d w:%d u:%d c:%d s:%t ac:%s ac2:%s",
+			nr.Name, nr.NodeId, v.PW[0], v.PW[1], nr.Usage, nr.Costs, nr.Status, nr.AC, nr.AC2)
 
 		if (nr.Status == false && status_check) || nr.Usage >= Service_Deny_Percent ||
 			nr.Priority == 0 || v.PW[0] == 0 { //priority==0 means node disabled
