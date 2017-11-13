@@ -3,7 +3,7 @@ package main
 import (
 	A "3grid/amqp"
 	D "3grid/dns"
-	//H "3grid/http"
+	H "3grid/http"
 	IP "3grid/ip"
 	RT "3grid/route"
 	T "3grid/tools"
@@ -29,6 +29,7 @@ var worker = flag.Bool("worker", false, "worker mode, no daemon mode")
 //main program related
 var num_cpus int
 var port string
+var http_port string
 var listen string
 var daemond bool
 var debug_info string
@@ -102,6 +103,12 @@ func read_conf() {
 			port = "53"
 		} else {
 			port = _port
+		}
+		_http_port := viper.GetString("server.http_port")
+		if _http_port == "" {
+			http_port = "80"
+		} else {
+			http_port = _http_port
 		}
 		_listen := viper.GetString("server.listen")
 		if _listen == "" {
@@ -411,11 +418,12 @@ func main() {
 			D.IP_DN_Spliter = ip_dn_spliter
 			D.AC_DN_Spliter = ac_dn_spliter
 
-			//init dns  workers
+			//init dns  workers & http workers
+			H.InitHandlers()
 			var name, secret string
 			for i := 0; i < num_cpus; i++ {
 				go D.Working("udp", listen, port, name, secret, i, IP.Ipdb, RT.Rtdb)
-				//go H.Working(listen, "8080", i, IP.Ipdb, RT.Rtdb)
+				go H.Working(listen, http_port, i)
 			}
 		}
 
