@@ -3,6 +3,7 @@ package main
 import (
 	A "3grid/amqp"
 	D "3grid/dns"
+	//H "3grid/http"
 	IP "3grid/ip"
 	RT "3grid/route"
 	T "3grid/tools"
@@ -414,6 +415,7 @@ func main() {
 			var name, secret string
 			for i := 0; i < num_cpus; i++ {
 				go D.Working("udp", listen, port, name, secret, i, IP.Ipdb, RT.Rtdb)
+				//go H.Working(listen, "8080", i, IP.Ipdb, RT.Rtdb)
 			}
 		}
 
