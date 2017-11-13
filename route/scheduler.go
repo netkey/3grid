@@ -222,6 +222,8 @@ func (rt_db *Route_db) GetAAA(query_dn string, acode string, ip net.IP,
 			//a fail cache result
 			ok = false
 		}
+
+		G.OutDebug2(G.LOG_SCHEDULER, "Route cache hit.")
 		return aaa, ttl, _type, ok, _ac, rid, dn
 	}
 
@@ -323,8 +325,7 @@ func (rt_db *Route_db) GetAAA(query_dn string, acode string, ip net.IP,
 		}
 	}
 
-	G.OutDebug2(G.LOG_ROUTE, "GETAAA ac:%s, matched ac:%s, rid:%d, noder_p:%+v node_s:%+v",
-		ac, _ac, rid, cnr, snr)
+	//G.OutDebug2(G.LOG_ROUTE, "GETAAA ac:%s, matched ac:%s, rid:%d, noder_p:%+v node_s:%+v", ac, _ac, rid, cnr, snr)
 
 	if nid == 0 {
 		//cache the fail rusult for a few seconds
@@ -351,12 +352,14 @@ func (rt_db *Route_db) GetAAA(query_dn string, acode string, ip net.IP,
 	}
 
 	for i, sid := range sl {
+		sr := rt_db.Read_Server_Record(sid)
+		G.OutDebug2(G.LOG_SCHEDULER, "Server: %s(%d) of Node: %d", sr.ServerIp, sr.ServerId, sr.NodeId)
 		if uint(i) >= dr.Records {
 			//got enough IPs
-			break
+			continue
+		} else {
+			aaa[i] = sr.ServerIp
 		}
-		sr := rt_db.Read_Server_Record(sid)
-		aaa[i] = sr.ServerIp
 	}
 
 	rt_db.Update_Cache_Record(query_dn, client_ac,

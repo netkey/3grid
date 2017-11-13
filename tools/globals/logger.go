@@ -80,19 +80,15 @@ func OutDebug(a ...interface{}) {
 }
 
 func OutDebug2(target string, a ...interface{}) {
+	defer func() {
+		if pan := recover(); pan != nil {
+			Outlog3(LOG_GSLB, "Panic logger OutDebug2: %s", pan)
+		}
+	}()
+
 	if Debug {
 		*LogChan3 <- map[string][]interface{}{target: a}
 	}
-
-	OutDebugApi(a)
-}
-
-func OutDebugApi(a ...interface{}) {
-	defer func() {
-		if pan := recover(); pan != nil {
-			Outlog3(LOG_GSLB, "Panic logger OutDebugApi: %s", pan)
-		}
-	}()
 
 	Apilog.Clock.RLock()
 	if Apilog.Chan != nil && Apilog.Goid == GoID() {
