@@ -223,7 +223,7 @@ func (rt_db *Route_db) GetAAA(query_dn string, acode string, ip net.IP,
 			ok = false
 		}
 
-		G.OutDebug2(G.LOG_SCHEDULER, "Route cache hit.")
+		G.OutDebug2(G.LOG_SCHEDULER, "Route cache hit")
 		return aaa, ttl, _type, ok, _ac, rid, dn
 	}
 
@@ -352,13 +352,13 @@ func (rt_db *Route_db) GetAAA(query_dn string, acode string, ip net.IP,
 	}
 
 	for i, sid := range sl {
-		sr := rt_db.Read_Server_Record(sid)
-		G.OutDebug2(G.LOG_SCHEDULER, "Server: %s(%d) of Node: %d", sr.ServerIp, sr.ServerId, sr.NodeId)
 		if uint(i) >= dr.Records {
 			//got enough IPs
-			continue
+			break
 		} else {
+			sr := rt_db.Read_Server_Record(sid)
 			aaa[i] = sr.ServerIp
+			G.OutDebug2(G.LOG_SCHEDULER, "Server: %s(%d) of Node: %d", sr.ServerIp, sr.ServerId, sr.NodeId)
 		}
 	}
 
