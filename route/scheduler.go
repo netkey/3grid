@@ -402,13 +402,21 @@ func (rt_db *Route_db) Match_Local_AC(nr *Node_List_Record, client_ac string, ch
 
 	//CTC.CN.JX.NC
 	//G.OutDebug2(G.LOG_SCHEDULER, "Match-Local-AC: matching client_ac:%s and node_ac:%s", client_ac, _node_ac)
-	match = strings.Contains(client_ac, _node_ac)
+	if strings.Contains(client_ac, _node_ac) &&
+		((len(_node_ac) < len(client_ac) && strings.Contains(client_ac, _node_ac+".")) ||
+			(len(_node_ac) == len(client_ac))) {
+		match = true
+	}
 
 	if !match && check_nearby {
 		if li := strings.LastIndex(_node_ac, "."); li != -1 {
 			//G.OutDebug2(G.LOG_SCHEDULER, "Match-Local-AC2: matching client_ac:%s and node_ac:%s", client_ac, _node_ac[:li])
-			match = strings.Contains(client_ac, _node_ac[:li])
 			_node_ac = _node_ac[:li]
+			if strings.Contains(client_ac, _node_ac) &&
+				((len(_node_ac) < len(client_ac) && strings.Contains(client_ac, _node_ac+".")) ||
+					(len(_node_ac) == len(client_ac))) {
+				match = true
+			}
 		}
 
 		if !match {
@@ -427,8 +435,12 @@ func (rt_db *Route_db) Match_Local_AC(nr *Node_List_Record, client_ac string, ch
 
 			if li := strings.LastIndex(_node_ac, "."); li != -1 {
 				//G.OutDebug2(G.LOG_SCHEDULER, "Match-Local-AC4: matching client_ac:%s and node_ac:%s", client_ac, _node_ac[:li])
-				match = strings.Contains(client_ac, _node_ac[:li])
 				_node_ac = _node_ac[:li]
+				if strings.Contains(client_ac, _node_ac) &&
+					((len(_node_ac) < len(client_ac) && strings.Contains(client_ac, _node_ac+".")) ||
+						(len(_node_ac) == len(client_ac))) {
+					match = true
+				}
 			}
 		}
 	}
