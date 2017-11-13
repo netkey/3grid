@@ -80,24 +80,27 @@ func OutDebug(a ...interface{}) {
 }
 
 func OutDebug2(target string, a ...interface{}) {
-	defer func() {
-		if pan := recover(); pan != nil {
-			Outlog3(LOG_GSLB, "Panic logger OutDebug2: %s", pan)
-		}
-	}()
-
 	if Debug {
 		*LogChan3 <- map[string][]interface{}{target: a}
 	}
-	if Apilog != nil {
-		Apilog.Clock.RLock()
-		if Apilog.Chan != nil && Apilog.Goid == GoID() {
-			if len(*Apilog.Chan) < cap(*Apilog.Chan) {
-				*Apilog.Chan <- fmt.Sprintf(a[0].(string), a[1:]...)
-			}
+
+	OutDebugApi(a)
+}
+
+func OutDebugApi(a ...interface{}) {
+	defer func() {
+		if pan := recover(); pan != nil {
+			Outlog3(LOG_GSLB, "Panic logger OutDebugApi: %s", pan)
 		}
-		Apilog.Clock.RUnlock()
+	}()
+
+	Apilog.Clock.RLock()
+	if Apilog.Chan != nil && Apilog.Goid == GoID() {
+		if len(*Apilog.Chan) < cap(*Apilog.Chan) {
+			*Apilog.Chan <- fmt.Sprintf(a[0].(string), a[1:]...)
+		}
 	}
+	Apilog.Clock.RUnlock()
 }
 
 func NewLogger(path *string) (*Grid_Logger, error) {

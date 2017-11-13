@@ -377,10 +377,16 @@ func (rt_db *Route_db) Match_Local_AC(nr *Node_List_Record, client_ac string, ch
 	var match bool = false
 
 	node_ac = nr.AC
+	if node_ac == "" {
+		//node has no AC
+		return false, ""
+	}
 
 	if strings.Contains(node_ac, "-") {
 		//convert MMY.CN-CT-JX-NC-C1 type AC to MMY.CN.CT.JX.NC.C1
 		_node_ac = strings.Replace(node_ac, "-", ".", -1)
+	} else {
+		_node_ac = node_ac
 	}
 
 	_node_ac = strings.Replace(_node_ac, "MMY.", "", -1)
@@ -410,15 +416,14 @@ func (rt_db *Route_db) Match_Local_AC(nr *Node_List_Record, client_ac string, ch
 				if nr.ServerList != nil && len(nr.ServerList) > 0 {
 					sr := rt_db.Read_Server_Record(nr.ServerList[0])
 					_node_ac = IP.Ipdb.GetAreaCode(net.ParseIP(sr.ServerIp))
-					//G.OutDebug2(G.LOG_SCHEDULER, "Match-Local-AC3: from ip db get _node_ac:%s",
-					//_node_ac)
+					//G.OutDebug2(G.LOG_SCHEDULER, "Match-Local-AC3: from ip db get _node_ac:%s", _node_ac)
 					nr.AC2 = _node_ac
 					rt_db.Update_Node_Record(nr.NodeId, nr)
 				}
 			}
 
 			if li := strings.LastIndex(_node_ac, "."); li != -1 {
-				//G.OutDebug2(G.LOG_SCHEDULER, "Match-Local-AC3: matching client_ac:%s and node_ac:%s", client_ac, _node_ac[:li])
+				//G.OutDebug2(G.LOG_SCHEDULER, "Match-Local-AC4: matching client_ac:%s and node_ac:%s", client_ac, _node_ac[:li])
 				match = strings.Contains(client_ac, _node_ac[:li])
 				_node_ac = _node_ac[:li]
 			}
