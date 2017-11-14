@@ -4,6 +4,8 @@ import (
 	IP "3grid/ip"
 	RT "3grid/route"
 	G "3grid/tools/globals"
+	"bytes"
+	"compress/gzip"
 	"encoding/json"
 	"github.com/kavu/go_reuseport"
 	"io"
@@ -27,6 +29,7 @@ type HTTP_worker struct {
 func (hw *HTTP_worker) InitHandlers() *http.ServeMux {
 	hw.Handlers = make(map[string]interface{})
 	hw.Handlers["/dns"] = hw.HttpDns
+	hw.Handlers["/"] = hw.Http302
 
 	mux := http.NewServeMux()
 
@@ -37,23 +40,36 @@ func (hw *HTTP_worker) InitHandlers() *http.ServeMux {
 	return mux
 }
 
-func (hw *HTTP_worker) GetCache(dn, ipac string) []byte {
-	var b []byte
-
+func (hw *HTTP_worker) GetCache(dn, ipac string) *[]byte {
 	if hw.Cache[dn] != nil {
-		if hw.Cache[ipac] != nil {
-			b = hw.Cache[dn][ipac]
+		if hw.Cache[dn][ipac] != nil {
+			b := hw.Cache[dn][ipac]
+			if b == nil {
+				return nil
+			} else {
+				return &b
+			}
 		}
 	}
-
-	return b
+	return nil
 }
 
-func (hw *HTTP_worker) UpdateCache(dn, ipac string, b []byte) {
+func (hw *HTTP_worker) UpdateCache(dn, ipac string, b *[]byte) {
 	if hw.Cache[dn] == nil {
 		hw.Cache[dn] = make(map[string][]byte)
-		hw.Cache[dn][ipac] = b
 	}
+	if hw.Cache[dn][ipac] == nil {
+		hw.Cache[dn][ipac] = []byte{}
+	}
+	hw.Cache[dn][ipac] = append(hw.Cache[dn][ipac], *b...)
+}
+
+//HTTP 302
+func (hw *HTTP_worker) Http302(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "text/pain; charset=utf-8")
+	w.Header().Set("X-GSLB", hw.Name)
+
+	w.Write([]byte("Hello, 302"))
 }
 
 //HTTP DNS
@@ -72,8 +88,6 @@ func (hw *HTTP_worker) HttpDns(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.Header().Set("X-GSLB", hw.Name)
-
-	w.WriteHeader(http.StatusOK)
 
 	if dna := r.URL.Query()["domain"]; dna == nil {
 		io.WriteString(w, "param error")
@@ -109,16 +123,35 @@ func (hw *HTTP_worker) HttpDns(w http.ResponseWriter, r *http.Request) {
 		ipac = ac
 	}
 
-	body = hw.GetCache(dn, ipac)
+	_pb := hw.GetCache(dn, ipac)
+	if _pb != nil {
+		body = *_pb
+	}
 
 	if body == nil {
+		w.Header().Set("X-Cache", "Miss")
+
 		if body, err = json.Marshal(map[string]map[string]map[string][]string{"dns": {dn: {ipac: _dns_info}}}); err == nil {
-			w.Write(body)
-			hw.UpdateCache(dn, ipac, body)
+			if false && r.Header["Accept-Encoding"] != nil {
+				var buf bytes.Buffer
+				var b []byte
+				g := gzip.NewWriter(&buf)
+				g.Write(body)
+				g.Close()
+
+				b = buf.Bytes()
+				w.Header().Set("Content-Encoding", "gzip")
+				w.Write(b)
+				hw.UpdateCache(dn, ipac, &b)
+			} else {
+				w.Write(body)
+				hw.UpdateCache(dn, ipac, &body)
+			}
 		} else {
-			io.WriteString(w, "data error")
+			w.Write([]byte("data error"))
 		}
 	} else {
+		w.Header().Set("X-Cache", "Hit")
 		w.Write(body)
 	}
 
