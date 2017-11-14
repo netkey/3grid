@@ -12,17 +12,19 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 )
 
 type HTTP_worker struct {
-	Id       int
-	Name     string
-	Ipdb     *IP.IP_db
-	Rtdb     *RT.Route_db
-	Server   *http.Server
-	Handlers map[string]interface{}
-	Cache    map[string]map[string]map[string][]byte
+	Id        int
+	Name      string
+	Ipdb      *IP.IP_db
+	Rtdb      *RT.Route_db
+	Server    *http.Server
+	Handlers  map[string]interface{}
+	Cache     map[string][]byte
+	CacheLock *sync.RWMutex
 }
 
 func (hw *HTTP_worker) InitHandlers() *http.ServeMux {
@@ -39,31 +41,24 @@ func (hw *HTTP_worker) InitHandlers() *http.ServeMux {
 	return mux
 }
 
-func (hw *HTTP_worker) GetCache(dn, ipac, key string) *[]byte {
-	if hw.Cache[dn] != nil {
-		if hw.Cache[dn][ipac] != nil {
-			if hw.Cache[dn][ipac][key] != nil {
-				b := hw.Cache[dn][ipac][key]
-				if b != nil {
-					return &b
-				}
-			}
-		}
-	}
-	return nil
+func (hw *HTTP_worker) GetCache(dn, ipac, key string) []byte {
+
+	hw.CacheLock.RLock()
+	b := hw.Cache[dn+"#"+ipac+"#"+key]
+	hw.CacheLock.RUnlock()
+
+	return b
 }
 
 func (hw *HTTP_worker) UpdateCache(dn, ipac, key string, b *[]byte) {
-	if hw.Cache[dn] == nil {
-		hw.Cache[dn] = make(map[string]map[string][]byte)
+	_key := dn + "#" + ipac + "#" + key
+
+	hw.CacheLock.Lock()
+	if hw.Cache[_key] == nil {
+		hw.Cache[_key] = []byte{}
 	}
-	if hw.Cache[dn][ipac] == nil {
-		hw.Cache[dn][ipac] = make(map[string][]byte)
-	}
-	if hw.Cache[dn][ipac][key] == nil {
-		hw.Cache[dn][ipac][key] = []byte{}
-	}
-	hw.Cache[dn][ipac][key] = append(hw.Cache[dn][ipac][key], *b...)
+	hw.Cache[_key] = append(hw.Cache[_key], *b...)
+	hw.CacheLock.Unlock()
 }
 
 //HTTP 302
@@ -128,12 +123,7 @@ func (hw *HTTP_worker) HttpDns(w http.ResponseWriter, r *http.Request) {
 		key = "nc"
 	}
 
-	_pb := hw.GetCache(dn, ipac, key)
-	if _pb != nil {
-		body = *_pb
-	}
-
-	if body == nil {
+	if body = hw.GetCache(dn, ipac, key); body == nil {
 
 		aaa, ttl, _type, _, _, _, _ := hw.Rtdb.GetAAA(dn, ac, ip, debug)
 		if _type == "" {
@@ -181,7 +171,8 @@ func Working(myname, listen string, port string, num int, ipdb *IP.IP_db, rtdb *
 	worker.Name = myname
 	worker.Ipdb = ipdb
 	worker.Rtdb = rtdb
-	worker.Cache = make(map[string]map[string]map[string][]byte)
+	worker.Cache = make(map[string][]byte)
+	worker.CacheLock = new(sync.RWMutex)
 
 	if listener, err := reuseport.Listen("tcp", listen+":"+port); err != nil {
 		G.OutDebug2(G.LOG_GSLB, "Failed to listen port: %s", err)
