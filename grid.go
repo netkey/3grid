@@ -419,11 +419,13 @@ func main() {
 			D.AC_DN_Spliter = ac_dn_spliter
 
 			//init dns  workers & http workers
-			H.InitHandlers()
 			var name, secret string
 			for i := 0; i < num_cpus; i++ {
+				//dns worker
 				go D.Working("udp", listen, port, name, secret, i, IP.Ipdb, RT.Rtdb)
-				go H.Working(listen, http_port, i)
+
+				//http worker
+				go H.Working(myname, listen, http_port, i, IP.Ipdb, RT.Rtdb)
 			}
 		}
 

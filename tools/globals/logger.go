@@ -20,6 +20,7 @@ const (
 	LOG_AMQP      = "amqp"
 	LOG_TEST      = "test"
 	LOG_API       = "api"
+	LOG_HTTP      = "http"
 )
 
 var Log bool
@@ -102,7 +103,7 @@ func OutDebug2(target string, a ...interface{}) {
 func NewLogger(path *string) (*Grid_Logger, error) {
 	var err error
 	var logto = []string{LOG_IP, LOG_DNS, LOG_ROUTE, LOG_SCHEDULER,
-		LOG_GSLB, LOG_DEBUG, LOG_AMQP, LOG_TEST, LOG_API}
+		LOG_GSLB, LOG_DEBUG, LOG_AMQP, LOG_TEST, LOG_API, LOG_HTTP}
 	var lg = Grid_Logger{}
 	var O_FLAGS int
 
