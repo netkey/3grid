@@ -17,14 +17,16 @@ import (
 )
 
 type HTTP_worker struct {
-	Id        int
-	Name      string
-	Ipdb      *IP.IP_db
-	Rtdb      *RT.Route_db
-	Server    *fasthttp.Server
-	Handlers  map[string]interface{}
-	Cache     map[string]*[]byte
-	CacheLock *sync.RWMutex
+	Id         int
+	Name       string
+	Ipdb       *IP.IP_db
+	Rtdb       *RT.Route_db
+	Server     *fasthttp.Server
+	Handlers   map[string]interface{}
+	Cache      map[string]*[]byte
+	ACache     map[string]string
+	CacheLock  *sync.RWMutex
+	ACacheLock *sync.RWMutex
 }
 
 /* net/http
@@ -65,6 +67,21 @@ func (hw *HTTP_worker) UpdateCache(dn, ipac, key string, b *[]byte) {
 	hw.CacheLock.Lock()
 	hw.Cache[dn+"#"+ipac+"#"+key] = b
 	hw.CacheLock.Unlock()
+}
+
+func (hw *HTTP_worker) GetACache(ips string) string {
+
+	hw.ACacheLock.RLock()
+	s := hw.ACache[ips]
+	hw.ACacheLock.RUnlock()
+
+	return s
+}
+
+func (hw *HTTP_worker) UpdateACache(ips string, s string) {
+	hw.ACacheLock.Lock()
+	hw.ACache[ips] = s
+	hw.ACacheLock.Unlock()
 }
 
 //HTTP 302
@@ -114,7 +131,10 @@ func (hw *HTTP_worker) HttpDns(ctx *fasthttp.RequestCtx) {
 	}
 
 	if ac = string(ctx.QueryArgs().Peek("ac")); ac == "" {
-		ac = hw.Ipdb.GetAreaCode(ip)
+		if ac = hw.GetACache(ips); ac == "" {
+			ac = hw.Ipdb.GetAreaCode(ip)
+			hw.UpdateACache(ips, ac)
+		}
 	} else {
 		debug = 2
 	}
@@ -131,6 +151,16 @@ func (hw *HTTP_worker) HttpDns(ctx *fasthttp.RequestCtx) {
 	} else {
 		key = "nc"
 	}
+
+	/*
+		ips = "61.144.1.1"
+		dn = "gzcmcc.chinamaincloud.com"
+		ip = net.ParseIP(ips)
+		client_ip = ip
+		ac = "CTC.CN.GD.GZ"
+		ipac = ips
+		key = "nc"
+	*/
 
 	if body = hw.GetCache(dn, ipac, key); body == nil {
 
@@ -181,7 +211,9 @@ func Working(myname, listen string, port string, num int, ipdb *IP.IP_db, rtdb *
 	worker.Ipdb = ipdb
 	worker.Rtdb = rtdb
 	worker.Cache = make(map[string]*[]byte)
+	worker.ACache = make(map[string]string)
 	worker.CacheLock = new(sync.RWMutex)
+	worker.ACacheLock = new(sync.RWMutex)
 
 	if listener, err := reuseport.Listen("tcp4", listen+":"+port); err != nil {
 		G.OutDebug2(G.LOG_GSLB, "Failed to listen port: %s", err)
