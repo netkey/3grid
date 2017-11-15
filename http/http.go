@@ -86,12 +86,15 @@ func (hw *HTTP_worker) UpdateACache(ips string, s string) {
 }
 
 func (hw *HTTP_worker) GetAC(ip net.IP, ips string) string {
-	var ac string
-	if ac = hw.GetACache(ips); ac == "" {
-		ac = hw.Ipdb.GetAreaCode(ip)
-		hw.UpdateACache(ips, ac)
-	}
-	return ac
+	/*
+		var ac string
+		if ac = hw.GetACache(ips); ac == "" {
+			ac = hw.Ipdb.GetAreaCode(ip)
+			hw.UpdateACache(ips, ac)
+		}
+		return ac
+	*/
+	return hw.Ipdb.GetAreaCode(ip)
 }
 
 //HTTP 302
