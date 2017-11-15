@@ -14,6 +14,7 @@ import (
 	//"net/http"
 	"strconv"
 	"sync"
+	"time"
 )
 
 type HTTP_worker struct {
@@ -84,6 +85,15 @@ func (hw *HTTP_worker) UpdateACache(ips string, s string) {
 	hw.ACacheLock.Unlock()
 }
 
+func (hw *HTTP_worker) GetAC(ip net.IP, ips string) string {
+	var ac string
+	if ac = hw.GetACache(ips); ac == "" {
+		ac = hw.Ipdb.GetAreaCode(ip)
+		hw.UpdateACache(ips, ac)
+	}
+	return ac
+}
+
 //HTTP 302
 /* net/http
 func (hw *HTTP_worker) Http302(w http.ResponseWriter, r *http.Request) {
@@ -131,10 +141,7 @@ func (hw *HTTP_worker) HttpDns(ctx *fasthttp.RequestCtx) {
 	}
 
 	if ac = string(ctx.QueryArgs().Peek("ac")); ac == "" {
-		if ac = hw.GetACache(ips); ac == "" {
-			ac = hw.Ipdb.GetAreaCode(ip)
-			hw.UpdateACache(ips, ac)
-		}
+		ac = hw.GetAC(ip, ips)
 	} else {
 		debug = 2
 	}
@@ -151,16 +158,6 @@ func (hw *HTTP_worker) HttpDns(ctx *fasthttp.RequestCtx) {
 	} else {
 		key = "nc"
 	}
-
-	/*
-		ips = "61.144.1.1"
-		dn = "gzcmcc.chinamaincloud.com"
-		ip = net.ParseIP(ips)
-		client_ip = ip
-		ac = "CTC.CN.GD.GZ"
-		ipac = ips
-		key = "nc"
-	*/
 
 	if body = hw.GetCache(dn, ipac, key); body == nil {
 
@@ -229,8 +226,11 @@ func Working(myname, listen string, port string, num int, ipdb *IP.IP_db, rtdb *
 		}
 		*/
 		worker.Server = &fasthttp.Server{
-			Handler: worker.Handler,
-			Name:    myname,
+			Handler:              worker.Handler,
+			Name:                 myname,
+			ReadTimeout:          10 * time.Second,
+			WriteTimeout:         10 * time.Second,
+			MaxKeepaliveDuration: 10 * time.Second,
 		}
 
 		if err := worker.Server.Serve(listener); err != nil {
