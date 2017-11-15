@@ -7,13 +7,13 @@ import (
 	"bytes"
 	"compress/gzip"
 	"encoding/json"
-	"github.com/kavu/go_reuseport"
+	//"github.com/kavu/go_reuseport"
+	"github.com/valyala/fasthttp"
+	"github.com/valyala/fasthttp/reuseport"
 	"net"
-	"net/http"
+	//"net/http"
 	"strconv"
-	"strings"
 	"sync"
-	"time"
 )
 
 type HTTP_worker struct {
@@ -21,12 +21,13 @@ type HTTP_worker struct {
 	Name      string
 	Ipdb      *IP.IP_db
 	Rtdb      *RT.Route_db
-	Server    *http.Server
+	Server    *fasthttp.Server
 	Handlers  map[string]interface{}
-	Cache     map[string][]byte
+	Cache     map[string]*[]byte
 	CacheLock *sync.RWMutex
 }
 
+/* net/http
 func (hw *HTTP_worker) InitHandlers() *http.ServeMux {
 	hw.Handlers = make(map[string]interface{})
 	hw.Handlers["/dns"] = hw.HttpDns
@@ -40,8 +41,18 @@ func (hw *HTTP_worker) InitHandlers() *http.ServeMux {
 
 	return mux
 }
+*/
 
-func (hw *HTTP_worker) GetCache(dn, ipac, key string) []byte {
+func (hw *HTTP_worker) Handler(ctx *fasthttp.RequestCtx) {
+	switch string(ctx.Path()) {
+	case "/dns":
+		hw.HttpDns(ctx)
+	default:
+		hw.Http302(ctx)
+	}
+}
+
+func (hw *HTTP_worker) GetCache(dn, ipac, key string) *[]byte {
 
 	hw.CacheLock.RLock()
 	b := hw.Cache[dn+"#"+ipac+"#"+key]
@@ -51,30 +62,32 @@ func (hw *HTTP_worker) GetCache(dn, ipac, key string) []byte {
 }
 
 func (hw *HTTP_worker) UpdateCache(dn, ipac, key string, b *[]byte) {
-	_key := dn + "#" + ipac + "#" + key
-
 	hw.CacheLock.Lock()
-	if hw.Cache[_key] == nil {
-		hw.Cache[_key] = []byte{}
-	}
-	hw.Cache[_key] = append(hw.Cache[_key], *b...)
+	hw.Cache[dn+"#"+ipac+"#"+key] = b
 	hw.CacheLock.Unlock()
 }
 
 //HTTP 302
+/* net/http
 func (hw *HTTP_worker) Http302(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/pain; charset=utf-8")
 	w.Header().Set("X-GSLB", hw.Name)
 
 	w.Write([]byte("Hello, 302"))
 }
+*/
+func (hw *HTTP_worker) Http302(ctx *fasthttp.RequestCtx) {
+	ctx.Response.Header.Set("Content-Type", "text/pain; charset=utf-8")
+	ctx.Write([]byte("Hello, 302"))
+}
 
 //HTTP DNS
-func (hw *HTTP_worker) HttpDns(w http.ResponseWriter, r *http.Request) {
+func (hw *HTTP_worker) HttpDns(ctx *fasthttp.RequestCtx) {
 	var err error
-	var body []byte
-	var dn, ips, client_ips, ac, ipac, key string
-	var ip net.IP
+	var body *[]byte
+	var data []byte
+	var dn, ips, ac, ipac, key string
+	var client_ip, ip net.IP
 	var debug int = 0
 	var buf bytes.Buffer
 	var b []byte
@@ -85,29 +98,25 @@ func (hw *HTTP_worker) HttpDns(w http.ResponseWriter, r *http.Request) {
 		}
 	}()
 
-	w.Header().Set("Content-Type", "application/json; charset=utf-8")
-	w.Header().Set("X-GSLB", hw.Name)
+	ctx.Response.Header.Set("Content-Type", "application/json; charset=utf-8")
 
-	if dna := r.URL.Query()["domain"]; dna == nil {
-		w.Write([]byte("param error"))
+	if dn = string(ctx.QueryArgs().Peek("domain")); dn == "" {
+		ctx.Write([]byte("param error"))
 		return
-	} else {
-		dn = dna[0]
 	}
 
-	client_ips = strings.Split(r.RemoteAddr, ":")[0]
-	if ipa := r.URL.Query()["ip"]; ipa == nil {
-		ips = client_ips
+	client_ip = ctx.RemoteIP()
+	if ips = string(ctx.QueryArgs().Peek("ip")); ips == "" {
+		ip = client_ip
+		ips = client_ip.String()
 	} else {
-		ips = ipa[0]
+		ip = net.ParseIP(ips)
 	}
-	ip = net.ParseIP(ips)
 
-	if aca := r.URL.Query()["ac"]; aca != nil {
-		ac = aca[0]
-		debug = 2
-	} else {
+	if ac = string(ctx.QueryArgs().Peek("ac")); ac == "" {
 		ac = hw.Ipdb.GetAreaCode(ip)
+	} else {
+		debug = 2
 	}
 
 	if debug != 2 {
@@ -116,8 +125,8 @@ func (hw *HTTP_worker) HttpDns(w http.ResponseWriter, r *http.Request) {
 		ipac = ac
 	}
 
-	if r.Header["Accept-Encoding"] != nil {
-		w.Header().Set("Content-Encoding", "gzip")
+	if ctx.Request.Header.Peek("Accept-Encoding") != nil {
+		ctx.Response.Header.Set("Content-Encoding", "gzip")
 		key = "gzip"
 	} else {
 		key = "nc"
@@ -133,30 +142,30 @@ func (hw *HTTP_worker) HttpDns(w http.ResponseWriter, r *http.Request) {
 		_dns_info := []string{_type, strconv.Itoa(int(ttl))}
 		_dns_info = append(_dns_info, aaa...)
 
-		body, err = json.Marshal(map[string]map[string]map[string][]string{"dns": {dn: {ipac: _dns_info}}})
+		data, err = json.Marshal(map[string]map[string]map[string][]string{"dns": {dn: {ipac: _dns_info}}})
 		if err == nil {
-			w.Header().Set("X-GSLB-Cache", "Miss")
+			ctx.Response.Header.Set("X-GSLB-Cache", "Miss")
 			if key == "gzip" {
 				g := gzip.NewWriter(&buf)
-				g.Write(body)
+				g.Write(data)
 				g.Close()
 
 				b = buf.Bytes()
-				w.Write(b)
+				ctx.Write(b)
 				hw.UpdateCache(dn, ipac, key, &b)
 			} else {
-				w.Write(body)
-				hw.UpdateCache(dn, ipac, key, &body)
+				ctx.Write(data)
+				hw.UpdateCache(dn, ipac, key, &data)
 			}
 		} else {
-			w.Write([]byte("data error"))
+			ctx.Write([]byte("data error"))
 		}
 	} else {
-		w.Header().Set("X-GSLB-Cache", "Hit")
-		w.Write(body)
+		ctx.Response.Header.Set("X-GSLB-Cache", "Hit")
+		ctx.Write(*body)
 	}
 
-	G.Outlog3(G.LOG_HTTP, "HttpDns %s %s %s", client_ips, dn, ipac)
+	G.Outlog3(G.LOG_HTTP, "HttpDns %s %s %s", client_ip.String(), dn, ipac)
 }
 
 func Working(myname, listen string, port string, num int, ipdb *IP.IP_db, rtdb *RT.Route_db) {
@@ -171,19 +180,25 @@ func Working(myname, listen string, port string, num int, ipdb *IP.IP_db, rtdb *
 	worker.Name = myname
 	worker.Ipdb = ipdb
 	worker.Rtdb = rtdb
-	worker.Cache = make(map[string][]byte)
+	worker.Cache = make(map[string]*[]byte)
 	worker.CacheLock = new(sync.RWMutex)
 
-	if listener, err := reuseport.Listen("tcp", listen+":"+port); err != nil {
+	if listener, err := reuseport.Listen("tcp4", listen+":"+port); err != nil {
 		G.OutDebug2(G.LOG_GSLB, "Failed to listen port: %s", err)
 	} else {
 		defer listener.Close()
 
+		/* net/http
 		worker.Server = &http.Server{
 			Handler:      worker.InitHandlers(),
 			ReadTimeout:  10 * time.Second,
 			WriteTimeout: 10 * time.Second,
 			IdleTimeout:  10 * time.Second,
+		}
+		*/
+		worker.Server = &fasthttp.Server{
+			Handler: worker.Handler,
+			Name:    myname,
 		}
 
 		if err := worker.Server.Serve(listener); err != nil {
