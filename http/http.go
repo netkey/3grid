@@ -88,8 +88,56 @@ func (hw *HTTP_worker) UpdateCache(dn, ipac, key string, b *[]byte) {
 
 //HTTP 302
 func (hw *HTTP_worker) Http302(ctx *fasthttp.RequestCtx) {
+	var dn, ac, dom string
+	var ip net.IP
+
+	defer func() {
+		if pan := recover(); pan != nil {
+			G.Outlog3(G.LOG_GSLB, "Panic HttpDns: %s", pan)
+		}
+	}()
+
 	ctx.Response.Header.Set("Content-Type", "text/pain; charset=utf-8")
-	ctx.Write([]byte("Hello, 302"))
+
+	ip = ctx.RemoteIP()
+	ac = hw.Ipdb.GetAreaCode(ip)
+
+	_dn := ctx.Request.Header.Peek("Host")
+	if _dn != nil {
+		dom = string(_dn)
+		if strings.Contains(dom, ":") {
+			dna := strings.Split(dom, ":")
+			dn = dna[0]
+		} else {
+			dn = dom
+		}
+	} else {
+		dom = ""
+		dn = ""
+	}
+
+	aaa, _, _, _, _, _, _ := hw.Rtdb.GetAAA(dn, ac, ip, 0)
+
+	url := ctx.URI().String()
+	uria := strings.Split(url, dom)
+	uri := ""
+
+	if aaa != nil && len(aaa) > 0 {
+		if len(uria) > 1 {
+			uri = uria[1]
+		} else {
+			uri = url
+		}
+
+		ctx.Response.Header.Set("Location", "http://"+aaa[0]+"/"+dn+uri)
+		ctx.SetStatusCode(fasthttp.StatusFound)
+
+		G.Outlog3(G.LOG_HTTP, "Http302 %s %s %s", ip, url, aaa[0])
+	} else {
+		ctx.Write([]byte("service unavalible"))
+
+		G.Outlog3(G.LOG_HTTP, "Http302 %s %s nil", ip, url)
+	}
 }
 
 //HTTP DNS
@@ -97,7 +145,7 @@ func (hw *HTTP_worker) HttpDns(ctx *fasthttp.RequestCtx) {
 	var err error
 	var body *[]byte
 	var data []byte
-	var dn, ips, ac, ipac, key string
+	var dn, ips, ac, ipac, key, aip string
 	var client_ip, ip net.IP
 	var debug int = 0
 	var buf bytes.Buffer
@@ -147,6 +195,13 @@ func (hw *HTTP_worker) HttpDns(ctx *fasthttp.RequestCtx) {
 	if body = hw.GetCache(dn, ipac, key); body == nil {
 
 		aaa, ttl, _type, _, _, _, _ := hw.Rtdb.GetAAA(dn, ac, ip, debug)
+		if aaa == nil {
+			aaa = []string{""}
+		} else if len(aaa) == 0 {
+			aaa = []string{""}
+		}
+		aip = aaa[0]
+
 		if _type == "" {
 			_type = "A"
 		}
@@ -177,7 +232,7 @@ func (hw *HTTP_worker) HttpDns(ctx *fasthttp.RequestCtx) {
 		ctx.Write(*body)
 	}
 
-	G.Outlog3(G.LOG_HTTP, "HttpDns %s %s %s", client_ip.String(), dn, ipac)
+	G.Outlog3(G.LOG_HTTP, "HttpDns %s %s %s %s", client_ip.String(), dn, ipac, aip)
 }
 
 func Working(myname, listen string, port string, num int, ipdb *IP.IP_db, rtdb *RT.Route_db) {
