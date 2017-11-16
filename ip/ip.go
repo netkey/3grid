@@ -99,26 +99,16 @@ func (ip_db *IP_db) GetAreaCode(ip net.IP) string {
 					cn = "CUC" + cn[3:]
 				}
 			}
-			/*
-				ipc.AC = "AC:" + cn + "|CC:" + re.Country.IsoCode + "|Coordinates:" +
-				strconv.FormatFloat(re.Location.Latitude, 'f', 4, 64) + "," +
-				strconv.FormatFloat(re.Location.Longitude, 'f', 4, 64) + "|AccuracyRadius:" +
-				strconv.FormatUint(uint64(re.Location.AccuracyRadius), 10)
-			*/
-
 			//update ip cache
 			ip_db.Chan <- map[string]string{ips: cn}
 
 			G.OutDebug("Area Code of %s: %s", ips, cn)
-
 		} else {
 			G.OutDebug("IP lookup error: %s", err)
 		}
 	} else {
 		cn = ipc.AC
 	}
-
-	G.OutDebug2(G.LOG_IP, "ip:%s ac:%s", ips, cn)
 
 	return cn
 }

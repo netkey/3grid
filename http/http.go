@@ -70,33 +70,6 @@ func (hw *HTTP_worker) UpdateCache(dn, ipac, key string, b *[]byte) {
 	hw.CacheLock.Unlock()
 }
 
-func (hw *HTTP_worker) GetACache(ips string) string {
-
-	hw.ACacheLock.RLock()
-	s := hw.ACache[ips]
-	hw.ACacheLock.RUnlock()
-
-	return s
-}
-
-func (hw *HTTP_worker) UpdateACache(ips string, s string) {
-	hw.ACacheLock.Lock()
-	hw.ACache[ips] = s
-	hw.ACacheLock.Unlock()
-}
-
-func (hw *HTTP_worker) GetAC(ip net.IP, ips string) string {
-	/*
-		var ac string
-		if ac = hw.GetACache(ips); ac == "" {
-			ac = hw.Ipdb.GetAreaCode(ip)
-			hw.UpdateACache(ips, ac)
-		}
-		return ac
-	*/
-	return hw.Ipdb.GetAreaCode(ip)
-}
-
 //HTTP 302
 /* net/http
 func (hw *HTTP_worker) Http302(w http.ResponseWriter, r *http.Request) {
@@ -144,7 +117,7 @@ func (hw *HTTP_worker) HttpDns(ctx *fasthttp.RequestCtx) {
 	}
 
 	if ac = string(ctx.QueryArgs().Peek("ac")); ac == "" {
-		ac = hw.GetAC(ip, ips)
+		ac = hw.Ipdb.GetAreaCode(ip)
 	} else {
 		debug = 2
 	}

@@ -705,7 +705,7 @@ func (rt_db *Route_db) Read_Cmdb_Record_All_JSON() []byte {
 		G.Outlog3(G.LOG_ROUTE, "Error marshaling cmdb data: %s", err)
 		return nil
 	} else {
-		G.OutDebug2(G.LOG_ROUTE, "Cmdb data: %+v", mcmdb)
+		G.OutDebug("Cmdb data: %+v", mcmdb)
 	}
 
 	return cmdb_json
@@ -747,7 +747,7 @@ func (rt_db *Route_db) Read_Route_Record_All_JSON() []byte {
 		G.Outlog3(G.LOG_ROUTE, "Error marshaling routes data: %s", err)
 		return nil
 	} else {
-		G.OutDebug2(G.LOG_ROUTE, "Routes data: %+v", mroutes)
+		G.OutDebug("Routes data: %+v", mroutes)
 	}
 
 	return routes_json

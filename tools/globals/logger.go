@@ -1,7 +1,7 @@
 package grid_globals
 
 import (
-	//"fmt"
+	"fmt"
 	"io"
 	"log"
 	"os"
@@ -81,27 +81,24 @@ func OutDebug(a ...interface{}) {
 }
 
 func OutDebug2(target string, a ...interface{}) {
-	/*
-		defer func() {
-			if pan := recover(); pan != nil {
-				Outlog3(LOG_GSLB, "Panic logger OutDebug2: %s", pan)
-			}
-		}()
-	*/
+	defer func() {
+		if pan := recover(); pan != nil {
+			Outlog3(LOG_GSLB, "Panic logger OutDebug2: %s", pan)
+		}
+	}()
 
 	if Debug {
 		*LogChan3 <- map[string][]interface{}{target: a}
 	}
 
-	/* Performance decrease a lot
+	/* Performance decrease a lot when debug querying */
 	Apilog.Clock.RLock()
-	if Apilog.Goid == GoID() && Apilog.Chan != nil {
+	if Apilog.Chan != nil && Apilog.Goid == GoID() {
 		if len(*Apilog.Chan) < cap(*Apilog.Chan) {
 			*Apilog.Chan <- fmt.Sprintf(a[0].(string), a[1:]...)
 		}
 	}
 	Apilog.Clock.RUnlock()
-	*/
 }
 
 func NewLogger(path *string) (*Grid_Logger, error) {
