@@ -68,6 +68,7 @@ var amqp_uri string
 var amqp_center string
 var compress bool
 var randomrr bool
+var http_engine string
 
 func read_conf() {
 	viper.SupportedExts = append(viper.SupportedExts, "conf")
@@ -195,6 +196,12 @@ func read_conf() {
 			acprefix = "MMY"
 		} else {
 			acprefix = _acprefix
+		}
+		_http_engine := viper.GetString("gslb.http_engine")
+		if _http_engine == "" {
+			http_engine = "fasthttp"
+		} else {
+			http_engine = _http_engine
 		}
 		_cutoff_percent := viper.GetInt("gslb.cutoff_percent")
 		if _cutoff_percent < 80 {
@@ -434,6 +441,7 @@ func main() {
 
 			H.HTTP_Cache_Size = http_cache_size
 			H.HTTP_Cache_TTL = int64(http_cache_ttl)
+			H.HTTP_Engine = http_engine
 
 			//init dns workers & http workers
 			var name, secret string

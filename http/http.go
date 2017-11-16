@@ -10,6 +10,7 @@ import (
 	"github.com/valyala/fasthttp"
 	"github.com/valyala/fasthttp/reuseport"
 	"net"
+	"net/http"
 	"strconv"
 	"strings"
 	"sync"
@@ -19,6 +20,7 @@ import (
 var (
 	HTTP_Cache_Size int
 	HTTP_Cache_TTL  int64
+	HTTP_Engine     string
 )
 
 type HTTP_worker struct {
@@ -27,6 +29,7 @@ type HTTP_worker struct {
 	Ipdb      *IP.IP_db
 	Rtdb      *RT.Route_db
 	Server    *fasthttp.Server
+	Server0   *http.Server
 	Handlers  map[string]interface{}
 	Cache     map[string]HTTP_Cache_Record
 	CacheSize int
@@ -34,6 +37,7 @@ type HTTP_worker struct {
 }
 
 type HTTP_Cache_Record struct {
+	AAA  *[]string
 	Data *[]byte
 	TS   int64
 }
@@ -47,7 +51,14 @@ func (hw *HTTP_worker) Handler(ctx *fasthttp.RequestCtx) {
 	}
 }
 
-func (hw *HTTP_worker) GetCache(dn, ipac, key string) *[]byte {
+func (hw *HTTP_worker) Handler0() *http.ServeMux {
+	mux := http.NewServeMux()
+	mux.HandleFunc("/", hw.Http3020)
+	mux.HandleFunc("/dns", hw.HttpDns0)
+	return mux
+}
+
+func (hw *HTTP_worker) GetCache(dn, ipac, key string) *HTTP_Cache_Record {
 
 	hw.CacheLock.RLock()
 	b := hw.Cache[dn+"#"+ipac+"#"+key]
@@ -58,13 +69,13 @@ func (hw *HTTP_worker) GetCache(dn, ipac, key string) *[]byte {
 			//cache data expired
 			return nil
 		} else {
-			return b.Data
+			return &b
 		}
 	}
 	return nil
 }
 
-func (hw *HTTP_worker) UpdateCache(dn, ipac, key string, b *[]byte) {
+func (hw *HTTP_worker) UpdateCache(dn, ipac, key string, a *[]string, b *[]byte) {
 	hw.CacheLock.Lock()
 	if b == nil {
 		delete(hw.Cache, dn+"#"+ipac+"#"+key)
@@ -80,7 +91,7 @@ func (hw *HTTP_worker) UpdateCache(dn, ipac, key string, b *[]byte) {
 				break
 			}
 		}
-		hw.Cache[dn+"#"+ipac+"#"+key] = HTTP_Cache_Record{Data: b, TS: time.Now().Unix()}
+		hw.Cache[dn+"#"+ipac+"#"+key] = HTTP_Cache_Record{AAA: a, Data: b, TS: time.Now().Unix()}
 		hw.CacheSize += 1
 	}
 	hw.CacheLock.Unlock()
@@ -106,8 +117,7 @@ func (hw *HTTP_worker) Http302(ctx *fasthttp.RequestCtx) {
 	if _dn != nil {
 		dom = string(_dn)
 		if strings.Contains(dom, ":") {
-			dna := strings.Split(dom, ":")
-			dn = dna[0]
+			dn = strings.Split(dom, ":")[0]
 		} else {
 			dn = dom
 		}
@@ -140,10 +150,160 @@ func (hw *HTTP_worker) Http302(ctx *fasthttp.RequestCtx) {
 	}
 }
 
+func (hw *HTTP_worker) Http3020(w http.ResponseWriter, r *http.Request) {
+	var dn, ac, ips, dom string
+	var ip net.IP
+
+	defer func() {
+		if pan := recover(); pan != nil {
+			G.Outlog3(G.LOG_GSLB, "Panic HttpDns: %s", pan)
+		}
+	}()
+
+	w.Header().Set("Content-Type", "text/pain; charset=utf-8")
+
+	ips = strings.Split(r.RemoteAddr, ":")[0]
+	ip = net.ParseIP(ips)
+	ac = hw.Ipdb.GetAreaCode(ip)
+
+	_dn := r.Host
+	if _dn != "" {
+		dom = _dn
+		if strings.Contains(dom, ":") {
+			dn = strings.Split(dom, ":")[0]
+		} else {
+			dn = dom
+		}
+	} else {
+		dom = ""
+		dn = ""
+	}
+
+	aaa, _, _, _, _, _, _ := hw.Rtdb.GetAAA(dn, ac, ip, 0)
+
+	url := r.URL.String()
+	uria := strings.Split(url, dom)
+	uri := ""
+
+	if aaa != nil && len(aaa) > 0 {
+		if len(uria) > 1 {
+			uri = uria[1]
+		} else {
+			uri = url
+		}
+
+		w.Header().Set("Location", "http://"+aaa[0]+"/"+dn+uri)
+		w.WriteHeader(http.StatusFound)
+
+		G.Outlog3(G.LOG_HTTP, "Http302 %s %s %s %s", ip, dn, url, aaa[0])
+	} else {
+		w.Write([]byte("service unavalible"))
+
+		G.Outlog3(G.LOG_HTTP, "Http302 %s %s %s nil", ip, dn, url)
+	}
+}
+func (hw *HTTP_worker) HttpDns0(w http.ResponseWriter, r *http.Request) {
+	var err error
+	var body *HTTP_Cache_Record
+	var data []byte
+	var dn, ips, ac, ipac, key, aip string
+	var client_ip, ip net.IP
+	var debug int = 0
+	var buf bytes.Buffer
+	var b []byte
+
+	defer func() {
+		if pan := recover(); pan != nil {
+			G.Outlog3(G.LOG_GSLB, "Panic HttpDns: %s", pan)
+		}
+	}()
+
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+
+	if dna := r.URL.Query()["domain"]; dna == nil {
+		w.Write([]byte("param error"))
+		return
+	} else {
+		dn = dna[0]
+	}
+
+	client_ip = net.ParseIP(strings.Split(r.RemoteAddr, ":")[0])
+	if ipa := r.URL.Query()["ip"]; ipa == nil {
+		ip = client_ip
+		ips = client_ip.String()
+	} else {
+		ips = ipa[0]
+		ip = net.ParseIP(ips)
+	}
+
+	ipac = ips
+	if aca := r.URL.Query()["ac"]; aca == nil {
+		ac = hw.Ipdb.GetAreaCode(ip)
+	} else {
+		debug = 2
+		ipac = aca[0]
+	}
+
+	aeh := r.Header["Accept-Encoding"]
+	if aeh != nil {
+		if strings.Contains(aeh[0], "gzip") {
+			w.Header().Set("Content-Encoding", "gzip")
+			key = "gzip"
+		} else {
+			key = "nc"
+		}
+	} else {
+		key = "nc"
+	}
+
+	if body = hw.GetCache(dn, ipac, key); body == nil {
+
+		aaa, ttl, _type, _, _, _, _ := hw.Rtdb.GetAAA(dn, ac, ip, debug)
+		if aaa == nil {
+			aaa = []string{""}
+		} else if len(aaa) == 0 {
+			aaa = []string{""}
+		}
+		aip = aaa[0]
+
+		if _type == "" {
+			_type = "A"
+		}
+
+		_dns_info := []string{_type, strconv.Itoa(int(ttl))}
+		_dns_info = append(_dns_info, aaa...)
+
+		data, err = json.Marshal(map[string]map[string]map[string][]string{"dns": {dn: {ipac: _dns_info}}})
+		if err == nil {
+			w.Header().Set("X-Gslb-Cache", "Miss")
+			if key == "gzip" {
+				g := gzip.NewWriter(&buf)
+				g.Write(data)
+				g.Close()
+
+				b = buf.Bytes()
+				w.Write(b)
+				hw.UpdateCache(dn, ipac, key, &aaa, &b)
+			} else {
+				w.Write(data)
+				hw.UpdateCache(dn, ipac, key, &aaa, &data)
+			}
+		} else {
+			w.Write([]byte("data error"))
+		}
+	} else {
+		w.Header().Set("X-Gslb-Cache", "Hit")
+		w.Write(*body.Data)
+		aip = (*body.AAA)[0]
+	}
+
+	G.Outlog3(G.LOG_HTTP, "HttpDns %s %s %s %s", client_ip.String(), dn, ipac, aip)
+}
+
 //HTTP DNS
 func (hw *HTTP_worker) HttpDns(ctx *fasthttp.RequestCtx) {
 	var err error
-	var body *[]byte
+	var body *HTTP_Cache_Record
 	var data []byte
 	var dn, ips, ac, ipac, key, aip string
 	var client_ip, ip net.IP
@@ -219,17 +379,18 @@ func (hw *HTTP_worker) HttpDns(ctx *fasthttp.RequestCtx) {
 
 				b = buf.Bytes()
 				ctx.Write(b)
-				hw.UpdateCache(dn, ipac, key, &b)
+				hw.UpdateCache(dn, ipac, key, &aaa, &b)
 			} else {
 				ctx.Write(data)
-				hw.UpdateCache(dn, ipac, key, &data)
+				hw.UpdateCache(dn, ipac, key, &aaa, &data)
 			}
 		} else {
 			ctx.Write([]byte("data error"))
 		}
 	} else {
 		ctx.Response.Header.Set("X-Gslb-Cache", "Hit")
-		ctx.Write(*body)
+		ctx.Write(*body.Data)
+		aip = (*body.AAA)[0]
 	}
 
 	G.Outlog3(G.LOG_HTTP, "HttpDns %s %s %s %s", client_ip.String(), dn, ipac, aip)
@@ -256,16 +417,27 @@ func Working(myname, listen string, port string, num int, ipdb *IP.IP_db, rtdb *
 	} else {
 		defer listener.Close()
 
-		worker.Server = &fasthttp.Server{
-			Handler:              worker.Handler,
-			Name:                 myname,
-			ReadTimeout:          10 * time.Second,
-			WriteTimeout:         10 * time.Second,
-			MaxKeepaliveDuration: 10 * time.Second,
-		}
-
-		if err := worker.Server.Serve(listener); err != nil {
-			G.OutDebug2(G.LOG_GSLB, "Failed to serve: %s", err)
+		if HTTP_Engine == "fasthttp" {
+			worker.Server = &fasthttp.Server{
+				Handler:              worker.Handler,
+				Name:                 myname,
+				ReadTimeout:          10 * time.Second,
+				WriteTimeout:         10 * time.Second,
+				MaxKeepaliveDuration: 10 * time.Second,
+			}
+			if err := worker.Server.Serve(listener); err != nil {
+				G.OutDebug2(G.LOG_GSLB, "Failed to serve: %s", err)
+			}
+		} else if HTTP_Engine == "gohttp" {
+			worker.Server0 = &http.Server{
+				Handler:      worker.Handler0(),
+				ReadTimeout:  10 * time.Second,
+				WriteTimeout: 10 * time.Second,
+				IdleTimeout:  10 * time.Second,
+			}
+			if err := worker.Server0.Serve(listener); err != nil {
+				G.OutDebug2(G.LOG_GSLB, "Failed to serve: %s", err)
+			}
 		}
 	}
 
