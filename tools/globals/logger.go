@@ -6,6 +6,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"runtime"
 	"sync"
 	"time"
 )
@@ -33,7 +34,7 @@ var Apilog *ApiLog
 var Apilog_Lock *sync.RWMutex
 
 type ApiLog struct {
-	Goid  int
+	Goid  int64
 	Chan  *chan string
 	Clock *sync.RWMutex
 }
@@ -93,7 +94,7 @@ func OutDebug2(target string, a ...interface{}) {
 
 	/* Performance decrease a lot when debug querying */
 	Apilog.Clock.RLock()
-	if Apilog.Chan != nil && Apilog.Goid == GoID() {
+	if Apilog.Chan != nil && Apilog.Goid == runtime.Goid() {
 		if len(*Apilog.Chan) < cap(*Apilog.Chan) {
 			*Apilog.Chan <- fmt.Sprintf(a[0].(string), a[1:]...)
 		}

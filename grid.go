@@ -55,8 +55,10 @@ var deny_percent int
 var ip_cache_ttl int
 var rt_cache_ttl int
 var rr_cache_ttl int
+var http_cache_ttl int
 var ip_cache_size int
 var rt_cache_size int
+var http_cache_size int
 var log_buf_size int
 var log_enable bool
 var state_recv bool
@@ -225,16 +227,28 @@ func read_conf() {
 			rt_cache_ttl = _rt_cache_ttl
 		}
 		_rr_cache_ttl := viper.GetInt("gslb.rr_cache_ttl")
-		if _rr_cache_ttl == 0 {
-			rr_cache_ttl = 0
+		if _rr_cache_ttl < 10 {
+			rr_cache_ttl = 10
 		} else {
 			rr_cache_ttl = _rr_cache_ttl
+		}
+		_http_cache_ttl := viper.GetInt("gslb.http_cache_ttl")
+		if _http_cache_ttl < 0 {
+			http_cache_ttl = 10
+		} else {
+			http_cache_ttl = _http_cache_ttl
 		}
 		_rt_cache_size := viper.GetInt("gslb.rt_cache_size")
 		if _rt_cache_size < 1000 {
 			rt_cache_size = 1000
 		} else {
 			rt_cache_size = _rt_cache_size
+		}
+		_http_cache_size := viper.GetInt("gslb.http_cache_size")
+		if _http_cache_size < 1000 {
+			http_cache_size = 1000
+		} else {
+			http_cache_size = _http_cache_size
 		}
 		_log_buf_size := viper.GetInt("gslb.log_buf_size")
 		if _log_buf_size < 1000 {
@@ -418,7 +432,10 @@ func main() {
 			D.IP_DN_Spliter = ip_dn_spliter
 			D.AC_DN_Spliter = ac_dn_spliter
 
-			//init dns  workers & http workers
+			H.HTTP_Cache_Size = http_cache_size
+			H.HTTP_Cache_TTL = int64(http_cache_ttl)
+
+			//init dns workers & http workers
 			var name, secret string
 			for i := 0; i < num_cpus; i++ {
 				//dns worker

@@ -358,7 +358,9 @@ func (rt_db *Route_db) GetAAA(query_dn string, acode string, ip net.IP,
 		} else {
 			sr := rt_db.Read_Server_Record(sid)
 			aaa[i] = sr.ServerIp
-			G.OutDebug2(G.LOG_SCHEDULER, "Server: %s(%d) of Node: %d", sr.ServerIp, sr.ServerId, sr.NodeId)
+
+			G.OutDebug2(G.LOG_SCHEDULER, "Server: %s(%d) of Node: %d (u:%d w:%d s:%t)",
+				sr.ServerIp, sr.ServerId, sr.NodeId, sr.Usage, sr.Weight, sr.Status)
 		}
 	}
 

@@ -6,6 +6,7 @@ import (
 	G "3grid/tools/globals"
 	"encoding/json"
 	"net"
+	"runtime"
 	"strconv"
 	"time"
 )
@@ -66,7 +67,7 @@ func (c *Cmds) Get(msg *AMQP_Message) error {
 			_dns_info = append(_dns_info, aaa...)
 			_msg1 = map[string]map[string]map[string][]string{"Dns": {p["Domain"]: {p["Ip"]: _dns_info}}}
 		case "Dns_debug":
-			_my_goid := G.GoID()
+			_my_goid := runtime.Goid()
 
 			//only one Dns_debug request can be run at a same time
 			G.Apilog_Lock.Lock()
