@@ -160,6 +160,7 @@ func (hw *HTTP_worker) Http3020(w http.ResponseWriter, r *http.Request) {
 	}()
 
 	w.Header().Set("Content-Type", "text/pain; charset=utf-8")
+	w.Header().Set("Server", hw.Name)
 
 	ips = strings.Split(r.RemoteAddr, ":")[0]
 	ip = net.ParseIP(ips)
@@ -315,6 +316,7 @@ func (hw *HTTP_worker) HttpDns0(w http.ResponseWriter, r *http.Request) {
 	}()
 
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.Header().Set("Server", hw.Name)
 
 	if dna := r.URL.Query()["domain"]; dna == nil {
 		w.Write([]byte("param error"))

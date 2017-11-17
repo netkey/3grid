@@ -5,6 +5,7 @@ import (
 	RT "3grid/route"
 	G "3grid/tools/globals"
 	"flag"
+	"github.com/kavu/go_reuseport"
 	"github.com/miekg/dns"
 	"net"
 	"strconv"
@@ -307,6 +308,8 @@ func (wkr *DNS_worker) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
 
 func Working(nets, listen, port, name, secret string, num int, ipdb *IP.IP_db, rtdb *RT.Route_db) {
 
+	var err error
+
 	worker := DNS_worker{}
 	worker.Id = num
 	worker.Ipdb = ipdb
@@ -356,7 +359,11 @@ func Working(nets, listen, port, name, secret string, num int, ipdb *IP.IP_db, r
 		}
 	}
 
-	if err := worker.Server.ListenAndServe(); err != nil {
+	if worker.Server.PacketConn, err = reuseport.ListenPacket(nets, listen+":"+port); err != nil {
+		G.OutDebug("Failed to listen port: %s", err)
+	}
+
+	if err = worker.Server.ActivateAndServe(); err != nil {
 		G.OutDebug("Failed to setup the "+nets+" server: %s", err)
 	}
 }
