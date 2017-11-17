@@ -218,8 +218,8 @@ func TestGrid(t *testing.T) {
 		}
 
 		x := float64(fail_counter * 100.0 / (1.0 * test_counter))
-		if x > 5 {
-			// <95% match, test fail
+		if x > 10 {
+			// <90% match, test fail
 			t.Errorf("Test resolving ip failed with %+v%% of data unmatched", x)
 		} else {
 			t.Logf("Test resolving ip successed with %+v%% of data unmatched", x)

@@ -69,7 +69,7 @@ func TestGetAAA2(t *testing.T) {
 		_type = "CDN"
 	}
 
-	if aaa != nil && aaa[0] == "127.0.0.1" {
+	if aaa != nil && len(aaa) > 0 && aaa[0] == "127.0.0.1" {
 		ok = false
 	}
 

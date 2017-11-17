@@ -452,14 +452,20 @@ func (rt_db *Route_db) Match_Local_AC(nr *Node_List_Record, client_ac string, ch
 
 func (rt_db *Route_db) ChooseNodeS(nodes map[uint]PW_List_Record, matched_ac, client_ac string, dr *Domain_List_Record, status_check bool) (Node_List_Record, Node_List_Record) {
 	var p, s Node_List_Record
-	var _nrecords uint
+	var _nrecords, _narecords uint
 
 	_nrecords = dr.Records
 
 	p, s = rt_db.ChooseNode(nodes, matched_ac, client_ac, dr, 0, status_check)
 
 	if p.NodeId != 0 && s.NodeId == 0 {
-		if _nrecords > uint(len(p.ServerList)) {
+		for _, sid := range p.ServerList {
+			sr := rt_db.Read_Server_Record(sid)
+			if sr.Status == true {
+				_narecords += 1
+			}
+		}
+		if _nrecords > uint(len(p.ServerList)) || _nrecords > _narecords {
 			s, _ = rt_db.ChooseNode(nodes, matched_ac, client_ac, dr, p.NodeId, status_check)
 		}
 	}
