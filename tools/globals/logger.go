@@ -92,7 +92,7 @@ func OutDebug2(target string, a ...interface{}) {
 		*LogChan3 <- map[string][]interface{}{target: a}
 	}
 
-	/* Performance decrease a lot when debug querying */
+	/* Performance decrease when debug querying */
 	Apilog.Clock.RLock()
 	if Apilog.Chan != nil && Apilog.Goid == runtime.Goid() {
 		if len(*Apilog.Chan) < cap(*Apilog.Chan) {
