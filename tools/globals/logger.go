@@ -29,7 +29,7 @@ var LogBufSize int
 var Logger *Grid_Logger
 var LogChan *chan map[string]string
 var LogChan3 *chan map[string][]interface{}
-var LogChan4 *chan []interface{}
+var LogChan4 *chan map[int64][]interface{}
 
 var Apilog *ApiLog
 var Apilog_Lock *sync.RWMutex
@@ -47,7 +47,7 @@ type Grid_Logger struct {
 	Loggers map[string]*log.Logger
 	Chan    chan map[string]string
 	Chan3   chan map[string][]interface{}
-	Chan4   chan []interface{}
+	Chan4   chan map[int64][]interface{}
 	Locks   map[string]*sync.RWMutex
 }
 
@@ -95,7 +95,7 @@ func OutDebug2(target string, a ...interface{}) {
 	}
 
 	//output api debug log
-	*LogChan4 <- []interface{}{a}
+	*LogChan4 <- map[int64][]interface{}{runtime.Goid(): a}
 
 }
 
@@ -150,7 +150,7 @@ func NewLogger(path *string) (*Grid_Logger, error) {
 
 	lg.Chan = make(chan map[string]string, LogBufSize)
 	lg.Chan3 = make(chan map[string][]interface{}, LogBufSize)
-	lg.Chan4 = make(chan []interface{}, LogBufSize)
+	lg.Chan4 = make(chan map[int64][]interface{}, LogBufSize)
 
 	return &lg, err
 }
@@ -197,15 +197,17 @@ func (lg *Grid_Logger) Output4() {
 	}()
 
 	for {
-		a := <-lg.Chan4
-		/* Performance decrease when debug querying */
-		Apilog.Clock.RLock()
-		if Apilog.Chan != nil && Apilog.Goid == runtime.Goid() {
-			if len(*Apilog.Chan) < cap(*Apilog.Chan) {
-				*Apilog.Chan <- fmt.Sprintf(a[0].(string), a[1:]...)
+		m := <-lg.Chan4
+		/* Performance may decrease when debug querying */
+		for goid, a := range m {
+			Apilog.Clock.RLock()
+			if Apilog.Chan != nil && Apilog.Goid == goid {
+				if len(*Apilog.Chan) < cap(*Apilog.Chan) {
+					*Apilog.Chan <- fmt.Sprintf(a[0].(string), a[1:]...)
+				}
 			}
+			Apilog.Clock.RUnlock()
 		}
-		Apilog.Clock.RUnlock()
 	}
 }
 

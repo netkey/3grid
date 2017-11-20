@@ -277,7 +277,7 @@ func (rt_db *Route_db) GetAAA(query_dn string, acode string, ip net.IP,
 		for _, v := range rp {
 			rid = v
 
-			G.OutDebug2("Searching route plan:%d", rid)
+			G.OutDebug2(G.LOG_SCHEDULER, "Searching route plan: %d", rid)
 
 			//find a longest matched AC of this route plan
 			_ac, rr = rt_db.Match_AC_RR(ac, rid)
