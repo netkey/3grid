@@ -234,6 +234,7 @@ func (rt_db *Route_db) GetAAA(query_dn string, acode string, ip net.IP,
 		ttl = uint32(dr.TTL)
 		_type = dr.Type
 	} else {
+		//no domain record found
 		return aaa, ttl, _type, false, _ac, rid, dn
 	}
 
@@ -276,7 +277,7 @@ func (rt_db *Route_db) GetAAA(query_dn string, acode string, ip net.IP,
 		for _, v := range rp {
 			rid = v
 
-			G.OutDebug("Searching route plan:%d", rid)
+			G.OutDebug2("Searching route plan:%d", rid)
 
 			//find a longest matched AC of this route plan
 			_ac, rr = rt_db.Match_AC_RR(ac, rid)
@@ -325,14 +326,13 @@ func (rt_db *Route_db) GetAAA(query_dn string, acode string, ip net.IP,
 		}
 	}
 
-	//G.OutDebug2(G.LOG_ROUTE, "GETAAA ac:%s, matched ac:%s, rid:%d, noder_p:%+v node_s:%+v", ac, _ac, rid, cnr, snr)
-
 	if nid == 0 {
 		//cache the fail rusult for a few seconds
 		rt_db.Update_Cache_Record(query_dn, client_ac,
 			&RT_Cache_Record{TS: time.Now().Unix(), TTL: 5, RR_TTL: uint32(RR_Cache_TTL),
 				AAA: aaa, TYPE: _type, RID: rid, MAC: _ac})
 
+		//no nodes available
 		return aaa, ttl, _type, false, _ac, rid, dn
 	}
 
@@ -359,15 +359,17 @@ func (rt_db *Route_db) GetAAA(query_dn string, acode string, ip net.IP,
 			sr := rt_db.Read_Server_Record(sid)
 			aaa[i] = sr.ServerIp
 
-			G.OutDebug2(G.LOG_SCHEDULER, "Server: %s(%d) of Node: %d (u:%d w:%d s:%t)",
+			G.OutDebug2(G.LOG_SCHEDULER, "Select server: %s(%d) of Node: %d (u:%d w:%d s:%t)",
 				sr.ServerIp, sr.ServerId, sr.NodeId, sr.Usage, sr.Weight, sr.Status)
 		}
 	}
 
+	//cache results for RR_TTL or domain ttl
 	rt_db.Update_Cache_Record(query_dn, client_ac,
 		&RT_Cache_Record{TS: time.Now().Unix(), TTL: ttl, RR_TTL: uint32(RR_Cache_TTL),
 			AAA: aaa, TYPE: _type, RID: rid, MAC: _ac})
 
+	//found one or two node(s), aaa stores ip of servers
 	return aaa, ttl, _type, true, _ac, rid, dn
 }
 
@@ -459,13 +461,18 @@ func (rt_db *Route_db) ChooseNodeS(nodes map[uint]PW_List_Record, matched_ac, cl
 	p, s = rt_db.ChooseNode(nodes, matched_ac, client_ac, dr, 0, status_check)
 
 	if p.NodeId != 0 && s.NodeId == 0 {
+		//only one node returned
+
+		//check if primary node's servers are enough
 		for _, sid := range p.ServerList {
 			sr := rt_db.Read_Server_Record(sid)
 			if sr.Status == true {
 				_narecords += 1
 			}
 		}
+
 		if _nrecords > uint(len(p.ServerList)) || _nrecords > _narecords {
+			//not enough, get secondary node
 			s, _ = rt_db.ChooseNode(nodes, matched_ac, client_ac, dr, p.NodeId, status_check)
 		}
 	}

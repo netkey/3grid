@@ -382,9 +382,11 @@ func main() {
 				} else {
 					G.LogChan = &G.Logger.Chan
 					G.LogChan3 = &G.Logger.Chan3
+					G.LogChan4 = &G.Logger.Chan4
 
 					go G.Logger.Output()
 					go G.Logger.Output3()
+					go G.Logger.Output4()
 					go G.Logger.Checklogs()
 
 					if G.Debug {

@@ -29,6 +29,7 @@ var LogBufSize int
 var Logger *Grid_Logger
 var LogChan *chan map[string]string
 var LogChan3 *chan map[string][]interface{}
+var LogChan4 *chan []interface{}
 
 var Apilog *ApiLog
 var Apilog_Lock *sync.RWMutex
@@ -46,6 +47,7 @@ type Grid_Logger struct {
 	Loggers map[string]*log.Logger
 	Chan    chan map[string]string
 	Chan3   chan map[string][]interface{}
+	Chan4   chan []interface{}
 	Locks   map[string]*sync.RWMutex
 }
 
@@ -92,14 +94,9 @@ func OutDebug2(target string, a ...interface{}) {
 		*LogChan3 <- map[string][]interface{}{target: a}
 	}
 
-	/* Performance decrease when debug querying */
-	Apilog.Clock.RLock()
-	if Apilog.Chan != nil && Apilog.Goid == runtime.Goid() {
-		if len(*Apilog.Chan) < cap(*Apilog.Chan) {
-			*Apilog.Chan <- fmt.Sprintf(a[0].(string), a[1:]...)
-		}
-	}
-	Apilog.Clock.RUnlock()
+	//output api debug log
+	*LogChan4 <- []interface{}{a}
+
 }
 
 func NewLogger(path *string) (*Grid_Logger, error) {
@@ -153,6 +150,7 @@ func NewLogger(path *string) (*Grid_Logger, error) {
 
 	lg.Chan = make(chan map[string]string, LogBufSize)
 	lg.Chan3 = make(chan map[string][]interface{}, LogBufSize)
+	lg.Chan4 = make(chan []interface{}, LogBufSize)
 
 	return &lg, err
 }
@@ -188,6 +186,26 @@ func (lg *Grid_Logger) Output3() {
 			lg.Loggers[to].Printf(lines[0].(string), lines[1:]...)
 			lg.Locks[to].Unlock()
 		}
+	}
+}
+
+func (lg *Grid_Logger) Output4() {
+	defer func() {
+		if pan := recover(); pan != nil {
+			Outlog3(LOG_GSLB, "Panic logger ouput4: %s", pan)
+		}
+	}()
+
+	for {
+		a := <-lg.Chan4
+		/* Performance decrease when debug querying */
+		Apilog.Clock.RLock()
+		if Apilog.Chan != nil && Apilog.Goid == runtime.Goid() {
+			if len(*Apilog.Chan) < cap(*Apilog.Chan) {
+				*Apilog.Chan <- fmt.Sprintf(a[0].(string), a[1:]...)
+			}
+		}
+		Apilog.Clock.RUnlock()
 	}
 }
 
