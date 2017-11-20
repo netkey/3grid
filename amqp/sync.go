@@ -338,7 +338,7 @@ func Transmsg(_msg []byte, _am *AMQP_Message) error {
 	return nil
 }
 
-func Sendmsg2(_type, _command string, _param *map[string]string, _obj string, _msg1 *map[string]map[string]map[string][]string, _msg2 string, _replyto string, _replyid uint) error {
+func Sendmsg2(_type, _command string, _param *map[string]string, _obj string, _msg1 *map[string]map[string]map[string][]string, _msg2 string, _replyto string, _replyid uint, do_zip bool) error {
 	var err error
 	var jam []byte
 	var target, exchange string
@@ -360,6 +360,11 @@ func Sendmsg2(_type, _command string, _param *map[string]string, _obj string, _m
 		Msg2:    _msg2,
 		Gzip:    false,
 		Ack:     false,
+	}
+
+	if do_zip {
+		am.Msg2 = Zipmsg2(_msg1)
+		am.Msg1 = &map[string]map[string]map[string][]string{"1": {"1": {"1": {""}}}}
 	}
 
 	switch _type {
@@ -399,4 +404,22 @@ func Sendmsg2(_type, _command string, _param *map[string]string, _obj string, _m
 	)
 
 	return nil
+}
+
+func Zipmsg2(msg *map[string]map[string]map[string][]string) string {
+	var err error
+	var zbuf bytes.Buffer
+	var jsm []byte
+
+	if jsm, err = json.Marshal(*msg); err != nil {
+		return ""
+	}
+
+	zw := gzip.NewWriter(&zbuf)
+	zw.Write(jsm)
+	zw.Flush()
+	zw.Close()
+
+	return base64.StdEncoding.EncodeToString(zbuf.Bytes())
+
 }
