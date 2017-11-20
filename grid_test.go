@@ -8,6 +8,7 @@ import (
 	"net"
 	"os"
 	"strings"
+	"sync"
 	"testing"
 )
 
@@ -44,6 +45,14 @@ func init_log(t *testing.T) {
 	G.LogBufSize = 1000
 
 	dir := "/dev/shm"
+
+	{
+		//init api log
+		G.Apilog_Lock = new(sync.RWMutex)
+
+		G.Apilog = &G.ApiLog{Goid: 0, Chan: nil, Clock: nil}
+		G.Apilog.Clock = new(sync.RWMutex)
+	}
 
 	if G.Logger, err = G.NewLogger(&dir); err == nil {
 		G.LogChan = &G.Logger.Chan

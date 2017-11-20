@@ -128,10 +128,11 @@ func (hw *HTTP_worker) Http302(ctx *fasthttp.RequestCtx) {
 	aaa, _, _, _, _, _, _ := hw.Rtdb.GetAAA(dn, ac, ip, 0)
 
 	url := ctx.URI().String()
-	uria := strings.Split(url, dom)
-	uri := ""
 
 	if aaa != nil && len(aaa) > 0 {
+		uria := strings.Split(url, dom)
+		uri := ""
+
 		if len(uria) > 1 {
 			uri = uria[1]
 		} else {
@@ -141,8 +142,9 @@ func (hw *HTTP_worker) Http302(ctx *fasthttp.RequestCtx) {
 		ctx.Response.Header.Set("Location", "http://"+aaa[0]+"/"+dn+uri)
 		ctx.SetStatusCode(fasthttp.StatusFound)
 
-		G.Outlog3(G.LOG_HTTP, "Http302 %s %s %s", ip, url, aaa[0])
+		G.Outlog3(G.LOG_HTTP, "302 %s %s %s", ip, url, aaa[0])
 	} else {
+		ctx.SetStatusCode(fasthttp.StatusServiceUnavailable)
 		ctx.Write([]byte("service unavalible"))
 
 		G.Outlog3(G.LOG_HTTP, "302 %s %s nil", ip, url)
@@ -182,10 +184,11 @@ func (hw *HTTP_worker) Http3020(w http.ResponseWriter, r *http.Request) {
 	aaa, _, _, _, _, _, _ := hw.Rtdb.GetAAA(dn, ac, ip, 0)
 
 	url := r.URL.String()
-	uria := strings.Split(url, dom)
-	uri := ""
 
 	if aaa != nil && len(aaa) > 0 {
+		uria := strings.Split(url, dom)
+		uri := ""
+
 		if len(uria) > 1 {
 			uri = uria[1]
 		} else {
@@ -195,8 +198,9 @@ func (hw *HTTP_worker) Http3020(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Location", "http://"+aaa[0]+"/"+dn+uri)
 		w.WriteHeader(http.StatusFound)
 
-		G.Outlog3(G.LOG_HTTP, "Http302 %s %s %s %s", ip, dn, url, aaa[0])
+		G.Outlog3(G.LOG_HTTP, "302 %s %s %s %s", ip, dn, url, aaa[0])
 	} else {
+		w.WriteHeader(http.StatusServiceUnavailable)
 		w.Write([]byte("service unavalible"))
 
 		G.Outlog3(G.LOG_HTTP, "302 %s %s %s nil", ip, dn, url)
