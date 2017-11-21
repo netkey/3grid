@@ -132,31 +132,51 @@ func (c *Cmds) Get(msg *AMQP_Message) error {
 			for _, rid := range dr.RoutePlan {
 				//walk through routes
 				RT.Rtdb.Locks["routes"].RLock()
-				for ac, rps := range RT.Rtdb.Routes {
-					for _rid, _ := range rps {
-						if _rid != rid {
-							continue
-						}
-						//ac:CT.CN.GD.FS  acs:0.1.2.3
-						if acs := strings.Split(ac, "."); len(acs) > 3 {
-							if r[acs[0]] == nil {
-								n[acs[0]] = map[string]map[string][]uint{}
-								r[acs[0]] = map[string]map[string][]string{}
+				for ac, _ := range RT.Rtdb.Routes {
+					rr := RT.Rtdb.Read_Route_Record(ac, rid)
+					if rr.Nodes == nil {
+						continue
+					}
+					a := ""
+					b := ""
+					c := ""
+					//ac:CTC.CN.HAN.GD  acs:0.1.2.3
+					if acs := strings.Split(ac, "."); len(acs) > 0 {
+						if len(acs) > 0 {
+							a = acs[0]
+							if r[a] == nil {
+								n[a] = map[string]map[string][]uint{}
+								r[a] = map[string]map[string][]string{}
 							}
-							if r[acs[0]][acs[2]] == nil {
-								n[acs[0]][acs[2]] = map[string][]uint{}
-								r[acs[0]][acs[2]] = map[string][]string{}
-							}
-							if r[acs[0]][acs[2]][acs[3]] == nil {
-								n[acs[0]][acs[2]][acs[3]] = []uint{}
-								r[acs[0]][acs[2]][acs[3]] = []string{}
-								if rr := RT.Rtdb.Read_Route_Record(ac, rid); rr.Nodes != nil {
-									for nid, _ := range rr.Nodes {
-										n[acs[0]][acs[2]][acs[3]] = append(n[acs[0]][acs[2]][acs[3]], nid)
-									}
-								}
+							if len(acs) == 1 || len(acs) == 2 {
+								b = "*"
+								c = "*"
+								n[a] = map[string]map[string][]uint{b: {c: {}}}
+								r[a] = map[string]map[string][]string{b: {c: {}}}
 							}
 						}
+						if len(acs) > 2 {
+							b = acs[2]
+							if r[a][b] == nil {
+								n[a][b] = map[string][]uint{}
+								r[a][b] = map[string][]string{}
+							}
+							if len(acs) == 3 {
+								c = "*"
+								n[a][b] = map[string][]uint{c: {}}
+								r[a][b] = map[string][]string{c: {}}
+							}
+						}
+						if len(acs) > 3 {
+							c = acs[3]
+							if r[a][b][c] == nil {
+								n[a][b][c] = []uint{}
+								r[a][b][c] = []string{}
+							}
+						}
+					}
+					for nid, _ := range rr.Nodes {
+						n[a][b][c] = append(n[a][b][c], nid)
 					}
 				}
 				RT.Rtdb.Locks["routes"].RUnlock()
