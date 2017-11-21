@@ -119,14 +119,16 @@ func (c *Cmds) Get(msg *AMQP_Message) error {
 			_msg1["Dns_debug"] = map[string]map[string][]string{p["Domain"]: {p["Ip"]: _debug_info}}
 
 		case "Cover":
-			n := map[string]map[string]map[string][]uint{}   //holds nodes info
-			r := map[string]map[string]map[string][]string{} //holds ip info(return results)
+			n := make(map[string]map[string]map[string][]uint)   //holds nodes info
+			r := make(map[string]map[string]map[string][]string) //holds ip info(return results)
 
 			dn := p["Domain"]
 			dr := RT.Rtdb.Read_Domain_Record(dn)
 
 			if dr.RoutePlan == nil {
 				break
+			} else {
+				G.Outlog3(G.LOG_API, "Cover Route Plan: %+v", dr.RoutePlan)
 			}
 
 			for _, rid := range dr.RoutePlan {
@@ -137,51 +139,58 @@ func (c *Cmds) Get(msg *AMQP_Message) error {
 					if rr.Nodes == nil {
 						continue
 					}
-					a := ""
-					b := ""
-					c := ""
+					a, b, c := "", "", ""
 					//ac:CTC.CN.HAN.GD  acs:0.1.2.3
-					if acs := strings.Split(ac, "."); len(acs) > 0 {
-						if len(acs) > 0 {
-							a = acs[0]
-							if r[a] == nil {
-								n[a] = map[string]map[string][]uint{}
-								r[a] = map[string]map[string][]string{}
-							}
-							if len(acs) == 1 || len(acs) == 2 {
-								b = "*"
-								c = "*"
-								n[a] = map[string]map[string][]uint{b: {c: {}}}
-								r[a] = map[string]map[string][]string{b: {c: {}}}
-							}
+					acs := strings.Split(ac, ".")
+					la := len(acs)
+					if la > 0 {
+						a = acs[0]
+						if r[a] == nil {
+							n[a] = make(map[string]map[string][]uint)
+							r[a] = make(map[string]map[string][]string)
+							G.Outlog3(G.LOG_API, "Cover: nil a:%s n:%+v", a, n[a])
 						}
-						if len(acs) > 2 {
-							b = acs[2]
-							if r[a][b] == nil {
-								n[a][b] = map[string][]uint{}
-								r[a][b] = map[string][]string{}
-							}
-							if len(acs) == 3 {
-								c = "*"
-								n[a][b] = map[string][]uint{c: {}}
-								r[a][b] = map[string][]string{c: {}}
-							}
+						if la == 1 || la == 2 {
+							b = "*"
+							c = "*"
+							n[a] = map[string]map[string][]uint{b: {c: {}}}
+							r[a] = map[string]map[string][]string{b: {c: {}}}
 						}
-						if len(acs) > 3 {
-							c = acs[3]
-							if r[a][b][c] == nil {
-								n[a][b][c] = []uint{}
-								r[a][b][c] = []string{}
-							}
+					}
+					if la > 2 {
+						b = acs[2]
+						if r[a][b] == nil {
+							n[a][b] = make(map[string][]uint)
+							r[a][b] = make(map[string][]string)
+							G.Outlog3(G.LOG_API, "Cover: nil a:%s b:%s n:%+v", a, b, n[a][b])
+						}
+						if la == 3 {
+							c = "*"
+							n[a][b] = map[string][]uint{c: {}}
+							r[a][b] = map[string][]string{c: {}}
+						}
+					}
+					if la > 3 {
+						c = acs[3]
+						if r[a][b][c] == nil {
+							n[a][b][c] = []uint{}
+							r[a][b][c] = []string{}
+							G.Outlog3(G.LOG_API, "Cover: nil a:%s b:%s c:%s n:%+v", a, b, c, n[a][b][c])
+						} else {
+							G.Outlog3(G.LOG_API, "Cover: not nil a:%s b:%s c:%s %+v", a, b, c, n[a][b][c])
+							continue
 						}
 					}
 					for nid, _ := range rr.Nodes {
+						//append node list
 						n[a][b][c] = append(n[a][b][c], nid)
 					}
+					G.Outlog3(G.LOG_API, "Cover data: rid:%d a:%s b:%s c:%s n:%+v", rid, a, b, c, n[a][b][c])
 				}
 				RT.Rtdb.Locks["routes"].RUnlock()
 			}
 
+			G.Outlog3(G.LOG_API, "Cover N: %+v", n["CMCC"])
 			for a, va := range n {
 				for b, vb := range va {
 					for c, d := range vb {
@@ -206,6 +215,7 @@ func (c *Cmds) Get(msg *AMQP_Message) error {
 								r[a][b][c] = append(r[a][b][c], sip)
 							}
 						}
+						//G.Outlog3(G.LOG_API, "Cover data: a:%s b:%s c:%s data:%+v", a, b, c, r[a][b][c])
 					}
 				}
 			}
