@@ -196,9 +196,13 @@ func (c *Cmds) Get(msg *AMQP_Message) error {
 
 		if err = Sendmsg2("", AMQP_CMD_DATA, &_param, AMQP_OBJ_API,
 			&_msg1, "", msg.Sender, msg.ID, true); err != nil {
-			G.Outlog3(G.LOG_API, "Error send API data(id:%d): %s", msg.ID, err)
+			if G.Debug {
+				G.Outlog3(G.LOG_API, "Error send API data(id:%d): %s", msg.ID, err)
+			}
 		} else {
-			G.Outlog3(G.LOG_API, "Sent API Cover data: to:%s id:%d", msg.Sender, msg.ID)
+			if G.Debug {
+				G.Outlog3(G.LOG_API, "Sent API Cover data: to:%s id:%d", msg.Sender, msg.ID)
+			}
 		}
 	}
 
