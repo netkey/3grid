@@ -165,21 +165,26 @@ func (c *Cmds) Get(msg *AMQP_Message) error {
 			for a, va := range n {
 				for b, vb := range va {
 					for c, d := range vb {
-						msr := make(map[string]int)
+						msr := make(map[uint]map[string]int)
 						for _, nid := range d {
 							nr := RT.Rtdb.Read_Node_Record(nid)
 							for _, sid := range nr.ServerList {
 								sr := RT.Rtdb.Read_Server_Record(sid)
 								if sr.ServerId != 0 {
 									//get rid of duplicate servers
-									msr[sr.ServerIp] = 1
+									if msr[nid] == nil {
+										msr[nid] = make(map[string]int)
+									}
+									msr[nid][sr.ServerIp] = 1
 								}
 							}
 						}
 
-						for sip, _ := range msr {
-							//append server list
-							r[a][b][c] = append(r[a][b][c], sip)
+						for _, sss := range msr {
+							for sip, _ := range sss {
+								//append server list
+								r[a][b][c] = append(r[a][b][c], sip)
+							}
 						}
 					}
 				}
