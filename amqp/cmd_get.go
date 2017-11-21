@@ -102,6 +102,7 @@ func (c *Cmds) Get(msg *AMQP_Message) error {
 			for {
 				select {
 				case logs = <-*G.Apilog.Chan:
+					//get my debug logs
 					_debug_info = append(_debug_info, logs)
 				case <-time.After(500 * time.Millisecond):
 					_time_out = true
@@ -118,67 +119,72 @@ func (c *Cmds) Get(msg *AMQP_Message) error {
 			_msg1["Dns_debug"] = map[string]map[string][]string{p["Domain"]: {p["Ip"]: _debug_info}}
 
 		case "Cover":
-			//CT.CN.GD.FS
-			n := map[string]map[string]map[string][]uint{}
-			r := map[string]map[string]map[string][]string{}
+			n := map[string]map[string]map[string][]uint{}   //holds nodes info
+			r := map[string]map[string]map[string][]string{} //holds ip info(return results)
 
 			dn := p["Domain"]
 			dr := RT.Rtdb.Read_Domain_Record(dn)
 
-			if dr.RoutePlan != nil {
+			if dr.RoutePlan == nil {
+				break
+			}
 
-				for _, rid := range dr.RoutePlan {
-					RT.Rtdb.Locks["routes"].RLock()
-					for ac, rps := range RT.Rtdb.Routes {
-						for _rid, _ := range rps {
-							if _rid == rid {
-								acs := strings.Split(ac, ".")
-								for i, a := range acs {
-									if i == 0 && r[a] == nil {
-										n[a] = map[string]map[string][]uint{}
-										r[a] = map[string]map[string][]string{}
-									}
-									if i == 2 && r[acs[0]][a] == nil {
-										n[acs[0]][a] = map[string][]uint{}
-										r[acs[0]][a] = map[string][]string{}
-									}
-									if i == 3 && r[acs[0]][acs[2]][a] == nil {
-										n[acs[0]][acs[2]][a] = []uint{}
-										r[acs[0]][acs[2]][a] = []string{}
-										if rr := RT.Rtdb.Read_Route_Record(ac, rid); rr.Nodes != nil {
-											for nid, _ := range rr.Nodes {
-												n[acs[0]][acs[2]][a] = append(n[acs[0]][acs[2]][a], nid)
-											}
-										}
+			for _, rid := range dr.RoutePlan {
+				//walk through routes
+				RT.Rtdb.Locks["routes"].RLock()
+				for ac, rps := range RT.Rtdb.Routes {
+					for _rid, _ := range rps {
+						if _rid != rid {
+							continue
+						}
+						//ac:CT.CN.GD.FS  acs:0.1.2.3
+						if acs := strings.Split(ac, "."); len(acs) > 3 {
+							if r[acs[0]] == nil {
+								n[acs[0]] = map[string]map[string][]uint{}
+								r[acs[0]] = map[string]map[string][]string{}
+							}
+							if r[acs[0]][acs[2]] == nil {
+								n[acs[0]][acs[2]] = map[string][]uint{}
+								r[acs[0]][acs[2]] = map[string][]string{}
+							}
+							if r[acs[0]][acs[2]][acs[3]] == nil {
+								n[acs[0]][acs[2]][acs[3]] = []uint{}
+								r[acs[0]][acs[2]][acs[3]] = []string{}
+								if rr := RT.Rtdb.Read_Route_Record(ac, rid); rr.Nodes != nil {
+									for nid, _ := range rr.Nodes {
+										n[acs[0]][acs[2]][acs[3]] = append(n[acs[0]][acs[2]][acs[3]], nid)
 									}
 								}
 							}
 						}
 					}
-					RT.Rtdb.Locks["routes"].RUnlock()
 				}
+				RT.Rtdb.Locks["routes"].RUnlock()
+			}
 
-				for a, va := range n {
-					for b, vb := range va {
-						for c, d := range vb {
-							msr := make(map[string]int)
-							for _, nid := range d {
-								nr := RT.Rtdb.Read_Node_Record(nid)
-								for _, sid := range nr.ServerList {
-									sr := RT.Rtdb.Read_Server_Record(sid)
+			for a, va := range n {
+				for b, vb := range va {
+					for c, d := range vb {
+						msr := make(map[string]int)
+						for _, nid := range d {
+							nr := RT.Rtdb.Read_Node_Record(nid)
+							for _, sid := range nr.ServerList {
+								sr := RT.Rtdb.Read_Server_Record(sid)
+								if sr.ServerId != 0 {
+									//get rid of duplicate servers
 									msr[sr.ServerIp] = 1
 								}
 							}
-							for sip, _ := range msr {
-								r[a][b][c] = append(r[a][b][c], sip)
-							}
+						}
+
+						for sip, _ := range msr {
+							//append server list
+							r[a][b][c] = append(r[a][b][c], sip)
 						}
 					}
 				}
-
 			}
 
-			G.Outlog3(G.LOG_AMQP, "Cover data: %+v", r)
 			_msg1 = r
 
 		case "Source":
