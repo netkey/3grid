@@ -365,6 +365,7 @@ func Sendmsg2(_type, _command string, _param *map[string]string, _obj string, _m
 	if do_zip {
 		am.Msg2 = Zipmsg2(_msg1)
 		am.Msg1 = &map[string]map[string]map[string][]string{"1": {"1": {"1": {""}}}}
+		am.Gzip = true
 	}
 
 	switch _type {
@@ -417,7 +418,6 @@ func Zipmsg2(msg *map[string]map[string]map[string][]string) string {
 
 	zw := gzip.NewWriter(&zbuf)
 	zw.Write(jsm)
-	zw.Flush()
 	zw.Close()
 
 	return base64.StdEncoding.EncodeToString(zbuf.Bytes())
