@@ -133,7 +133,7 @@ func (c *Cmds) Get(msg *AMQP_Message) error {
 			if dr.RoutePlan == nil {
 				break
 			} else {
-				G.Outlog3(G.LOG_API, "Cover Route Plan: %+v", dr.RoutePlan)
+				//G.Outlog3(G.LOG_API, "Cover Route Plan: %+v", dr.RoutePlan)
 			}
 
 			RT.Rtdb.Locks["routes"].RLock()
