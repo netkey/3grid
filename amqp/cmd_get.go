@@ -6,6 +6,7 @@ import (
 	G "3grid/tools/globals"
 	"encoding/json"
 	"net"
+	"reflect"
 	"runtime"
 	"strconv"
 	"strings"
@@ -119,8 +120,12 @@ func (c *Cmds) Get(msg *AMQP_Message) error {
 			_msg1["Dns_debug"] = map[string]map[string][]string{p["Domain"]: {p["Ip"]: _debug_info}}
 
 		case "Cover":
-			n := make(map[string]map[string]map[string][]uint)   //holds nodes info
-			r := make(map[string]map[string]map[string][]string) //holds ip info(return results)
+			var rr RT.Route_List_Record
+			var rid uint
+			var ac, a, b, c string
+
+			n := make(map[string]map[string]map[string]map[uint]int)
+			r := make(map[string]map[string]map[string][]string)
 
 			dn := p["Domain"]
 			dr := RT.Rtdb.Read_Domain_Record(dn)
@@ -131,71 +136,78 @@ func (c *Cmds) Get(msg *AMQP_Message) error {
 				G.Outlog3(G.LOG_API, "Cover Route Plan: %+v", dr.RoutePlan)
 			}
 
-			for _, rid := range dr.RoutePlan {
-				//walk through routes
-				RT.Rtdb.Locks["routes"].RLock()
-				for ac, _ := range RT.Rtdb.Routes {
-					rr := RT.Rtdb.Read_Route_Record(ac, rid)
-					if rr.Nodes == nil {
-						continue
+			RT.Rtdb.Locks["routes"].RLock()
+			ac_keys := reflect.ValueOf(RT.Rtdb.Routes).MapKeys()
+			RT.Rtdb.Locks["routes"].RUnlock()
+
+			//walk through routes with acs
+			for _, ac_key := range ac_keys {
+				ac = ac_key.String()
+				find := false
+				for _, _rid := range dr.RoutePlan {
+					rid = _rid
+					rr = RT.Rtdb.Read_Route_Record(ac, rid)
+					if rr.Nodes != nil && len(rr.Nodes) > 0 {
+						find = true
+						break
 					}
-					a, b, c := "", "", ""
-					//ac:CTC.CN.HAN.GD  acs:0.1.2.3
-					acs := strings.Split(ac, ".")
-					la := len(acs)
-					if la > 0 {
-						a = acs[0]
-						if r[a] == nil {
-							n[a] = make(map[string]map[string][]uint)
-							r[a] = make(map[string]map[string][]string)
-							G.Outlog3(G.LOG_API, "Cover: nil a:%s n:%+v", a, n[a])
-						}
-						if la == 1 || la == 2 {
-							b = "*"
-							c = "*"
-							n[a] = map[string]map[string][]uint{b: {c: {}}}
-							r[a] = map[string]map[string][]string{b: {c: {}}}
-						}
-					}
-					if la > 2 {
-						b = acs[2]
-						if r[a][b] == nil {
-							n[a][b] = make(map[string][]uint)
-							r[a][b] = make(map[string][]string)
-							G.Outlog3(G.LOG_API, "Cover: nil a:%s b:%s n:%+v", a, b, n[a][b])
-						}
-						if la == 3 {
-							c = "*"
-							n[a][b] = map[string][]uint{c: {}}
-							r[a][b] = map[string][]string{c: {}}
-						}
-					}
-					if la > 3 {
-						c = acs[3]
-						if r[a][b][c] == nil {
-							n[a][b][c] = []uint{}
-							r[a][b][c] = []string{}
-							G.Outlog3(G.LOG_API, "Cover: nil a:%s b:%s c:%s n:%+v", a, b, c, n[a][b][c])
-						} else {
-							G.Outlog3(G.LOG_API, "Cover: not nil a:%s b:%s c:%s %+v", a, b, c, n[a][b][c])
-							continue
-						}
-					}
-					for nid, _ := range rr.Nodes {
-						//append node list
-						n[a][b][c] = append(n[a][b][c], nid)
-					}
-					G.Outlog3(G.LOG_API, "Cover data: rid:%d a:%s b:%s c:%s n:%+v", rid, a, b, c, n[a][b][c])
 				}
-				RT.Rtdb.Locks["routes"].RUnlock()
+
+				if !find {
+					continue
+				}
+
+				a = ""
+				b = ""
+				c = ""
+
+				//ac:CTC.CN.HAN.GD  acs:0.1.2.3
+				//ac:CTC.CN.HAN
+				//ac:CTC.CN
+				acs := strings.Split(ac, ".")
+				la := len(acs)
+				a = acs[0]
+
+				switch la {
+				case 1, 2:
+					b = "*"
+					c = "*"
+				case 3:
+					b = acs[2]
+					c = "*"
+				case 4:
+					b = acs[2]
+					c = acs[3]
+				}
+
+				if n[a] == nil {
+					n[a] = make(map[string]map[string]map[uint]int)
+					r[a] = make(map[string]map[string][]string)
+				}
+				if n[a][b] == nil {
+					n[a][b] = make(map[string]map[uint]int)
+					r[a][b] = make(map[string][]string)
+				}
+				if n[a][b][c] == nil {
+					n[a][b][c] = make(map[uint]int)
+					r[a][b][c] = []string{}
+				}
+
+				for nid, _ := range rr.Nodes {
+					n[a][b][c][nid] = 1
+				}
+
+				//G.Outlog3(G.LOG_API, "Cover 4: ac:%s rid:%d a:%s b:%s c:%s n:%+v",
+				//ac, rid, a, b, c, n[a][b][c])
 			}
 
-			G.Outlog3(G.LOG_API, "Cover N: %+v", n["CMCC"])
+			G.Outlog3(G.LOG_API, "Cover N: CMCC.HAN %+v", n["CMCC"]["HAN"])
+
 			for a, va := range n {
 				for b, vb := range va {
-					for c, d := range vb {
+					for c, vc := range vb {
 						msr := make(map[uint]map[string]int)
-						for _, nid := range d {
+						for nid, _ := range vc {
 							nr := RT.Rtdb.Read_Node_Record(nid)
 							for _, sid := range nr.ServerList {
 								sr := RT.Rtdb.Read_Server_Record(sid)
@@ -215,10 +227,11 @@ func (c *Cmds) Get(msg *AMQP_Message) error {
 								r[a][b][c] = append(r[a][b][c], sip)
 							}
 						}
-						//G.Outlog3(G.LOG_API, "Cover data: a:%s b:%s c:%s data:%+v", a, b, c, r[a][b][c])
 					}
 				}
 			}
+
+			r["Z"] = map[string]map[string][]string{"QueryDomain": {"*": {dn}}}
 
 			_msg1 = r
 
