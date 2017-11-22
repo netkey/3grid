@@ -201,7 +201,7 @@ func (c *Cmds) Get(msg *AMQP_Message) error {
 				//ac, rid, a, b, c, n[a][b][c])
 			}
 
-			G.Outlog3(G.LOG_API, "Cover N: CMCC.HAN %+v", n["CMCC"]["HAN"])
+			//G.Outlog3(G.LOG_API, "Cover N: CMCC.HAN %+v", n["CMCC"]["HAN"])
 
 			for a, va := range n {
 				for b, vb := range va {
