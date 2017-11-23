@@ -71,6 +71,8 @@ var randomrr bool
 var http_engine string
 var http_302_mode int
 var http_302_param string
+var rtmp_url_mode_header string
+var rtmp_url_header string
 
 func read_conf() {
 	viper.SupportedExts = append(viper.SupportedExts, "conf")
@@ -216,6 +218,18 @@ func read_conf() {
 			http_302_mode = 0
 		} else {
 			http_302_mode = _http_302_mode
+		}
+		_rtmp_url_header := viper.GetString("gslb.rtmp_url_header")
+		if _rtmp_url_header == "" {
+			rtmp_url_header = "Rtmp-Url"
+		} else {
+			rtmp_url_header = _rtmp_url_header
+		}
+		_rtmp_url_mode_header := viper.GetString("gslb.rtmp_url_mode_header")
+		if _rtmp_url_mode_header == "" {
+			rtmp_url_mode_header = "Rtmp-Url-Mode"
+		} else {
+			rtmp_url_mode_header = _rtmp_url_mode_header
 		}
 		_cutoff_percent := viper.GetInt("gslb.cutoff_percent")
 		if _cutoff_percent < 80 {
@@ -460,6 +474,8 @@ func main() {
 			H.HTTP_Engine = http_engine
 			H.HTTP_302_Mode = http_302_mode
 			H.HTTP_302_Param = http_302_param
+			H.RTMP_URL_HEADER = rtmp_url_header
+			H.RTMP_URL_MODE_HEADER = rtmp_url_mode_header
 
 			//init dns workers & http workers
 			var name, secret string

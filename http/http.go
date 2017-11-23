@@ -18,11 +18,13 @@ import (
 )
 
 var (
-	HTTP_Cache_Size int
-	HTTP_Cache_TTL  int64
-	HTTP_Engine     string
-	HTTP_302_Mode   int
-	HTTP_302_Param  string
+	HTTP_Cache_Size      int
+	HTTP_Cache_TTL       int64
+	HTTP_Engine          string
+	HTTP_302_Mode        int
+	HTTP_302_Param       string
+	RTMP_URL_MODE_HEADER string
+	RTMP_URL_HEADER      string
 )
 
 type HTTP_worker struct {
@@ -127,26 +129,57 @@ func (hw *HTTP_worker) Http302(ctx *fasthttp.RequestCtx) {
 		dn = ""
 	}
 
-	aaa, _, _, _, _, _, _ := hw.Rtdb.GetAAA(dn, ac, ip, 0)
+	http_302_mode := HTTP_302_Mode
 
+	statuscode := fasthttp.StatusFound
+	proto := "http://"
 	url := ctx.URI().String()
 	url_path := string(ctx.URI().Path())
 	args := ctx.URI().QueryArgs()
 
+	if rtmp_mode := ctx.Request.Header.Peek(RTMP_URL_MODE_HEADER); rtmp_mode != nil {
+		if rtmp_url := ctx.Request.Header.Peek(RTMP_URL_HEADER); rtmp_url != nil {
+			http_302_mode, _ = strconv.Atoi(string(rtmp_mode))
+			http_302_mode = http_302_mode - 2
+			statuscode = fasthttp.StatusOK
+			proto = "rtmp://"
+			url = string(rtmp_url)
+			if li := strings.Index(url, "/"); li != -1 {
+				dn = url[:li]
+				url_path = url[li:]
+			}
+			url = proto + url
+			args = &fasthttp.Args{}
+		}
+	}
+
+	aaa, _, _, _, _, _, _ := hw.Rtdb.GetAAA(dn, ac, ip, 0)
+
 	if aaa != nil && len(aaa) > 0 {
-		if HTTP_302_Mode == 1 {
-			args.Add(HTTP_302_Param, dn)
-		} else {
+		if http_302_mode == 1 {
+			if args != nil {
+				args.Add(HTTP_302_Param, dn)
+			}
+		} else if http_302_mode == 0 {
 			url_path = "/" + dn + url_path
-		}
-
-		if args != nil && args.Len() > 0 {
-			ctx.Response.Header.Set("Location", "http://"+aaa[0]+url_path+"?"+string(args.QueryString()))
 		} else {
-			ctx.Response.Header.Set("Location", "http://"+aaa[0]+url_path)
+			url_path = ""
 		}
 
-		ctx.SetStatusCode(fasthttp.StatusFound)
+		location_url := ""
+		if args != nil && args.Len() > 0 {
+			location_url = proto + aaa[0] + url_path + "?" + string(args.QueryString())
+			ctx.Response.Header.Set("Location", proto+aaa[0]+url_path+"?"+string(args.QueryString()))
+		} else {
+			location_url = proto + aaa[0] + url_path
+		}
+
+		ctx.Response.Header.Set("Location", location_url)
+		ctx.SetStatusCode(statuscode)
+
+		if statuscode == fasthttp.StatusOK {
+			ctx.Write([]byte(location_url))
+		}
 
 		G.Outlog3(G.LOG_HTTP, "302 %s %s %s", ip, url, aaa[0])
 	} else {
