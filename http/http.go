@@ -11,6 +11,7 @@ import (
 	"github.com/valyala/fasthttp/reuseport"
 	"net"
 	"net/http"
+	"net/url"
 	"strconv"
 	"strings"
 	"sync"
@@ -169,7 +170,6 @@ func (hw *HTTP_worker) Http302(ctx *fasthttp.RequestCtx) {
 		location_url := ""
 		if args != nil && args.Len() > 0 {
 			location_url = proto + aaa[0] + url_path + "?" + string(args.QueryString())
-			ctx.Response.Header.Set("Location", proto+aaa[0]+url_path+"?"+string(args.QueryString()))
 		} else {
 			location_url = proto + aaa[0] + url_path
 		}
@@ -220,33 +220,63 @@ func (hw *HTTP_worker) Http3020(w http.ResponseWriter, r *http.Request) {
 		dn = ""
 	}
 
-	aaa, _, _, _, _, _, _ := hw.Rtdb.GetAAA(dn, ac, ip, 0)
+	http_302_mode := HTTP_302_Mode
 
-	url := r.URL.String()
+	statuscode := fasthttp.StatusFound
+	proto := "http://"
+	_url := r.URL.String()
 	url_path := r.URL.Path
 	args := r.URL.Query()
 
+	if rtmp_mode := r.Header.Get(RTMP_URL_MODE_HEADER); rtmp_mode != "" {
+		if rtmp_url := r.Header.Get(RTMP_URL_HEADER); rtmp_url != "" {
+			http_302_mode, _ = strconv.Atoi(rtmp_mode)
+			http_302_mode = http_302_mode - 2
+			statuscode = http.StatusOK
+			proto = "rtmp://"
+			_url = rtmp_url
+			if li := strings.Index(_url, "/"); li != -1 {
+				dn = _url[:li]
+				url_path = _url[li:]
+			}
+			_url = proto + _url
+			args = url.Values{}
+		}
+	}
+
+	aaa, _, _, _, _, _, _ := hw.Rtdb.GetAAA(dn, ac, ip, 0)
+
 	if aaa != nil && len(aaa) > 0 {
-		if HTTP_302_Mode == 1 {
-			args.Add(HTTP_302_Param, dn)
-		} else {
+		if http_302_mode == 1 {
+			if args != nil {
+				args.Add(HTTP_302_Param, dn)
+			}
+		} else if http_302_mode == 0 {
 			url_path = "/" + dn + url_path
-		}
-
-		if args != nil && len(args) > 0 {
-			w.Header().Set("Location", "http://"+aaa[0]+url_path+"?"+args.Encode())
 		} else {
-			w.Header().Set("Location", "http://"+aaa[0]+url_path)
+			url_path = ""
 		}
 
-		w.WriteHeader(http.StatusFound)
+		location_url := ""
+		if args != nil && len(args) > 0 {
+			location_url = proto + aaa[0] + url_path + "?" + args.Encode()
+		} else {
+			location_url = proto + aaa[0] + url_path
+		}
 
-		G.Outlog3(G.LOG_HTTP, "302 %s %s %s %s", ip, dn, url, aaa[0])
+		w.Header().Set("Location", location_url)
+		w.WriteHeader(statuscode)
+
+		if statuscode == http.StatusOK {
+			w.Write([]byte(location_url))
+		}
+
+		G.Outlog3(G.LOG_HTTP, "302 %s %s %s %s", ip, dn, _url, aaa[0])
 	} else {
 		w.WriteHeader(http.StatusServiceUnavailable)
 		w.Write([]byte("service unavalible"))
 
-		G.Outlog3(G.LOG_HTTP, "302 %s %s %s nil", ip, dn, url)
+		G.Outlog3(G.LOG_HTTP, "302 %s %s %s nil", ip, dn, _url)
 	}
 }
 

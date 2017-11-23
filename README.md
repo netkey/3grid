@@ -140,10 +140,11 @@ HTTP
 
 	可选HTTP引擎 gohttp/fasthttp  √/√
 
+	缓存结构	√
+
 	HttpDns	√
 
 	Http302（按域名调度）模式1/模式2	√/√
 
-	缓存结构	√
-
+	Rtmp302 兼容 √
 
