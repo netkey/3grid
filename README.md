@@ -16,7 +16,7 @@ A Global Route IP Director(Daemon), aka GSLB.
 
 	核心数据增删改(增量更新)	√	
 
-	业务状态（state）数据发送	√	
+	业务状态（state）数据 接收/更新/发送	√	
 			
 	AMQP断线重连	√
 
