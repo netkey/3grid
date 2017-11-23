@@ -69,6 +69,8 @@ var amqp_center string
 var compress bool
 var randomrr bool
 var http_engine string
+var http_302_mode int
+var http_302_param string
 
 func read_conf() {
 	viper.SupportedExts = append(viper.SupportedExts, "conf")
@@ -202,6 +204,18 @@ func read_conf() {
 			http_engine = "fasthttp"
 		} else {
 			http_engine = _http_engine
+		}
+		_http_302_param := viper.GetString("gslb.http_302_param")
+		if _http_302_param == "" {
+			http_302_param = "_mmDN_"
+		} else {
+			http_302_param = _http_302_param
+		}
+		_http_302_mode := viper.GetInt("gslb.http_302_mode")
+		if _http_302_mode < 0 {
+			http_302_mode = 0
+		} else {
+			http_302_mode = _http_302_mode
 		}
 		_cutoff_percent := viper.GetInt("gslb.cutoff_percent")
 		if _cutoff_percent < 80 {
@@ -444,6 +458,8 @@ func main() {
 			H.HTTP_Cache_Size = http_cache_size
 			H.HTTP_Cache_TTL = int64(http_cache_ttl)
 			H.HTTP_Engine = http_engine
+			H.HTTP_302_Mode = http_302_mode
+			H.HTTP_302_Param = http_302_param
 
 			//init dns workers & http workers
 			var name, secret string

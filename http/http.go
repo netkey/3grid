@@ -21,6 +21,8 @@ var (
 	HTTP_Cache_Size int
 	HTTP_Cache_TTL  int64
 	HTTP_Engine     string
+	HTTP_302_Mode   int
+	HTTP_302_Param  string
 )
 
 type HTTP_worker struct {
@@ -128,18 +130,22 @@ func (hw *HTTP_worker) Http302(ctx *fasthttp.RequestCtx) {
 	aaa, _, _, _, _, _, _ := hw.Rtdb.GetAAA(dn, ac, ip, 0)
 
 	url := ctx.URI().String()
+	url_path := string(ctx.URI().Path())
+	args := ctx.URI().QueryArgs()
 
 	if aaa != nil && len(aaa) > 0 {
-		uria := strings.Split(url, dom)
-		uri := ""
-
-		if len(uria) > 1 {
-			uri = uria[1]
+		if HTTP_302_Mode == 1 {
+			args.Add(HTTP_302_Param, dn)
 		} else {
-			uri = url
+			url_path = "/" + dn + url_path
 		}
 
-		ctx.Response.Header.Set("Location", "http://"+aaa[0]+"/"+dn+uri)
+		if args != nil && args.Len() > 0 {
+			ctx.Response.Header.Set("Location", "http://"+aaa[0]+url_path+"?"+string(args.QueryString()))
+		} else {
+			ctx.Response.Header.Set("Location", "http://"+aaa[0]+url_path)
+		}
+
 		ctx.SetStatusCode(fasthttp.StatusFound)
 
 		G.Outlog3(G.LOG_HTTP, "302 %s %s %s", ip, url, aaa[0])
@@ -184,18 +190,22 @@ func (hw *HTTP_worker) Http3020(w http.ResponseWriter, r *http.Request) {
 	aaa, _, _, _, _, _, _ := hw.Rtdb.GetAAA(dn, ac, ip, 0)
 
 	url := r.URL.String()
+	url_path := r.URL.Path
+	args := r.URL.Query()
 
 	if aaa != nil && len(aaa) > 0 {
-		uria := strings.Split(url, dom)
-		uri := ""
-
-		if len(uria) > 1 {
-			uri = uria[1]
+		if HTTP_302_Mode == 1 {
+			args.Add(HTTP_302_Param, dn)
 		} else {
-			uri = url
+			url_path = "/" + dn + url_path
 		}
 
-		w.Header().Set("Location", "http://"+aaa[0]+"/"+dn+uri)
+		if args != nil && len(args) > 0 {
+			w.Header().Set("Location", "http://"+aaa[0]+url_path+"?"+args.Encode())
+		} else {
+			w.Header().Set("Location", "http://"+aaa[0]+url_path)
+		}
+
 		w.WriteHeader(http.StatusFound)
 
 		G.Outlog3(G.LOG_HTTP, "302 %s %s %s %s", ip, dn, url, aaa[0])
