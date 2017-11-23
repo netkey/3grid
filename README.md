@@ -138,8 +138,12 @@ HTTP
 
 	Worker循环	√
 
+	可选HTTP引擎 gohttp/fasthttp  √/√
+
 	HttpDns	√
 
-	Http302（按域名调度）	√
+	Http302（按域名调度）模式1/模式2	√/√
 
 	缓存结构	√
+
+
