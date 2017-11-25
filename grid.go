@@ -36,6 +36,7 @@ var debug_info string
 var workdir string
 var progname string
 var bufsize int
+var pprof bool
 
 //master/worker related
 var master bool
@@ -134,6 +135,12 @@ func read_conf() {
 			*debug = false
 		} else {
 			*debug = true
+		}
+		_pprof := viper.GetBool("server.pprof")
+		if _pprof == false {
+			pprof = false
+		} else {
+			pprof = true
 		}
 		_master := viper.GetBool("server.master")
 		if _master == false {
@@ -334,6 +341,7 @@ func main() {
 	runtime.GOMAXPROCS(num_cpus)
 
 	G.Debug = *debug
+	G.PProf = pprof
 
 	if len(os.Args) > 1 && os.Args[1] != "" {
 		if s := os.Args[1]; strings.Contains(s, "worker:") {

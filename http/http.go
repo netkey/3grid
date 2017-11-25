@@ -11,6 +11,7 @@ import (
 	"github.com/valyala/fasthttp/reuseport"
 	"net"
 	"net/http"
+	_ "net/http/pprof"
 	"net/url"
 	"strconv"
 	"strings"
@@ -490,6 +491,14 @@ func Working(myname, listen string, port string, num int, ipdb *IP.IP_db, rtdb *
 
 	worker.Cache = make(map[string]HTTP_Cache_Record)
 	worker.CacheLock = new(sync.RWMutex)
+
+	if G.PProf {
+		if num == 0 {
+			go func() {
+				http.ListenAndServe("127.0.0.1:6060", nil) //for net/http/pprof
+			}()
+		}
+	}
 
 	if listener, err := reuseport.Listen("tcp4", listen+":"+port); err != nil {
 		G.OutDebug2(G.LOG_GSLB, "Failed to listen port: %s", err)

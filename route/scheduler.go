@@ -214,7 +214,7 @@ func (rt_db *Route_db) GetAAA(query_dn string, acode string, ip net.IP,
 	_ac, client_ac = ac, ac
 	dn = query_dn
 
-	G.OutDebug2(G.LOG_SCHEDULER, "Geting AAA for dn:%s client_ip:%s ac:%s", query_dn, ip.String(), _ac)
+	G.OutDebug2(G.LOG_SCHEDULER, "Geting AAA for dn:%s client_ip:%s ac:%s", query_dn, ip, _ac)
 
 	if aaa, ttl, _type, rid, _ac, ok = rt_db.GetRTCache(query_dn, client_ac); ok {
 		//found in route cache
