@@ -401,6 +401,9 @@ func main() {
 
 			{
 				//init api log
+				G.ApilogS_Lock = new(sync.RWMutex)
+				G.ApilogS = false
+
 				G.Apilog_Lock = new(sync.RWMutex)
 
 				G.Apilog = &G.ApiLog{Goid: 0, Chan: nil, Clock: nil}

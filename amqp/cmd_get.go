@@ -76,6 +76,10 @@ func (c *Cmds) Get(msg *AMQP_Message) error {
 
 			_chan = make(chan string, 100)
 			defer func() {
+				G.ApilogS_Lock.Lock()
+				G.ApilogS = false
+				G.ApilogS_Lock.Unlock()
+
 				G.Apilog.Clock.Lock()
 				close(_chan)
 				G.Apilog.Goid = 0
@@ -89,6 +93,10 @@ func (c *Cmds) Get(msg *AMQP_Message) error {
 			G.Apilog.Chan = &_chan
 			G.Apilog.Goid = _my_goid
 			G.Apilog.Clock.Unlock()
+
+			G.ApilogS_Lock.Lock()
+			G.ApilogS = true
+			G.ApilogS_Lock.Unlock()
 
 			dn := p["Domain"]
 			ip := net.ParseIP(p["Ip"])

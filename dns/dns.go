@@ -268,17 +268,16 @@ func (wkr *DNS_worker) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
 			ac = wkr.Ipdb.GetAreaCode(ip)
 		}
 
-		//G.Outlog3(G.LOG_DNS, "Serving DNS query: %s %s", _dn, ip.String())
-
 		if aaa, ttl, _type, _ok, matched_ac, rid, _ = wkr.Rtdb.GetAAA(_dn, ac, ip, debug); !_ok {
 
-			G.OutDebug("GetAAA failed ip:%s ac:%s dn:%s", ip, ac, _dn)
+			//G.OutDebug("GetAAA failed ip:%s ac:%s dn:%s", ip, ac, _dn)
+
 			//return will cause the client to re-query 2 times more
 			//it's better to answer a null record to reduce client re-query times
 
 			//return
 		} else {
-			G.OutDebug("GetAAA ip:%s ac:%s dn:%s type:%s aaa:%+v", ip, ac, _dn, _type, aaa)
+			//G.OutDebug("GetAAA ip:%s ac:%s dn:%s type:%s aaa:%+v", ip, ac, _dn, _type, aaa)
 		}
 
 	} else {

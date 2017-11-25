@@ -31,6 +31,9 @@ var LogChan *chan map[string]string
 var LogChan3 *chan map[string][]interface{}
 var LogChan4 *chan map[int64][]interface{}
 
+var ApilogS bool
+var ApilogS_Lock *sync.RWMutex
+
 var Apilog *ApiLog
 var Apilog_Lock *sync.RWMutex
 
@@ -94,9 +97,14 @@ func OutDebug2(target string, a ...interface{}) {
 		*LogChan3 <- map[string][]interface{}{target: a}
 	}
 
-	//output api debug log
-	*LogChan4 <- map[int64][]interface{}{runtime.Goid(): a}
+	ApilogS_Lock.RLock()
+	as := ApilogS
+	ApilogS_Lock.RUnlock()
 
+	if as {
+		//output api debug log
+		*LogChan4 <- map[int64][]interface{}{runtime.Goid(): a}
+	}
 }
 
 func NewLogger(path *string) (*Grid_Logger, error) {
