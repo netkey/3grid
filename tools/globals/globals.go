@@ -31,7 +31,7 @@ type Perfcs struct {
 func (pcs *Perfcs) Init(interval int) {
 	pcs.Interval = uint64(interval)
 	pcs.Pcs = make(map[string]map[string]*Perf_Counter)
-	pcs.Chan = make(chan map[string]map[string]uint64, 1000)
+	pcs.Chan = make(chan map[string]map[string]uint64, 4000)
 	pcs.Lock = new(sync.RWMutex)
 
 	go pcs.update_pcs()
@@ -87,7 +87,6 @@ func (pcs *Perfcs) update_pcs() error {
 			}
 		}
 	}
-
 	return nil
 }
 
@@ -159,7 +158,7 @@ func (pc *Perf_Counter) Init(interval int, goit bool) {
 	pc.loadlock = new(sync.RWMutex)
 
 	if pc.goit = goit; goit {
-		pc.Chan = make(chan map[string]uint64, 1000)
+		pc.Chan = make(chan map[string]uint64, 4000)
 		go pc.update_gp()
 		go pc.keeper()
 	}

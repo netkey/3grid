@@ -192,8 +192,11 @@ func (lg *Grid_Logger) Output3() {
 	for {
 		select {
 		case lmap := <-lg.Chan3:
-			mbuf = append(mbuf, lmap)
-		case <-time.After(1000 * time.Millisecond):
+			if lmap != nil {
+				mbuf = append(mbuf, lmap)
+			}
+
+		case <-time.After(5000 * time.Millisecond):
 			for _, m := range mbuf {
 				for to, lines := range m {
 					lg.Locks[to].Lock()
