@@ -187,12 +187,23 @@ func (lg *Grid_Logger) Output3() {
 		}
 	}()
 
+	mbuf := []map[string][]interface{}{}
+
 	for {
-		lmap := <-lg.Chan3
-		for to, lines := range lmap {
-			lg.Locks[to].Lock()
-			lg.Loggers[to].Printf(lines[0].(string), lines[1:]...)
-			lg.Locks[to].Unlock()
+		select {
+		case lmap := <-lg.Chan3:
+			mbuf = append(mbuf, lmap)
+		case <-time.After(1000 * time.Millisecond):
+			for _, m := range mbuf {
+				for to, lines := range m {
+					lg.Locks[to].Lock()
+					lg.Loggers[to].Printf(lines[0].(string), lines[1:]...)
+					lg.Locks[to].Unlock()
+				}
+			}
+			if len(mbuf) > 0 {
+				mbuf = []map[string][]interface{}{}
+			}
 		}
 	}
 }
