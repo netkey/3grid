@@ -16,8 +16,8 @@ var RandomRR bool
 //check if the ip is in my server list
 func (rt_db *Route_db) IN_Serverlist(ip net.IP) (uint, bool) {
 	if ip != nil {
-		ir := rt_db.Read_IP_Record(ip.String())
-		if ir.NodeId != 0 {
+		ips := ip.String()
+		if ir := rt_db.Read_IP_Record(ips); ir.NodeId != 0 {
 			return ir.NodeId, true
 		} else {
 			return 0, false
