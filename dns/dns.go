@@ -250,7 +250,11 @@ func (wkr *DNS_worker) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
 		if strings.Contains(_dn, IP_DN_Spliter) {
 			//if domain name contains debug ip, set it
 			spl := strings.Split(_dn, IP_DN_Spliter)
-			ip = net.ParseIP(spl[0])
+			sip := spl[0]
+			if strings.HasSuffix(sip, "\\") {
+				sip = sip[0 : len(sip)-1]
+			}
+			ip = net.ParseIP(sip)
 			_dn = spl[1]
 			debug = 1
 		}
