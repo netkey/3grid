@@ -495,16 +495,22 @@ func (rt_db *Route_db) Read_IP_Record(k string) Server_List_Record {
 }
 
 func (rt_db *Route_db) Update_Server_Record(k uint, r *Server_List_Record) {
-	rt_db.Locks["servers"].Lock()
 	rt_db.Locks["ips"].Lock()
 	if r == nil {
+		rt_db.Locks["servers"].RLock()
 		delete(rt_db.Ips, rt_db.Servers[k].ServerIp)
-		delete(rt_db.Servers, k)
+		rt_db.Locks["servers"].RUnlock()
 	} else {
-		rt_db.Servers[k] = *r
 		rt_db.Ips[(*r).ServerIp] = *r
 	}
 	rt_db.Locks["ips"].Unlock()
+
+	rt_db.Locks["servers"].Lock()
+	if r == nil {
+		delete(rt_db.Servers, k)
+	} else {
+		rt_db.Servers[k] = *r
+	}
 	rt_db.Locks["servers"].Unlock()
 }
 
