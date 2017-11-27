@@ -74,6 +74,8 @@ var http_302_mode int
 var http_302_param string
 var rtmp_url_mode_header string
 var rtmp_url_header string
+var chan_write bool
+var chan_write_queue int
 
 func read_conf() {
 	viper.SupportedExts = append(viper.SupportedExts, "conf")
@@ -322,6 +324,18 @@ func read_conf() {
 		} else {
 			randomrr = true
 		}
+		_chan_write := viper.GetBool("gslb.chan_write")
+		if _chan_write == false {
+			chan_write = false
+		} else {
+			chan_write = true
+		}
+		_chan_write_queue := viper.GetInt("gslb.chan_write_queue")
+		if _chan_write_queue < 1000 {
+			chan_write_queue = 1000
+		} else {
+			chan_write_queue = _chan_write_queue
+		}
 
 		if *debug {
 			debug_info = fmt.Sprintf("%s running - cpus:%d port:%s daemon:%t debug:%t interval:%d keepalive:%d myname:%s", myname, num_cpus, port, daemond, *debug, interval, keepalive, myname)
@@ -479,6 +493,9 @@ func main() {
 			D.DN = mydomain
 			D.IP_DN_Spliter = ip_dn_spliter
 			D.AC_DN_Spliter = ac_dn_spliter
+
+			D.ChanWrite = chan_write
+			D.ChanWriteQueue = chan_write_queue
 
 			H.HTTP_Cache_Size = http_cache_size
 			H.HTTP_Cache_TTL = int64(http_cache_ttl)

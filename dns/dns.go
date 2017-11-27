@@ -17,10 +17,12 @@ import (
 var (
 	Compress = flag.Bool("compress", false, "compress replies")
 
-	Bufsize       int
-	DN            string
-	IP_DN_Spliter string
-	AC_DN_Spliter string
+	Bufsize        int
+	DN             string
+	IP_DN_Spliter  string
+	AC_DN_Spliter  string
+	ChanWrite      bool
+	ChanWriteQueue int
 )
 
 const Default_ttl = 60
@@ -30,7 +32,7 @@ type DNS_worker struct {
 	Server *dns.Server
 	Ipdb   *IP.IP_db
 	Rtdb   *RT.Route_db
-	Qsc    map[string]uint64
+	Chan   chan WM
 }
 
 type DNS_query struct {
@@ -43,6 +45,11 @@ type DNS_query struct {
 	Matched_Type string //mathed query type in db
 	Debug        int    //debug query, more info, 0:no-debug 1:ip-debug 2:ac-debug
 	RID          uint   //route plan id, for debug
+}
+
+type WM struct {
+	W *dns.ResponseWriter
+	M *dns.Msg
 }
 
 func (wkr *DNS_worker) RR(aaa []string, q *DNS_query, w dns.ResponseWriter, r *dns.Msg) *dns.Msg {
@@ -299,11 +306,14 @@ func (wkr *DNS_worker) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
 
 	//generate answer and send it
 	if m := wkr.RR(aaa, &q, w, r); m != nil {
-		w.WriteMsg(m)
+		if ChanWrite {
+			wkr.Chan <- WM{&w, m}
+		} else {
+			w.WriteMsg(m)
+		}
 	}
 
 	//update global perf counter async
-	//G.GP.Chan <- wkr.Qsc
 	G.GP.Chan <- map[string]uint64{"QS": 1}
 
 	//update domain perf counter async
@@ -311,6 +321,14 @@ func (wkr *DNS_worker) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
 
 	//output query log
 	G.Outlog3(G.LOG_DNS, "%s|%d|%s|%s", ips, r.Question[0].Qtype, _dn, strings.Join(aaa, ","))
+}
+
+func (wkr *DNS_worker) ChanWrite() {
+	for {
+		wm := <-wkr.Chan
+		w := *(wm.W)
+		w.WriteMsg(wm.M)
+	}
 }
 
 func Working(nets, listen, port, name, secret string, num int, ipdb *IP.IP_db, rtdb *RT.Route_db) {
@@ -321,7 +339,6 @@ func Working(nets, listen, port, name, secret string, num int, ipdb *IP.IP_db, r
 	worker.Id = num
 	worker.Ipdb = ipdb
 	worker.Rtdb = rtdb
-	worker.Qsc = map[string]uint64{"QS": 1}
 
 	defer func() {
 		if pan := recover(); pan != nil {
@@ -368,6 +385,11 @@ func Working(nets, listen, port, name, secret string, num int, ipdb *IP.IP_db, r
 
 	if worker.Server.PacketConn, err = reuseport.ListenPacket(nets, listen+":"+port); err != nil {
 		G.OutDebug("Failed to listen port: %s", err)
+	}
+
+	if ChanWrite {
+		worker.Chan = make(chan WM, ChanWriteQueue)
+		go worker.ChanWrite()
 	}
 
 	if err = worker.Server.ActivateAndServe(); err != nil {
