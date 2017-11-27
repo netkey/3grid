@@ -104,7 +104,7 @@ func (hw *HTTP_worker) UpdateCache(dn, ipac, key string, a *[]string, b *[]byte)
 
 //HTTP 302
 func (hw *HTTP_worker) Http302(ctx *fasthttp.RequestCtx) {
-	var dn, ac, dom string
+	var dn, ac, dom, ips string
 	var ip net.IP
 
 	defer func() {
@@ -116,7 +116,9 @@ func (hw *HTTP_worker) Http302(ctx *fasthttp.RequestCtx) {
 	ctx.Response.Header.Set("Content-Type", "text/pain; charset=utf-8")
 
 	ip = ctx.RemoteIP()
-	ac = hw.Ipdb.GetAreaCode(ip)
+	ips = ip.String()
+
+	ac = hw.Ipdb.GetAreaCode(ip, ips)
 
 	_dn := ctx.Request.Header.Peek("Host")
 	if _dn != nil {
@@ -155,7 +157,7 @@ func (hw *HTTP_worker) Http302(ctx *fasthttp.RequestCtx) {
 		}
 	}
 
-	aaa, _, _, _, _, _, _ := hw.Rtdb.GetAAA(dn, ac, ip, 0)
+	aaa, _, _, _, _, _, _ := hw.Rtdb.GetAAA(dn, ac, ip, ips, 0)
 
 	if aaa != nil && len(aaa) > 0 {
 		if http_302_mode == 1 {
@@ -206,7 +208,7 @@ func (hw *HTTP_worker) Http3020(w http.ResponseWriter, r *http.Request) {
 
 	ips = strings.Split(r.RemoteAddr, ":")[0]
 	ip = net.ParseIP(ips)
-	ac = hw.Ipdb.GetAreaCode(ip)
+	ac = hw.Ipdb.GetAreaCode(ip, ips)
 
 	_dn := r.Host
 	if _dn != "" {
@@ -245,7 +247,7 @@ func (hw *HTTP_worker) Http3020(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	aaa, _, _, _, _, _, _ := hw.Rtdb.GetAAA(dn, ac, ip, 0)
+	aaa, _, _, _, _, _, _ := hw.Rtdb.GetAAA(dn, ac, ip, ips, 0)
 
 	if aaa != nil && len(aaa) > 0 {
 		if http_302_mode == 1 {
@@ -315,7 +317,7 @@ func (hw *HTTP_worker) HttpDns(ctx *fasthttp.RequestCtx) {
 
 	ipac = ips
 	if ac = string(ctx.QueryArgs().Peek("ac")); ac == "" {
-		ac = hw.Ipdb.GetAreaCode(ip)
+		ac = hw.Ipdb.GetAreaCode(ip, ips)
 	} else {
 		debug = 2
 		ipac = ac
@@ -335,7 +337,7 @@ func (hw *HTTP_worker) HttpDns(ctx *fasthttp.RequestCtx) {
 
 	if body = hw.GetCache(dn, ipac, key); body == nil {
 
-		aaa, ttl, _type, _, _, _, _ := hw.Rtdb.GetAAA(dn, ac, ip, debug)
+		aaa, ttl, _type, _, _, _, _ := hw.Rtdb.GetAAA(dn, ac, ip, ips, debug)
 		if aaa == nil {
 			aaa = []string{""}
 		} else if len(aaa) == 0 {
@@ -414,7 +416,7 @@ func (hw *HTTP_worker) HttpDns0(w http.ResponseWriter, r *http.Request) {
 
 	ipac = ips
 	if aca := r.URL.Query()["ac"]; aca == nil {
-		ac = hw.Ipdb.GetAreaCode(ip)
+		ac = hw.Ipdb.GetAreaCode(ip, ips)
 	} else {
 		debug = 2
 		ipac = aca[0]
@@ -434,7 +436,7 @@ func (hw *HTTP_worker) HttpDns0(w http.ResponseWriter, r *http.Request) {
 
 	if body = hw.GetCache(dn, ipac, key); body == nil {
 
-		aaa, ttl, _type, _, _, _, _ := hw.Rtdb.GetAAA(dn, ac, ip, debug)
+		aaa, ttl, _type, _, _, _, _ := hw.Rtdb.GetAAA(dn, ac, ip, ips, debug)
 		if aaa == nil {
 			aaa = []string{""}
 		} else if len(aaa) == 0 {

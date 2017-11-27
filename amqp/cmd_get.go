@@ -60,8 +60,8 @@ func (c *Cmds) Get(msg *AMQP_Message) error {
 		case "Dns":
 			dn := p["Domain"]
 			ip := net.ParseIP(p["Ip"])
-			ac := IP.Ipdb.GetAreaCode(ip)
-			aaa, ttl, _type, _, _, _, _ := RT.Rtdb.GetAAA(dn, ac, ip, 0)
+			ac := IP.Ipdb.GetAreaCode(ip, p["Ip"])
+			aaa, ttl, _type, _, _, _, _ := RT.Rtdb.GetAAA(dn, ac, ip, p["Ip"], 0)
 			if _type == "" {
 				_type = "A"
 			}
@@ -100,8 +100,8 @@ func (c *Cmds) Get(msg *AMQP_Message) error {
 
 			dn := p["Domain"]
 			ip := net.ParseIP(p["Ip"])
-			ac := IP.Ipdb.GetAreaCode(ip)
-			aaa, ttl, _type, _, _, _, _ := RT.Rtdb.GetAAA(dn, ac, ip, 0)
+			ac := IP.Ipdb.GetAreaCode(ip, p["Ip"])
+			aaa, ttl, _type, _, _, _, _ := RT.Rtdb.GetAAA(dn, ac, ip, p["Ip"], 0)
 			if _type == "" {
 				_type = "A"
 			}

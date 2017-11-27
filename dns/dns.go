@@ -206,6 +206,7 @@ func (wkr *DNS_worker) RR(aaa []string, q *DNS_query, w dns.ResponseWriter, r *d
 func (wkr *DNS_worker) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
 	var (
 		ip             net.IP   //client ip
+		ips            string   //string form of ip
 		ac, matched_ac string   //client AC, actually matched AC
 		dn             string   //query domain name
 		_dn            string   //mangled dn
@@ -255,8 +256,11 @@ func (wkr *DNS_worker) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
 				sip = sip[0 : len(sip)-1]
 			}
 			ip = net.ParseIP(sip)
+			ips = sip
 			_dn = spl[1]
 			debug = 1
+		} else {
+			ips = ip.String()
 		}
 
 		if strings.Contains(_dn, AC_DN_Spliter) {
@@ -269,10 +273,10 @@ func (wkr *DNS_worker) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
 			_dn = spl[1]
 			debug = 2
 		} else {
-			ac = wkr.Ipdb.GetAreaCode(ip)
+			ac = wkr.Ipdb.GetAreaCode(ip, ips)
 		}
 
-		if aaa, ttl, _type, _ok, matched_ac, rid, _ = wkr.Rtdb.GetAAA(_dn, ac, ip, debug); !_ok {
+		if aaa, ttl, _type, _ok, matched_ac, rid, _ = wkr.Rtdb.GetAAA(_dn, ac, ip, ips, debug); !_ok {
 
 			//G.OutDebug("GetAAA failed ip:%s ac:%s dn:%s", ip, ac, _dn)
 
@@ -306,7 +310,7 @@ func (wkr *DNS_worker) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
 	G.PC.Chan <- map[string]map[string]uint64{G.PERF_DOMAIN: {_dn: 1}}
 
 	//output query log
-	G.Outlog3(G.LOG_DNS, "%s|%d|%s|%s", ip, r.Question[0].Qtype, _dn, strings.Join(aaa, ","))
+	G.Outlog3(G.LOG_DNS, "%s|%d|%s|%s", ips, r.Question[0].Qtype, _dn, strings.Join(aaa, ","))
 }
 
 func Working(nets, listen, port, name, secret string, num int, ipdb *IP.IP_db, rtdb *RT.Route_db) {

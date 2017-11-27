@@ -75,14 +75,16 @@ func (ip_db *IP_db) IP_db_init() {
 
 }
 
-func (ip_db *IP_db) GetAreaCode(ip net.IP) string {
+func (ip_db *IP_db) GetAreaCode(ip net.IP, ips string) string {
 	var (
-		ips string
 		ipc Ipcache_Item
 		cn  string
 	)
 
-	ips = ip.String()
+	if ips == "" {
+		return ""
+	}
+
 	ipc = ip_db.ReadIPCache(ips)
 
 	if ipc.AC == "" {

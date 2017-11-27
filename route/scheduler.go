@@ -14,9 +14,8 @@ var Service_Deny_Percent uint
 var RandomRR bool
 
 //check if the ip is in my server list
-func (rt_db *Route_db) IN_Serverlist(ip net.IP) (uint, bool) {
-	if ip != nil {
-		ips := ip.String()
+func (rt_db *Route_db) IN_Serverlist(ips string) (uint, bool) {
+	if ips != "" {
 		if ir := rt_db.Read_IP_Record(ips); ir.NodeId != 0 {
 			return ir.NodeId, true
 		} else {
@@ -163,7 +162,7 @@ func (rt_db *Route_db) Match_FB(ac string, dr *Domain_List_Record) (_ac string, 
 
 //Tag: AAA
 //return A IPs based on AreaCode and DomainName
-func (rt_db *Route_db) GetAAA(query_dn string, acode string, ip net.IP,
+func (rt_db *Route_db) GetAAA(query_dn string, acode string, ip net.IP, ips string,
 	debug int) ([]string, uint32, string, bool, string, uint, string) {
 
 	var ttl uint32 = 0           //domain ttl
@@ -192,7 +191,7 @@ func (rt_db *Route_db) GetAAA(query_dn string, acode string, ip net.IP,
 
 	if debug != 2 {
 		//not in ac debug mode
-		if _nid, ok = rt_db.IN_Serverlist(ip); ok {
+		if _nid, ok = rt_db.IN_Serverlist(ips); ok {
 			//it's my server, change the area code to its node
 			client_is_myserver = true
 			irn := rt_db.Read_Node_Record(_nid)
@@ -430,7 +429,7 @@ func (rt_db *Route_db) Match_Local_AC(nr *Node_List_Record, client_ac string, ch
 			} else {
 				if nr.ServerList != nil && len(nr.ServerList) > 0 {
 					sr := rt_db.Read_Server_Record(nr.ServerList[0])
-					_node_ac = IP.Ipdb.GetAreaCode(net.ParseIP(sr.ServerIp))
+					_node_ac = IP.Ipdb.GetAreaCode(net.ParseIP(sr.ServerIp), sr.ServerIp)
 					//G.OutDebug2(G.LOG_SCHEDULER, "Match-Local-AC3: from ip db get _node_ac:%s", _node_ac)
 					nr.AC2 = _node_ac
 					rt_db.Update_Node_Record(nr.NodeId, nr)
