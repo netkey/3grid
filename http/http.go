@@ -4,6 +4,7 @@ import (
 	IP "3grid/ip"
 	RT "3grid/route"
 	G "3grid/tools/globals"
+	"bufio"
 	"bytes"
 	"compress/gzip"
 	"encoding/json"
@@ -27,6 +28,8 @@ var (
 	HTTP_302_Param       string
 	RTMP_URL_MODE_HEADER string
 	RTMP_URL_HEADER      string
+	ChanOut              bool
+	ChanOutQueue         int
 )
 
 type HTTP_worker struct {
@@ -39,6 +42,15 @@ type HTTP_worker struct {
 	Cache     map[string]HTTP_Cache_Record
 	CacheSize int
 	CacheLock *sync.RWMutex
+	Chan      chan WB
+}
+
+type WB struct {
+	C *net.Conn
+	O *bufio.ReadWriter
+	W *http.ResponseWriter
+	R *http.Request
+	B *[]byte
 }
 
 type HTTP_Cache_Record struct {
@@ -405,7 +417,9 @@ func (hw *HTTP_worker) HttpDns0(w http.ResponseWriter, r *http.Request) {
 		dn = dna[0]
 	}
 
-	client_ip = net.ParseIP(strings.Split(r.RemoteAddr, ":")[0])
+	client_ips := strings.Split(r.RemoteAddr, ":")[0]
+	client_ip = net.ParseIP(client_ips)
+
 	if ipa := r.URL.Query()["ip"]; ipa == nil {
 		ip = client_ip
 		ips = client_ip.String()
@@ -463,7 +477,15 @@ func (hw *HTTP_worker) HttpDns0(w http.ResponseWriter, r *http.Request) {
 				w.Write(b)
 				hw.UpdateCache(dn, ipac, key, &aaa, &b)
 			} else {
-				w.Write(data)
+				if ChanOut {
+					if _conn, _o, err := w.(http.Hijacker).Hijack(); err != nil {
+						hw.Chan <- WB{&_conn, _o, &w, r, &data}
+					} else {
+						w.Write(data)
+					}
+				} else {
+					w.Write(data)
+				}
 				hw.UpdateCache(dn, ipac, key, &aaa, &data)
 			}
 		} else {
@@ -471,11 +493,32 @@ func (hw *HTTP_worker) HttpDns0(w http.ResponseWriter, r *http.Request) {
 		}
 	} else {
 		w.Header().Set("X-Gslb-Cache", "Hit")
-		w.Write(*body.Data)
+		if ChanOut {
+			if _conn, _o, err := w.(http.Hijacker).Hijack(); err != nil {
+				hw.Chan <- WB{&_conn, _o, &w, r, body.Data}
+			} else {
+				w.Write(*body.Data)
+			}
+		} else {
+			w.Write(*body.Data)
+		}
 		aip = (*body.AAA)[0]
 	}
 
-	G.Outlog3(G.LOG_HTTP, "Dns %s %s %s %s", client_ip.String(), dn, ipac, aip)
+	G.Outlog3(G.LOG_HTTP, "Dns %s %s %s %s", client_ips, dn, ipac, aip)
+}
+
+func (hw *HTTP_worker) ChanOut() {
+	for {
+		wb := <-hw.Chan
+		c := *(wb.C)
+		o := *(wb.O)
+		o.Write(*wb.B)
+		o.Flush()
+		if r := *wb.R; r.Close == true {
+			c.Close()
+		}
+	}
 }
 
 func Working(myname, listen string, port string, num int, ipdb *IP.IP_db, rtdb *RT.Route_db) {
@@ -524,6 +567,10 @@ func Working(myname, listen string, port string, num int, ipdb *IP.IP_db, rtdb *
 				ReadTimeout:  10 * time.Second,
 				WriteTimeout: 10 * time.Second,
 				IdleTimeout:  10 * time.Second,
+			}
+			if ChanOut {
+				worker.Chan = make(chan WB, ChanOutQueue)
+				go worker.ChanOut()
 			}
 			if err := worker.Server0.Serve(listener); err != nil {
 				G.OutDebug2(G.LOG_GSLB, "Failed to serve: %s", err)

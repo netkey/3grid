@@ -74,8 +74,8 @@ var http_302_mode int
 var http_302_param string
 var rtmp_url_mode_header string
 var rtmp_url_header string
-var chan_write bool
-var chan_write_queue int
+var chan_out bool
+var chan_out_queue int
 
 func read_conf() {
 	viper.SupportedExts = append(viper.SupportedExts, "conf")
@@ -324,17 +324,17 @@ func read_conf() {
 		} else {
 			randomrr = true
 		}
-		_chan_write := viper.GetBool("gslb.chan_write")
-		if _chan_write == false {
-			chan_write = false
+		_chan_out := viper.GetBool("gslb.chan_out")
+		if _chan_out == false {
+			chan_out = false
 		} else {
-			chan_write = true
+			chan_out = true
 		}
-		_chan_write_queue := viper.GetInt("gslb.chan_write_queue")
-		if _chan_write_queue < 1000 {
-			chan_write_queue = 1000
+		_chan_out_queue := viper.GetInt("gslb.chan_out_queue")
+		if _chan_out_queue < 1000 {
+			chan_out_queue = 1000
 		} else {
-			chan_write_queue = _chan_write_queue
+			chan_out_queue = _chan_out_queue
 		}
 
 		if *debug {
@@ -494,8 +494,8 @@ func main() {
 			D.IP_DN_Spliter = ip_dn_spliter
 			D.AC_DN_Spliter = ac_dn_spliter
 
-			D.ChanWrite = chan_write
-			D.ChanWriteQueue = chan_write_queue
+			D.ChanOut = chan_out
+			D.ChanOutQueue = chan_out_queue
 
 			H.HTTP_Cache_Size = http_cache_size
 			H.HTTP_Cache_TTL = int64(http_cache_ttl)
@@ -504,6 +504,8 @@ func main() {
 			H.HTTP_302_Param = http_302_param
 			H.RTMP_URL_HEADER = rtmp_url_header
 			H.RTMP_URL_MODE_HEADER = rtmp_url_mode_header
+			H.ChanOut = chan_out
+			H.ChanOutQueue = chan_out_queue
 
 			//init dns workers & http workers
 			var name, secret string

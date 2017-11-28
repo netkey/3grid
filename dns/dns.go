@@ -17,12 +17,12 @@ import (
 var (
 	Compress = flag.Bool("compress", false, "compress replies")
 
-	Bufsize        int
-	DN             string
-	IP_DN_Spliter  string
-	AC_DN_Spliter  string
-	ChanWrite      bool
-	ChanWriteQueue int
+	Bufsize       int
+	DN            string
+	IP_DN_Spliter string
+	AC_DN_Spliter string
+	ChanOut       bool
+	ChanOutQueue  int
 )
 
 const Default_ttl = 60
@@ -306,7 +306,7 @@ func (wkr *DNS_worker) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
 
 	//generate answer and send it
 	if m := wkr.RR(aaa, &q, w, r); m != nil {
-		if ChanWrite {
+		if ChanOut {
 			wkr.Chan <- WM{&w, m}
 		} else {
 			w.WriteMsg(m)
@@ -323,7 +323,7 @@ func (wkr *DNS_worker) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
 	G.Outlog3(G.LOG_DNS, "%s|%d|%s|%s", ips, r.Question[0].Qtype, _dn, strings.Join(aaa, ","))
 }
 
-func (wkr *DNS_worker) ChanWrite() {
+func (wkr *DNS_worker) ChanOut() {
 	for {
 		wm := <-wkr.Chan
 		w := *(wm.W)
@@ -387,9 +387,9 @@ func Working(nets, listen, port, name, secret string, num int, ipdb *IP.IP_db, r
 		G.OutDebug("Failed to listen port: %s", err)
 	}
 
-	if ChanWrite {
-		worker.Chan = make(chan WM, ChanWriteQueue)
-		go worker.ChanWrite()
+	if ChanOut {
+		worker.Chan = make(chan WM, ChanOutQueue)
+		go worker.ChanOut()
 	}
 
 	if err = worker.Server.ActivateAndServe(); err != nil {
