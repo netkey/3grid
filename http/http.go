@@ -4,7 +4,6 @@ import (
 	IP "3grid/ip"
 	RT "3grid/route"
 	G "3grid/tools/globals"
-	"bufio"
 	"bytes"
 	"compress/gzip"
 	"encoding/json"
@@ -46,10 +45,7 @@ type HTTP_worker struct {
 }
 
 type WB struct {
-	C *net.Conn
-	O *bufio.ReadWriter
 	W *http.ResponseWriter
-	R *http.Request
 	B *[]byte
 }
 
@@ -474,50 +470,40 @@ func (hw *HTTP_worker) HttpDns0(w http.ResponseWriter, r *http.Request) {
 				g.Close()
 
 				b = buf.Bytes()
-				w.Write(b)
+				hw.HttpOut0(&w, r, &b)
 				hw.UpdateCache(dn, ipac, key, &aaa, &b)
+
 			} else {
-				if ChanOut {
-					if _conn, _o, err := w.(http.Hijacker).Hijack(); err != nil {
-						hw.Chan <- WB{&_conn, _o, &w, r, &data}
-					} else {
-						w.Write(data)
-					}
-				} else {
-					w.Write(data)
-				}
+				hw.HttpOut0(&w, r, &data)
 				hw.UpdateCache(dn, ipac, key, &aaa, &data)
 			}
 		} else {
-			w.Write([]byte("data error"))
+			_b := []byte("data error")
+			hw.HttpOut0(&w, r, &_b)
 		}
 	} else {
 		w.Header().Set("X-Gslb-Cache", "Hit")
-		if ChanOut {
-			if _conn, _o, err := w.(http.Hijacker).Hijack(); err != nil {
-				hw.Chan <- WB{&_conn, _o, &w, r, body.Data}
-			} else {
-				w.Write(*body.Data)
-			}
-		} else {
-			w.Write(*body.Data)
-		}
+		hw.HttpOut0(&w, r, body.Data)
 		aip = (*body.AAA)[0]
 	}
 
 	G.Outlog3(G.LOG_HTTP, "Dns %s %s %s %s", client_ips, dn, ipac, aip)
 }
 
-func (hw *HTTP_worker) ChanOut() {
+func (hw *HTTP_worker) HttpOut0(w *http.ResponseWriter, r *http.Request, data *[]byte) {
+	//if ChanOut {
+	if false { //not implemented yet
+		hw.Chan <- WB{w, data}
+	} else {
+		(*w).Write(*data)
+	}
+}
+
+func (hw *HTTP_worker) ChanOut0() {
 	for {
 		wb := <-hw.Chan
-		c := *(wb.C)
-		o := *(wb.O)
-		o.Write(*wb.B)
-		o.Flush()
-		if r := *wb.R; r.Close == true {
-			c.Close()
-		}
+		w, b := *wb.W, *wb.B
+		w.Write(b)
 	}
 }
 
@@ -570,7 +556,7 @@ func Working(myname, listen string, port string, num int, ipdb *IP.IP_db, rtdb *
 			}
 			if ChanOut {
 				worker.Chan = make(chan WB, ChanOutQueue)
-				go worker.ChanOut()
+				go worker.ChanOut0()
 			}
 			if err := worker.Server0.Serve(listener); err != nil {
 				G.OutDebug2(G.LOG_GSLB, "Failed to serve: %s", err)
