@@ -4,6 +4,7 @@ import (
 	IP "3grid/ip"
 	RT "3grid/route"
 	G "3grid/tools/globals"
+	"bufio"
 	"bytes"
 	"compress/gzip"
 	"encoding/json"
@@ -45,7 +46,10 @@ type HTTP_worker struct {
 }
 
 type WB struct {
+	C *net.Conn
+	O *bufio.ReadWriter
 	W *http.ResponseWriter
+	R *http.Request
 	B *[]byte
 }
 
@@ -491,9 +495,12 @@ func (hw *HTTP_worker) HttpDns0(w http.ResponseWriter, r *http.Request) {
 }
 
 func (hw *HTTP_worker) HttpOut0(w *http.ResponseWriter, r *http.Request, data *[]byte) {
-	//if ChanOut {
 	if false { //not implemented yet
-		hw.Chan <- WB{w, data}
+		if c, o, err := (*w).(http.Hijacker).Hijack(); err == nil {
+			hw.Chan <- WB{&c, o, w, r, data}
+		} else {
+			(*w).Write(*data)
+		}
 	} else {
 		(*w).Write(*data)
 	}
@@ -502,8 +509,28 @@ func (hw *HTTP_worker) HttpOut0(w *http.ResponseWriter, r *http.Request, data *[
 func (hw *HTTP_worker) ChanOut0() {
 	for {
 		wb := <-hw.Chan
-		w, b := *wb.W, *wb.B
-		w.Write(b)
+		c, o, b, w, r := *wb.C, *wb.O, *wb.B, *wb.W, *wb.R
+
+		headers := r.Proto + " 200 ok\n"
+		w.Header().Set("Date", time.Now().Format(http.TimeFormat))
+		w.Header().Set("Content-Length", strconv.Itoa(len(b)))
+		for k, v := range w.Header() {
+			headers = headers + k + ": " + v[0] + "\n"
+		}
+		if r.ProtoMajor == 1 && r.ProtoMinor == 0 {
+			if !r.Close {
+				headers = headers + "Connection: keep-alive\n"
+			}
+		}
+		headers += "\n"
+
+		buf := append([]byte(headers), b...)
+		o.Write(buf)
+		o.Flush()
+
+		if r.Close {
+			c.Close()
+		}
 	}
 }
 
