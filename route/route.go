@@ -78,6 +78,7 @@ type Route_db struct {
 	Domains   map[string]Domain_List_Record         //string for domain name
 	Routes    map[string]map[uint]Route_List_Record //string for AreaCode, uint for RoutePlan ID
 	Cache     map[string]map[string]RT_Cache_Record //string for AreaCode, string for domain name
+	Nets      map[uint]map[uint]Net_Perf_Record     //uint for source node id, uint for target node id
 	Locks     map[string]*sync.RWMutex              //locks for writing dbs
 	CacheSize int64                                 //cache limit
 }
@@ -139,6 +140,11 @@ type RT_Cache_Record struct {
 	MAC    string
 }
 
+type Net_Perf_Record struct {
+	Rtt uint
+	Dls uint
+}
+
 func (rt_db *Route_db) RT_db_init() {
 	rt_db.Servers = make(map[uint]Server_List_Record)
 	rt_db.Ips = make(map[string]Server_List_Record)
@@ -146,9 +152,10 @@ func (rt_db *Route_db) RT_db_init() {
 	rt_db.Domains = make(map[string]Domain_List_Record)
 	rt_db.Routes = make(map[string]map[uint]Route_List_Record)
 	rt_db.Cache = make(map[string]map[string]RT_Cache_Record)
+	rt_db.Nets = make(map[uint]map[uint]Net_Perf_Record)
 
 	rt_db.Locks = map[string]*sync.RWMutex{"servers": new(sync.RWMutex), "ips": new(sync.RWMutex),
-		"nodes": new(sync.RWMutex), "domains": new(sync.RWMutex),
+		"nodes": new(sync.RWMutex), "domains": new(sync.RWMutex), "nets": new(sync.RWMutex),
 		"routes": new(sync.RWMutex), "cache": new(sync.RWMutex)}
 
 	rt_db.Chan = make(chan map[string]map[string]map[string]map[string][]string, 1000)

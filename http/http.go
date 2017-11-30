@@ -511,18 +511,18 @@ func (hw *HTTP_worker) ChanOut0() {
 		wb := <-hw.Chan
 		c, o, b, w, r := *wb.C, *wb.O, *wb.B, *wb.W, *wb.R
 
-		headers := r.Proto + " 200 ok\n"
+		headers := r.Proto + " 200 ok\r\n"
 		w.Header().Set("Date", time.Now().Format(http.TimeFormat))
 		w.Header().Set("Content-Length", strconv.Itoa(len(b)))
 		for k, v := range w.Header() {
-			headers = headers + k + ": " + v[0] + "\n"
+			headers = headers + k + ": " + v[0] + "\r\n"
 		}
 		if r.ProtoMajor == 1 && r.ProtoMinor == 0 {
 			if !r.Close {
-				headers = headers + "Connection: keep-alive\n"
+				headers = headers + "Connection: keep-alive\r\n"
 			}
 		}
-		headers += "\n"
+		headers += "\r\n"
 
 		buf := append([]byte(headers), b...)
 		o.Write(buf)
