@@ -358,11 +358,11 @@ func (rt_db *Route_db) GetAAA(query_dn string, acode string, ip net.IP, ips stri
 			sr := rt_db.Read_Server_Record(sid)
 			aaa[i] = sr.ServerIp
 
-			/* ServerIp2 for ipv6 address of server, in the future
-			if sr.ServerIp2 == "" {
+			/* ServerIpv6 for IPv6 address of server, in the future
+			if sr.ServerIpv6 == "" {
 				aaa[i] = sr.ServerIp
 			} else {
-				aaa[i] = sr.ServerIp + "|" + sr.ServerIp2
+				aaa[i] = sr.ServerIp + "&" + sr.ServerIpv6
 			} */
 
 			G.OutDebug2(G.LOG_SCHEDULER, "Select server: %s(%d) of Node: %d (u:%d w:%d s:%t)",
