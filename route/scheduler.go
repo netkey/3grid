@@ -238,7 +238,7 @@ func (rt_db *Route_db) GetAAA(query_dn string, acode string, ip net.IP, ips stri
 	}
 
 	if dr.Type != "" {
-		//not a CDN serving domain name, typically A CNAME NS
+		//not a CDN serving domain name, typically A/AAAA CNAME NS
 		var spli int
 		var s []string
 		aaa = []string{}
@@ -357,6 +357,13 @@ func (rt_db *Route_db) GetAAA(query_dn string, acode string, ip net.IP, ips stri
 		} else {
 			sr := rt_db.Read_Server_Record(sid)
 			aaa[i] = sr.ServerIp
+
+			/* ServerIp2 for ipv6 address of server, in the future
+			if sr.ServerIp2 == "" {
+				aaa[i] = sr.ServerIp
+			} else {
+				aaa[i] = sr.ServerIp + "|" + sr.ServerIp2
+			} */
 
 			G.OutDebug2(G.LOG_SCHEDULER, "Select server: %s(%d) of Node: %d (u:%d w:%d s:%t)",
 				sr.ServerIp, sr.ServerId, sr.NodeId, sr.Usage, sr.Weight, sr.Status)

@@ -94,14 +94,18 @@ func (wkr *DNS_worker) RR(aaa []string, q *DNS_query, w dns.ResponseWriter, r *d
 
 	if qtype = q.Query_Type; qtype != dns.TypeSOA {
 		switch q.Matched_Type {
-		case "A", "AAAA", "":
+		case "A", "":
 			qtype = dns.TypeA
+		case "AAAA":
+			qtype = dns.TypeAAAA
 		case "CNAME":
 			qtype = dns.TypeCNAME
 		case "TXT":
 			qtype = dns.TypeTXT
 		case "NS":
 			qtype = dns.TypeNS
+		default:
+			qtype = dns.TypeNone
 		}
 	}
 
@@ -139,7 +143,46 @@ func (wkr *DNS_worker) RR(aaa []string, q *DNS_query, w dns.ResponseWriter, r *d
 	*/
 
 	switch qtype {
-	case dns.TypeA, dns.TypeAAAA:
+	case dns.TypeNone:
+		for _, aa := range aaa {
+			if strings.Contains(aa, "&") {
+				aas := strings.Split(aa, "&")
+				v4 := false
+				v6 := false
+				if q.Query_Type == dns.TypeAAAA {
+					a = net.ParseIP(aas[1]) //ipv6
+					v6 = true
+				} else {
+					a = net.ParseIP(aas[0]) //ipv4
+					v4 = true
+				}
+				if v6 {
+					rr = &dns.AAAA{
+						Hdr: dns.RR_Header{Name: q.DN, Rrtype: dns.TypeAAAA,
+							Class: dns.ClassINET, Ttl: q.TTL},
+						AAAA: a,
+					}
+				} else if v4 {
+					rr = &dns.A{
+						Hdr: dns.RR_Header{Name: q.DN, Rrtype: dns.TypeA,
+							Class: dns.ClassINET, Ttl: q.TTL},
+						A: a.To4(),
+					}
+				}
+			} else {
+				rr = &dns.A{
+					Hdr: dns.RR_Header{Name: q.DN, Rrtype: dns.TypeA,
+						Class: dns.ClassINET, Ttl: q.TTL},
+					A: a.To4(),
+				}
+
+			}
+			m.Answer = append(m.Answer, rr)
+		}
+		if t != nil {
+			m.Extra = append(m.Extra, t)
+		}
+	case dns.TypeA:
 		for _, aa := range aaa {
 			a = net.ParseIP(aa)
 			rr = &dns.A{
@@ -149,6 +192,19 @@ func (wkr *DNS_worker) RR(aaa []string, q *DNS_query, w dns.ResponseWriter, r *d
 			}
 			m.Answer = append(m.Answer, rr)
 
+		}
+		if t != nil {
+			m.Extra = append(m.Extra, t)
+		}
+	case dns.TypeAAAA:
+		for _, aa := range aaa {
+			a = net.ParseIP(aa)
+			rr = &dns.AAAA{
+				Hdr: dns.RR_Header{Name: q.DN, Rrtype: dns.TypeAAAA,
+					Class: dns.ClassINET, Ttl: q.TTL},
+				AAAA: a,
+			}
+			m.Answer = append(m.Answer, rr)
 		}
 		if t != nil {
 			m.Extra = append(m.Extra, t)
