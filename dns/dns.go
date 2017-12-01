@@ -145,10 +145,11 @@ func (wkr *DNS_worker) RR(aaa []string, q *DNS_query, w dns.ResponseWriter, r *d
 	switch qtype {
 	case dns.TypeNone:
 		for _, aa := range aaa {
+			v4 := false
+			v6 := false
 			if strings.Contains(aa, "&") {
+				//ip pair of v4&v6
 				aas := strings.Split(aa, "&")
-				v4 := false
-				v6 := false
 				if q.Query_Type == dns.TypeAAAA {
 					a = net.ParseIP(aas[1]) //ipv6
 					v6 = true
@@ -170,10 +171,27 @@ func (wkr *DNS_worker) RR(aaa []string, q *DNS_query, w dns.ResponseWriter, r *d
 					}
 				}
 			} else {
-				rr = &dns.A{
-					Hdr: dns.RR_Header{Name: q.DN, Rrtype: dns.TypeA,
-						Class: dns.ClassINET, Ttl: q.TTL},
-					A: a.To4(),
+				//only one ip configured
+				if strings.Contains(aa, ":") {
+					a = net.ParseIP(aa) //ipv6
+					v6 = true
+					if q.Query_Type == dns.TypeAAAA {
+						rr = &dns.AAAA{
+							Hdr: dns.RR_Header{Name: q.DN, Rrtype: dns.TypeAAAA,
+								Class: dns.ClassINET, Ttl: q.TTL},
+							AAAA: a,
+						}
+					}
+				} else {
+					a = net.ParseIP(aa) //ipv4
+					v4 = true
+					if q.Query_Type == dns.TypeA {
+						rr = &dns.A{
+							Hdr: dns.RR_Header{Name: q.DN, Rrtype: dns.TypeA,
+								Class: dns.ClassINET, Ttl: q.TTL},
+							A: a.To4(),
+						}
+					}
 				}
 
 			}
