@@ -308,15 +308,24 @@ func (wkr *DNS_worker) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
 	debug = 0
 
 	ttl = Default_ttl
-	dn = r.Question[0].Name //query domain name
 
-	if strings.HasSuffix(dn, ".") {
-		_dn = dn[0 : len(dn)-1]
+	if r.Question != nil && len(r.Question) > 0 {
+		//query domain name
+		dn = r.Question[0].Name
 	} else {
-		_dn = dn
+		return
 	}
 
-	_dn = strings.ToLower(_dn)
+	if dn == "" {
+		return
+	} else {
+		if strings.HasSuffix(dn, ".") {
+			_dn = dn[0 : len(dn)-1]
+		} else {
+			_dn = dn
+		}
+		_dn = strings.ToLower(_dn)
+	}
 
 	if _udp_addr, ok := w.RemoteAddr().(*net.UDPAddr); ok {
 
