@@ -27,6 +27,7 @@ const (
 	AMQP_OBJ_CMDB    = "Cmdb"    //Object cm db
 	AMQP_OBJ_DOMAIN  = "Domain"  //Object domain db
 	AMQP_OBJ_API     = "Api"     //API request
+	AMQP_OBJ_NET     = "Net"     //Object net probe
 )
 
 type AMQP_Message struct {

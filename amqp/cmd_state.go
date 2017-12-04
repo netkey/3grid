@@ -71,6 +71,23 @@ func (c *Cmds) State(msg *AMQP_Message) error {
 			}
 		}
 
+	case AMQP_OBJ_NET:
+
+		for k, v := range *msg.Params {
+			if strings.Contains(k, ",") && strings.Contains(v, ",") {
+				ks := strings.Split(k, ",")
+				src_id, _ := strconv.Atoi(ks[0])
+				dst_id, _ := strconv.Atoi(ks[1])
+				vs := strings.Split(v, ",")
+				rtt, _ := strconv.Atoi(vs[0])
+				ds, _ := strconv.Atoi(vs[1])
+
+				perf := RT.Net_Perf_Record{RTT: uint(rtt), DS: uint(ds)}
+				RT.Rtdb.Update_NetPerf_Record(uint(src_id), uint(dst_id), &perf)
+				G.OutDebug("Net state: src:%d dst:%d rtt:%d ds:%d", src_id, dst_id, rtt, ds)
+			}
+		}
+
 	case AMQP_OBJ_IP:
 
 	case AMQP_OBJ_CONTROL:
