@@ -127,22 +127,22 @@ type Route_List_Record struct {
 }
 
 type PW_List_Record struct {
-	PW [2]uint //PW[0] for priority, PW[1] for weight
+	PW [2]uint //PW[0] for Priority, PW[1] for Weight
 }
 
 type RT_Cache_Record struct {
-	TS     int64
-	TTL    uint32
-	RR_TTL uint32
-	AAA    []string
-	TYPE   string
-	RID    uint
-	MAC    string
+	TS     int64    //Cache Time Stamp
+	TTL    uint32   //Time To Live(cache expire time)
+	RR_TTL uint32   //Random RR TTL
+	AAA    []string //A records of IP
+	TYPE   string   //Answer Type(A/CNAME/NS..)
+	RID    uint     //Route plan ID
+	MAC    string   //Matched AC
 }
 
 type Net_Perf_Record struct {
-	Rtt uint
-	Dls uint
+	RTT uint //Round Trip Time(ping)
+	DS  uint //Download Speed(kbps)
 }
 
 func (rt_db *Route_db) RT_db_init() {
@@ -858,4 +858,27 @@ func (rt_db *Route_db) Update_Cache_Record(dn string, ac string, r *RT_Cache_Rec
 		rt_db.Cache[ac][dn] = *r
 	}
 	rt_db.Locks["cache"].Unlock()
+}
+
+func (rt_db *Route_db) Read_NetPerf_Record(src, dst uint) Net_Perf_Record {
+	var r Net_Perf_Record
+
+	rt_db.Locks["nets"].RLock()
+	r = rt_db.Nets[src][dst]
+	rt_db.Locks["nets"].RUnlock()
+
+	return r
+}
+
+func (rt_db *Route_db) Update_NetPerf_Record(src, dst uint, r *Net_Perf_Record) {
+
+	rt_db.Locks["nets"].Lock()
+	if r == nil {
+		if rt_db.Nets[src] != nil {
+			delete(rt_db.Nets[src], dst)
+		}
+	} else {
+		rt_db.Nets[src][dst] = *r
+	}
+	rt_db.Locks["nets"].Unlock()
 }
