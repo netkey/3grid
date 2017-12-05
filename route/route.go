@@ -902,7 +902,7 @@ func (rt_db *Route_db) Read_NetPerf_Record_All_JSON() []byte {
 			if m[src_id] == nil {
 				m[src_id] = make(map[uint]map[string]uint)
 			}
-			m[src_id][dst_id] = map[string]uint{"rtt": r.RTT, "dlspeed": r.DS}
+			m[src_id][dst_id] = map[string]uint{"rtt": r.RTT, "ds": r.DS}
 		}
 	}
 
