@@ -74,17 +74,28 @@ func (c *Cmds) State(msg *AMQP_Message) error {
 	case AMQP_OBJ_NET:
 
 		for k, v := range *msg.Params {
-			if strings.Contains(k, ",") && strings.Contains(v, ",") {
+			if strings.Contains(k, ",") {
 				ks := strings.Split(k, ",")
-				src_id, _ := strconv.Atoi(ks[0])
-				dst_id, _ := strconv.Atoi(ks[1])
-				vs := strings.Split(v, ",")
-				rtt, _ := strconv.Atoi(vs[0])
-				ds, _ := strconv.Atoi(vs[1])
+				src_ip := ks[0]
+				dst_ip := ks[1]
+				probe_type := ks[2]
+				vx, _ := strconv.Atoi(v)
 
-				perf := RT.Net_Perf_Record{RTT: uint(rtt), DS: uint(ds)}
+				//get ip's node id
+				ir := RT.Rtdb.Read_IP_Record(src_ip)
+				src_id := ir.NodeId
+				ir = RT.Rtdb.Read_IP_Record(dst_ip)
+				dst_id := ir.NodeId
+
+				perf := RT.Rtdb.Read_NetPerf_Record(uint(src_id), uint(dst_id))
+				if probe_type == "source" {
+					perf.RTT = uint(vx)
+				} else if probe_type == "downl" {
+					perf.DS = uint(vx)
+				}
 				RT.Rtdb.Update_NetPerf_Record(uint(src_id), uint(dst_id), &perf)
-				G.OutDebug("Net state: src:%d dst:%d rtt:%d ds:%d", src_id, dst_id, rtt, ds)
+				G.Outlog3(G.LOG_AMQP, "Net state: src:%d dst:%d type:%s value:%d",
+					src_id, dst_id, probe_type, vx)
 			}
 		}
 
