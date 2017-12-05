@@ -60,5 +60,9 @@ nodeid   0       name        pri  weigh cost bandwidth  status  usage  type AC
 "137": {"0": ["CTC-ZHUZHOU", "1", "10", "0", "10000",   "1",   "0",   "A", ""]
 
 Object: 'Cmdb'
-
 Params: {'1': '0,0,0', '2.2.2.2':'0,0,0', '45': '0,0,0'}
+
+Object: 'Net'
+Params: {'1.2.3.4,5.6.7.8,source|downl':   '1234'}
+           src,    dst,    type            rtt|dlspeed
+
