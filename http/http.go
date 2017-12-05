@@ -61,6 +61,12 @@ type HTTP_Cache_Record struct {
 
 func (hw *HTTP_worker) Handler(ctx *fasthttp.RequestCtx) {
 	switch string(ctx.Path()) {
+	case "/cmdb":
+		hw.HttpCmdb(ctx)
+	case "/routes":
+		hw.HttpRoutes(ctx)
+	case "/netperfs":
+		hw.HttpNetperfs(ctx)
 	case "/dns":
 		hw.HttpDns(ctx)
 	default:
@@ -112,6 +118,21 @@ func (hw *HTTP_worker) UpdateCache(dn, ipac, key string, a *[]string, b *[]byte)
 		hw.CacheSize += 1
 	}
 	hw.CacheLock.Unlock()
+}
+
+func (hw *HTTP_worker) HttpCmdb(ctx *fasthttp.RequestCtx) {
+	ctx.Response.Header.Set("Content-Type", "application/json; charset=utf-8")
+	ctx.Write(RT.Rtdb.Read_Cmdb_Record_All_JSON())
+}
+
+func (hw *HTTP_worker) HttpRoutes(ctx *fasthttp.RequestCtx) {
+	ctx.Response.Header.Set("Content-Type", "application/json; charset=utf-8")
+	ctx.Write(RT.Rtdb.Read_Route_Record_All_JSON())
+}
+
+func (hw *HTTP_worker) HttpNetperfs(ctx *fasthttp.RequestCtx) {
+	ctx.Response.Header.Set("Content-Type", "application/json; charset=utf-8")
+	ctx.Write(RT.Rtdb.Read_NetPerf_Record_All_JSON())
 }
 
 //HTTP 302

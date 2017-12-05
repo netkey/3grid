@@ -864,7 +864,9 @@ func (rt_db *Route_db) Read_NetPerf_Record(src, dst uint) Net_Perf_Record {
 	var r Net_Perf_Record
 
 	rt_db.Locks["nets"].RLock()
-	r = rt_db.Nets[src][dst]
+	if rt_db.Nets[src] != nil {
+		r = rt_db.Nets[src][dst]
+	}
 	rt_db.Locks["nets"].RUnlock()
 
 	return r
@@ -878,7 +880,38 @@ func (rt_db *Route_db) Update_NetPerf_Record(src, dst uint, r *Net_Perf_Record) 
 			delete(rt_db.Nets[src], dst)
 		}
 	} else {
+		if rt_db.Nets[src] == nil {
+			rt_db.Nets[src] = make(map[uint]Net_Perf_Record)
+		}
 		rt_db.Nets[src][dst] = *r
 	}
 	rt_db.Locks["nets"].Unlock()
+}
+
+func (rt_db *Route_db) Read_NetPerf_Record_All_JSON() []byte {
+	var netperf_json []byte
+	var err error
+	var m = make(map[uint]map[uint]map[string]uint)
+
+	rt_db.Locks["nets"].RLock()
+	defer rt_db.Locks["nets"].RUnlock()
+
+	//NetPerf:map[uint]map[uint]Route_List_Record
+	for src_id, pps := range rt_db.Nets {
+		for dst_id, r := range pps {
+			if m[src_id] == nil {
+				m[src_id] = make(map[uint]map[string]uint)
+			}
+			m[src_id][dst_id] = map[string]uint{"rtt": r.RTT, "dlspeed": r.DS}
+		}
+	}
+
+	if netperf_json, err = json.Marshal(m); err != nil {
+		G.Outlog3(G.LOG_ROUTE, "Error marshaling nets data: %s", err)
+		return nil
+	} else {
+		G.OutDebug("Nets data: %+v", m)
+	}
+
+	return netperf_json
 }
