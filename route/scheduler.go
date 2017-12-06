@@ -693,6 +693,26 @@ func (rt_db *Route_db) Check_Net_Perf(client_ac string, nr, cnr *Node_List_Recor
 
 	if strings.HasPrefix(client_ac, MyACPrefix) {
 		//my node
+		clnr := rt_db.Read_Node_Record_AC(client_ac)
+		cl_nid := clnr.NodeId
+
+		nr_id := (*nr).NodeId
+		cnr_id := (*cnr).NodeId
+
+		n_pr := rt_db.Read_NetPerf_Record(cl_nid, nr_id)
+		c_pr := rt_db.Read_NetPerf_Record(cl_nid, cnr_id)
+
+		if n_pr.RTT > 0 && c_pr.RTT > 0 {
+			//have performance data
+			if n_pr.DS > c_pr.DS {
+				//nr has better performance than cnr(chosen node)
+				ret = true
+			}
+		}
+
+	} else {
+		//maybe client, not implemented
+		ret = false
 	}
 
 	return ret
