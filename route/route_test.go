@@ -39,7 +39,7 @@ func TestGetAAA(t *testing.T) {
 	dn := "image227-c.poco.cn.mmycdn.com"
 
 	//aaa, ttl, _type, ok, _ac := Rtdb.GetAAA(dn, ac, ip)
-	aaa, ttl, _type, ok, _ac, _, _ := Rtdb.GetAAA(dn, ac, ip, 0)
+	aaa, ttl, _type, ok, _ac, _, _ := Rtdb.GetAAA(dn, ac, ip, ip.String(), 0)
 
 	if _type == "" {
 		_type = "CDN"
@@ -63,7 +63,7 @@ func TestGetAAA2(t *testing.T) {
 	dn := "image227-c.poco.cn.mmy.ats"
 
 	//aaa, ttl, _type, ok, _ac := Rtdb.GetAAA(dn, ac, ip)
-	aaa, ttl, _type, ok, _ac, rid, _dn := Rtdb.GetAAA(dn, ac, ip, 0)
+	aaa, ttl, _type, ok, _ac, rid, _dn := Rtdb.GetAAA(dn, ac, ip, ip.String(), 0)
 
 	if _type == "" {
 		_type = "CDN"
@@ -91,7 +91,7 @@ func TestGetAAA3(t *testing.T) {
 	dn := "ns01.ctc.mmycdn.com"
 
 	//aaa, ttl, _type, ok, _ac := Rtdb.GetAAA(dn, ac, ip)
-	aaa, ttl, _type, ok, _ac, rid, _dn := Rtdb.GetAAA(dn, ac, ip, 0)
+	aaa, ttl, _type, ok, _ac, rid, _dn := Rtdb.GetAAA(dn, ac, ip, ip.String(), 0)
 
 	if _type == "" {
 		_type = "CDN"
@@ -119,7 +119,7 @@ func TGetAAA(t *testing.T) {
 	dn := "image227-c.poco.cn.mmycdn.com"
 
 	//aaa, ttl, _type, ok, _ac := Rtdb.GetAAA(dn, ac, ip)
-	aaa, ttl, _type, ok, _ac, _, _ := Rtdb.GetAAA(dn, ac, ip, 0)
+	aaa, ttl, _type, ok, _ac, _, _ := Rtdb.GetAAA(dn, ac, ip, ip.String(), 0)
 
 	if _type == "" {
 		_type = "CDN"

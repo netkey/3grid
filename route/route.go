@@ -75,6 +75,7 @@ type Route_db struct {
 	Servers   map[uint]Server_List_Record           //uint for server_id
 	Ips       map[string]Server_List_Record         //string for server_ip(net.IP.String())
 	Nodes     map[uint]Node_List_Record             //uint for nodeid
+	NodeACs   map[string]Node_List_Record           //string for node AC
 	Domains   map[string]Domain_List_Record         //string for domain name
 	Routes    map[string]map[uint]Route_List_Record //string for AreaCode, uint for RoutePlan ID
 	Cache     map[string]map[string]RT_Cache_Record //string for AreaCode, string for domain name
@@ -149,6 +150,7 @@ func (rt_db *Route_db) RT_db_init() {
 	rt_db.Servers = make(map[uint]Server_List_Record)
 	rt_db.Ips = make(map[string]Server_List_Record)
 	rt_db.Nodes = make(map[uint]Node_List_Record)
+	rt_db.NodeACs = make(map[string]Node_List_Record)
 	rt_db.Domains = make(map[string]Domain_List_Record)
 	rt_db.Routes = make(map[string]map[uint]Route_List_Record)
 	rt_db.Cache = make(map[string]map[string]RT_Cache_Record)
@@ -156,7 +158,7 @@ func (rt_db *Route_db) RT_db_init() {
 
 	rt_db.Locks = map[string]*sync.RWMutex{"servers": new(sync.RWMutex), "ips": new(sync.RWMutex),
 		"nodes": new(sync.RWMutex), "domains": new(sync.RWMutex), "nets": new(sync.RWMutex),
-		"routes": new(sync.RWMutex), "cache": new(sync.RWMutex)}
+		"routes": new(sync.RWMutex), "cache": new(sync.RWMutex), "nodeacs": new(sync.RWMutex)}
 
 	rt_db.Chan = make(chan map[string]map[string]map[string]map[string][]string, 1000)
 	Chan = &rt_db.Chan
@@ -585,10 +587,22 @@ func (rt_db *Route_db) Read_Node_Record(k uint) Node_List_Record {
 	return r
 }
 
+func (rt_db *Route_db) Read_Node_Record_AC(ac string) Node_List_Record {
+	var r Node_List_Record
+
+	rt_db.Locks["nodeacs"].RLock()
+	r = rt_db.NodeACs[ac]
+	rt_db.Locks["nodeacs"].RUnlock()
+
+	return r
+}
+
 func (rt_db *Route_db) Update_Node_Record(k uint, r *Node_List_Record) {
 	var _r Node_List_Record
+	var _ac string
 
 	rt_db.Locks["nodes"].Lock()
+	_ac = rt_db.Nodes[k].AC
 	if r == nil {
 		delete(rt_db.Nodes, k)
 	} else {
@@ -599,6 +613,16 @@ func (rt_db *Route_db) Update_Node_Record(k uint, r *Node_List_Record) {
 		rt_db.Nodes[k] = _r
 	}
 	rt_db.Locks["nodes"].Unlock()
+
+	if _ac != "" {
+		rt_db.Locks["nodeacs"].Lock()
+		if r == nil {
+			delete(rt_db.NodeACs, _ac)
+		} else {
+			rt_db.NodeACs[_ac] = _r
+		}
+		rt_db.Locks["nodeacs"].Unlock()
+	}
 }
 
 func (rt_db *Route_db) Convert_Route_Record(m map[string][]string) {
@@ -638,7 +662,9 @@ func (rt_db *Route_db) Read_Route_Record(k string, rid uint) Route_List_Record {
 	var r Route_List_Record
 
 	rt_db.Locks["routes"].RLock()
-	r = rt_db.Routes[k][rid]
+	if rt_db.Routes[k] != nil {
+		r = rt_db.Routes[k][rid]
+	}
 	rt_db.Locks["routes"].RUnlock()
 
 	return r

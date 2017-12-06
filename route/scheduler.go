@@ -571,6 +571,12 @@ func (rt_db *Route_db) ChooseNode(nodes map[uint]PW_List_Record, matched_ac, cli
 							nr.Name, nr.NodeId, ac2, client_ac)
 
 						snr, cnr, nid, priority, weight = cnr, nr, k, v.PW[0], v.PW[1]
+					} else {
+						//not nearby, but better net performance, goes here
+						/*
+							if _better:= rt_db.Check_Net_Perf(client_ac, &nr, &cnr); _better {
+							}
+						*/
 					}
 				}
 			} else if nr.Costs > cnr.Costs {
@@ -680,4 +686,14 @@ func (rt_db *Route_db) ChooseServer(servers []uint, servergroup uint) []uint {
 	}
 
 	return server_list
+}
+
+func (rt_db *Route_db) Check_Net_Perf(client_ac string, nr, cnr *Node_List_Record) bool {
+	var ret bool = false
+
+	if strings.HasPrefix(client_ac, MyACPrefix) {
+		//my node
+	}
+
+	return ret
 }
