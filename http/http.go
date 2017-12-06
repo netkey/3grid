@@ -26,6 +26,8 @@ var (
 	HTTP_Engine          string
 	HTTP_302_Mode        int
 	HTTP_302_Param       string
+	HTTP_SECRET_HEADER   string
+	HTTP_SECRET_TOKEN    string
 	RTMP_URL_MODE_HEADER string
 	RTMP_URL_HEADER      string
 	ChanOut              bool
@@ -65,8 +67,8 @@ func (hw *HTTP_worker) Handler(ctx *fasthttp.RequestCtx) {
 		hw.HttpCmdb(ctx)
 	case "/routes":
 		hw.HttpRoutes(ctx)
-	case "/netperfs":
-		hw.HttpNetperfs(ctx)
+	case "/nets":
+		hw.HttpNets(ctx)
 	case "/dns":
 		hw.HttpDns(ctx)
 	default:
@@ -121,18 +123,33 @@ func (hw *HTTP_worker) UpdateCache(dn, ipac, key string, a *[]string, b *[]byte)
 }
 
 func (hw *HTTP_worker) HttpCmdb(ctx *fasthttp.RequestCtx) {
-	ctx.Response.Header.Set("Content-Type", "application/json; charset=utf-8")
-	ctx.Write(RT.Rtdb.Read_Cmdb_Record_All_JSON())
+	auth_token := string(ctx.Request.Header.Peek(HTTP_SECRET_HEADER))
+	if auth_token != "" && auth_token == HTTP_SECRET_TOKEN {
+		ctx.Response.Header.Set("Content-Type", "application/json; charset=utf-8")
+		ctx.Write(RT.Rtdb.Read_Cmdb_Record_All_JSON())
+	} else {
+		ctx.Write([]byte("data error"))
+	}
 }
 
 func (hw *HTTP_worker) HttpRoutes(ctx *fasthttp.RequestCtx) {
-	ctx.Response.Header.Set("Content-Type", "application/json; charset=utf-8")
-	ctx.Write(RT.Rtdb.Read_Route_Record_All_JSON())
+	auth_token := string(ctx.Request.Header.Peek(HTTP_SECRET_HEADER))
+	if auth_token != "" && auth_token == HTTP_SECRET_TOKEN {
+		ctx.Response.Header.Set("Content-Type", "application/json; charset=utf-8")
+		ctx.Write(RT.Rtdb.Read_Route_Record_All_JSON())
+	} else {
+		ctx.Write([]byte("data error"))
+	}
 }
 
-func (hw *HTTP_worker) HttpNetperfs(ctx *fasthttp.RequestCtx) {
-	ctx.Response.Header.Set("Content-Type", "application/json; charset=utf-8")
-	ctx.Write(RT.Rtdb.Read_NetPerf_Record_All_JSON())
+func (hw *HTTP_worker) HttpNets(ctx *fasthttp.RequestCtx) {
+	auth_token := string(ctx.Request.Header.Peek(HTTP_SECRET_HEADER))
+	if auth_token != "" && auth_token == HTTP_SECRET_TOKEN {
+		ctx.Response.Header.Set("Content-Type", "application/json; charset=utf-8")
+		ctx.Write(RT.Rtdb.Read_NetPerf_Record_All_JSON())
+	} else {
+		ctx.Write([]byte("data error"))
+	}
 }
 
 //HTTP 302

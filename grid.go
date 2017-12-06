@@ -76,6 +76,8 @@ var rtmp_url_mode_header string
 var rtmp_url_header string
 var chan_out bool
 var chan_out_queue int
+var http_secret_header string
+var http_secret_token string
 
 func read_conf() {
 	viper.SupportedExts = append(viper.SupportedExts, "conf")
@@ -336,6 +338,18 @@ func read_conf() {
 		} else {
 			chan_out_queue = _chan_out_queue
 		}
+		_http_secret_header := viper.GetString("gslb.http_secret_header")
+		if _http_secret_header == "" {
+			http_secret_header = "X-Gslb-Auth"
+		} else {
+			http_secret_header = _http_secret_header
+		}
+		_http_secret_token := viper.GetString("gslb.http_secret_token")
+		if _http_secret_token == "" {
+			http_secret_token = ""
+		} else {
+			http_secret_token = _http_secret_token
+		}
 
 		if *debug {
 			debug_info = fmt.Sprintf("%s running - cpus:%d port:%s daemon:%t debug:%t interval:%d keepalive:%d myname:%s", myname, num_cpus, port, daemond, *debug, interval, keepalive, myname)
@@ -504,6 +518,8 @@ func main() {
 			H.HTTP_302_Param = http_302_param
 			H.RTMP_URL_HEADER = rtmp_url_header
 			H.RTMP_URL_MODE_HEADER = rtmp_url_mode_header
+			H.HTTP_SECRET_HEADER = http_secret_header
+			H.HTTP_SECRET_TOKEN = http_secret_token
 			H.ChanOut = chan_out
 			H.ChanOutQueue = chan_out_queue
 

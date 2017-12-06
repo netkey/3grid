@@ -915,3 +915,33 @@ func (rt_db *Route_db) Read_NetPerf_Record_All_JSON() []byte {
 
 	return netperf_json
 }
+
+func (rt_db *Route_db) Read_NetPerf_Record_All_JSON2() []byte {
+	var netperf_json []byte
+	var err error
+	var m = make(map[string]map[string]map[string][]string)
+
+	rt_db.Locks["nets"].RLock()
+	defer rt_db.Locks["nets"].RUnlock()
+
+	//NetPerf:map[uint]map[uint]Route_List_Record
+	for src_id, pps := range rt_db.Nets {
+		for dst_id, r := range pps {
+			sid := strconv.Itoa(int(src_id))
+			did := strconv.Itoa(int(dst_id))
+			if m[sid] == nil {
+				m[sid] = make(map[string]map[string][]string)
+			}
+			m[sid][did] = map[string][]string{"rtt": {strconv.Itoa(int(r.RTT))}, "ds": {strconv.Itoa(int(r.DS))}}
+		}
+	}
+
+	if netperf_json, err = json.Marshal(m); err != nil {
+		G.Outlog3(G.LOG_ROUTE, "Error marshaling nets data: %s", err)
+		return nil
+	} else {
+		G.OutDebug("Nets data: %+v", m)
+	}
+
+	return netperf_json
+}
