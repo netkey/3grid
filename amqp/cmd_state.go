@@ -94,8 +94,8 @@ func (c *Cmds) State(msg *AMQP_Message) error {
 					perf.DS = uint(vx)
 				}
 				RT.Rtdb.Update_NetPerf_Record(uint(src_id), uint(dst_id), &perf)
-				//G.Outlog3(G.LOG_AMQP, "Net state: src:%d dst:%d type:%s value:%d",
-				//	src_id, dst_id, probe_type, vx)
+				G.OutDebug("Net state: src:%d dst:%d type:%s value:%d",
+					src_id, dst_id, probe_type, vx)
 			}
 		}
 

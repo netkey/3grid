@@ -573,10 +573,12 @@ func (rt_db *Route_db) ChooseNode(nodes map[uint]PW_List_Record, matched_ac, cli
 						snr, cnr, nid, priority, weight = cnr, nr, k, v.PW[0], v.PW[1]
 					} else {
 						//not nearby, but better net performance, goes here
-						/*
-							if _better:= rt_db.Check_Net_Perf(client_ac, &nr, &cnr); _better {
-							}
-						*/
+						if _better := rt_db.Check_Net_Perf(matched_ac, &nr, &cnr); _better {
+							G.OutDebug2(G.LOG_SCHEDULER, "%s(%d)(%s) has better net performance to %s, use it",
+								nr.Name, nr.NodeId, ac2, matched_ac)
+
+							snr, cnr, nid, priority, weight = cnr, nr, k, v.PW[0], v.PW[1]
+						}
 					}
 				}
 			} else if nr.Costs > cnr.Costs {
@@ -688,12 +690,12 @@ func (rt_db *Route_db) ChooseServer(servers []uint, servergroup uint) []uint {
 	return server_list
 }
 
-func (rt_db *Route_db) Check_Net_Perf(client_ac string, nr, cnr *Node_List_Record) bool {
-	var ret bool = false
+func (rt_db *Route_db) Check_Net_Perf(ac string, nr, cnr *Node_List_Record) bool {
+	ret := false
 
-	if strings.HasPrefix(client_ac, MyACPrefix) {
+	if strings.HasPrefix(ac, MyACPrefix) {
 		//my node
-		clnr := rt_db.Read_Node_Record_AC(client_ac)
+		clnr := rt_db.Read_Node_Record_AC(ac[len(MyACPrefix)+1:])
 		cl_nid := clnr.NodeId
 
 		nr_id := (*nr).NodeId
@@ -702,17 +704,21 @@ func (rt_db *Route_db) Check_Net_Perf(client_ac string, nr, cnr *Node_List_Recor
 		n_pr := rt_db.Read_NetPerf_Record(cl_nid, nr_id)
 		c_pr := rt_db.Read_NetPerf_Record(cl_nid, cnr_id)
 
+		G.OutDebug2(G.LOG_SCHEDULER, "Check_Net_Perf: %s(%d) -> nid:%d/speed:%d vs nid:%d/speed:%d",
+			ac, clnr.NodeId, nr_id, n_pr.DS, cnr_id, c_pr.DS)
+
 		if n_pr.RTT > 0 && c_pr.RTT > 0 {
 			//have performance data
 			if n_pr.DS > c_pr.DS {
 				//nr has better performance than cnr(chosen node)
 				ret = true
 			}
+		} else {
+			//no enough perf data to compare
 		}
 
 	} else {
 		//maybe client, not implemented
-		ret = false
 	}
 
 	return ret

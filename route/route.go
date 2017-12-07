@@ -181,12 +181,12 @@ func (rt_db *Route_db) LoadDomaindb(_domain_records map[string][]string) error {
 
 		jf, err = ioutil.ReadFile(DM_Db_file)
 		if err != nil {
-			G.OutDebug(G.LOG_DEBUG, fmt.Sprintf("error reading domain db: %s", err))
+			G.OutDebug("error reading domain db: %s", err)
 		}
 
 		err = json.Unmarshal(jf, &domain_records)
 		if err != nil {
-			G.OutDebug(G.LOG_DEBUG, fmt.Sprintf("error unmarshaling domain db: %s", err))
+			G.OutDebug("error unmarshaling domain db: %s", err)
 		}
 	} else {
 		domain_records = _domain_records
@@ -269,6 +269,10 @@ func (rt_db *Route_db) LoadCMdb(_cmdb_records map[string]map[string][]string) er
 			G.Outlog(G.LOG_DEBUG, fmt.Sprintf("nodes data sample: %+v",
 				rt_db.Nodes[uint(keys[0].Uint())]))
 
+			/*keys = reflect.ValueOf(rt_db.NodeACs).MapKeys()
+			G.Outlog(G.LOG_DEBUG, fmt.Sprintf("nodeacs data sample: %+v",
+				rt_db.NodeACs[keys[0].String()]))
+			*/
 			keys = reflect.ValueOf(rt_db.Servers).MapKeys()
 			G.Outlog(G.LOG_DEBUG, fmt.Sprintf("servers data sample: %+v",
 				rt_db.Servers[uint(keys[0].Uint())]))
@@ -602,7 +606,6 @@ func (rt_db *Route_db) Update_Node_Record(k uint, r *Node_List_Record) {
 	var _ac string
 
 	rt_db.Locks["nodes"].Lock()
-	_ac = rt_db.Nodes[k].AC
 	if r == nil {
 		delete(rt_db.Nodes, k)
 	} else {
@@ -611,6 +614,7 @@ func (rt_db *Route_db) Update_Node_Record(k uint, r *Node_List_Record) {
 			_r.AC2 = ac2
 		}
 		rt_db.Nodes[k] = _r
+		_ac = _r.AC
 	}
 	rt_db.Locks["nodes"].Unlock()
 
@@ -619,9 +623,12 @@ func (rt_db *Route_db) Update_Node_Record(k uint, r *Node_List_Record) {
 		if r == nil {
 			delete(rt_db.NodeACs, _ac)
 		} else {
+
 			rt_db.NodeACs[_ac] = _r
 		}
 		rt_db.Locks["nodeacs"].Unlock()
+	} else {
+		//empty ac, not update rt_db.NodeACs
 	}
 }
 
