@@ -607,10 +607,10 @@ func (rt_db *Route_db) ChooseNode(nodes map[uint]PW_List_Record, matched_ac, cli
 		G.OutDebug2(G.LOG_SCHEDULER,
 			"Chosen node:%s(%d) p:%d w:%d u:%d c:%d s:%t, second node:%s(%d) u:%d c:%d s:%t, for ac:%s",
 			cnr.Name, cnr.NodeId, priority, weight, cnr.Usage, cnr.Costs, cnr.Status,
-			snr.Name, snr.NodeId, snr.Usage, snr.Costs, snr.Status, client_ac)
+			snr.Name, snr.NodeId, snr.Usage, snr.Costs, snr.Status, matched_ac)
 	} else if cnr.NodeId != 0 && snr.NodeId == 0 {
-		G.OutDebug2(G.LOG_SCHEDULER, "Chosen node:%s(%d) p:%d w:%d u:%d c:%d s:%t",
-			cnr.Name, cnr.NodeId, priority, weight, cnr.Usage, cnr.Costs, cnr.Status)
+		G.OutDebug2(G.LOG_SCHEDULER, "Chosen node:%s(%d) p:%d w:%d u:%d c:%d s:%t, for ac:%s",
+			cnr.Name, cnr.NodeId, priority, weight, cnr.Usage, cnr.Costs, cnr.Status, matched_ac)
 	} else if cnr.NodeId == 0 && snr.NodeId == 0 {
 		G.OutDebug2(G.LOG_SCHEDULER, "No further node being chosen")
 	}
@@ -711,6 +711,12 @@ func (rt_db *Route_db) Check_Net_Perf(ac string, nr, cnr *Node_List_Record) bool
 			//have performance data
 			if n_pr.DS > c_pr.DS {
 				//nr has better performance than cnr(chosen node)
+				ret = true
+			}
+		} else if n_pr.RTT > 0 && c_pr.RTT == 0 {
+			//cnr has no perf data
+			if n_pr.DS > c_pr.DS {
+				//nr maybe has better performance or not
 				ret = true
 			}
 		} else {
