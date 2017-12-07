@@ -704,7 +704,7 @@ func (rt_db *Route_db) Check_Net_Perf(ac string, nr, cnr *Node_List_Record) bool
 		n_pr := rt_db.Read_NetPerf_Record(cl_nid, nr_id)
 		c_pr := rt_db.Read_NetPerf_Record(cl_nid, cnr_id)
 
-		G.OutDebug2(G.LOG_SCHEDULER, "Check_Net_Perf: %s(%d) -> nid:%d/speed:%d vs nid:%d/speed:%d",
+		G.OutDebug2(G.LOG_SCHEDULER, "Check net perf: %s(%d) -> nid:%d/speed:%d vs nid:%d/speed:%d",
 			ac, clnr.NodeId, nr_id, n_pr.DS, cnr_id, c_pr.DS)
 
 		if n_pr.RTT > 0 && c_pr.RTT > 0 {
