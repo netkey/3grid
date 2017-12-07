@@ -104,6 +104,8 @@ IP库
 
 	服务器A记录随机排列	√
 
+	速度最佳路径算法	√
+
 其它	
 
 	GSLB主程序框架 （SMP、协程处理架构）	√	
@@ -123,6 +125,8 @@ IP库
 	miekg-dns-server-go.patch (添加reuse_port支持)	√	
 
 	GSLB master/worker(主控/工作)方式	√	
+
+	网络探测系统反馈接口		√
 
 	GSLB内部数据反馈（路由/CMDB）		√/√
 
