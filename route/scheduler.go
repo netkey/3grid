@@ -717,7 +717,7 @@ func (rt_db *Route_db) Check_Net_Perf(ac string, nr, cnr *Node_List_Record) bool
 			//cnr has no perf data
 			if n_pr.DS > c_pr.DS {
 				//nr maybe has better performance or not
-				ret = true
+				//ret = true
 			}
 		} else {
 			//no enough perf data to compare

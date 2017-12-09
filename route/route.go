@@ -603,32 +603,37 @@ func (rt_db *Route_db) Read_Node_Record_AC(ac string) Node_List_Record {
 
 func (rt_db *Route_db) Update_Node_Record(k uint, r *Node_List_Record) {
 	var _r Node_List_Record
-	var _ac string
+	var ac string
 
-	rt_db.Locks["nodes"].Lock()
+	rt_db.Locks["nodes"].RLock()
+	ac = rt_db.Nodes[k].AC
+	rt_db.Locks["nodes"].RUnlock()
+
 	if r == nil {
+		if ac != "" {
+			rt_db.Locks["nodeacs"].Lock()
+			delete(rt_db.NodeACs, ac)
+			rt_db.Locks["nodeacs"].Unlock()
+		}
+
+		rt_db.Locks["nodes"].Lock()
 		delete(rt_db.Nodes, k)
+		rt_db.Locks["nodes"].Unlock()
 	} else {
+		rt_db.Locks["nodes"].Lock()
 		_r = *r
 		if ac2 := rt_db.Nodes[k].AC2; ac2 != "" {
 			_r.AC2 = ac2
 		}
 		rt_db.Nodes[k] = _r
-		_ac = _r.AC
-	}
-	rt_db.Locks["nodes"].Unlock()
+		rt_db.Locks["nodes"].Unlock()
 
-	if _ac != "" {
-		rt_db.Locks["nodeacs"].Lock()
-		if r == nil {
-			delete(rt_db.NodeACs, _ac)
-		} else {
-
-			rt_db.NodeACs[_ac] = _r
+		ac = _r.AC
+		if ac != "" {
+			rt_db.Locks["nodeacs"].Lock()
+			rt_db.NodeACs[ac] = _r
+			rt_db.Locks["nodeacs"].Unlock()
 		}
-		rt_db.Locks["nodeacs"].Unlock()
-	} else {
-		//empty ac, not update rt_db.NodeACs
 	}
 }
 
