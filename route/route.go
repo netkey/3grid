@@ -421,6 +421,10 @@ func (rt_db *Route_db) Convert_Domain_Record(m map[string][]string) {
 				//for CDN client query name is r.Value, for regular is k
 				if r.Type == "" {
 					rt_db.Update_Domain_Record(r.Value, r)
+					if r.Value != k {
+						//for http 302, original domain name maybe required
+						rt_db.Update_Domain_Record(k, r)
+					}
 				} else {
 					rt_db.Update_Domain_Record(k, r)
 				}
