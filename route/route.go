@@ -455,6 +455,39 @@ func (rt_db *Route_db) Update_Domain_Record(k string, r *Domain_List_Record) {
 	rt_db.Locks["domains"].Unlock()
 }
 
+func (rt_db *Route_db) Read_Domain_Record_All_JSON() []byte {
+	var domain_json []byte
+	var err error
+	var m = make(map[string][]string)
+
+	rt_db.Locks["domains"].RLock()
+	defer rt_db.Locks["domains"].RUnlock()
+
+	for dn, r := range rt_db.Domains {
+		_rp := ""
+		for _, rid := range r.RoutePlan {
+			_rp = _rp + strconv.Itoa(int(rid)) + ","
+		}
+		_fb := ""
+		for _ac, _ := range r.Forbidden {
+			_fb = _fb + _ac + ","
+		}
+		m[dn] = []string{"name:" + r.Name, "type:" + r.Type, "value:" + r.Value, "priority:" + r.Priority,
+			"servergroup:" + strconv.Itoa(int(r.ServerGroup)),
+			"records:" + strconv.Itoa(int(r.Records)), "ttl:" + strconv.Itoa(int(r.TTL)),
+			"route_plan:" + _rp, "status:" + strconv.Itoa(int(r.Status)), "forbidden:" + _fb}
+	}
+
+	if domain_json, err = json.Marshal(m); err != nil {
+		G.Outlog3(G.LOG_ROUTE, "Error marshaling domains data: %s", err)
+		return nil
+	} else {
+		G.OutDebug("Domains data: %+v", m)
+	}
+
+	return domain_json
+}
+
 //Tag: SSS
 func (rt_db *Route_db) Convert_Server_Record(m map[string][]string) {
 	for k, v := range m {

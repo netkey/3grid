@@ -63,6 +63,8 @@ type HTTP_Cache_Record struct {
 
 func (hw *HTTP_worker) Handler(ctx *fasthttp.RequestCtx) {
 	switch string(ctx.Path()) {
+	case "/domains":
+		hw.HttpDomains(ctx)
 	case "/cmdb":
 		hw.HttpCmdb(ctx)
 	case "/routes":
@@ -120,6 +122,16 @@ func (hw *HTTP_worker) UpdateCache(dn, ipac, key string, a *[]string, b *[]byte)
 		hw.CacheSize += 1
 	}
 	hw.CacheLock.Unlock()
+}
+
+func (hw *HTTP_worker) HttpDomains(ctx *fasthttp.RequestCtx) {
+	auth_token := string(ctx.Request.Header.Peek(HTTP_SECRET_HEADER))
+	if auth_token != "" && auth_token == HTTP_SECRET_TOKEN {
+		ctx.Response.Header.Set("Content-Type", "application/json; charset=utf-8")
+		ctx.Write(RT.Rtdb.Read_Domain_Record_All_JSON())
+	} else {
+		ctx.Write([]byte("data error"))
+	}
 }
 
 func (hw *HTTP_worker) HttpCmdb(ctx *fasthttp.RequestCtx) {
